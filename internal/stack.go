@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+const (
+	// MaxDepth is the maximum depth we will go in the stack.
+	MaxDepth = 32
+)
+
 // Frame represents a function call on the call Stack.
 // This implementation is heavily based on
 // github.com/pkg/errors.Frame but all parts are resolved
@@ -144,4 +149,55 @@ func funcname(name string) string {
 	name = name[i+1:]
 	i = strings.Index(name, ".")
 	return name[i+1:]
+}
+
+// Here returns the Frame corresponding to where it was called,
+// or nil if it wasn't possible
+func Here() *Frame {
+	const depth = 1
+	var pcs [depth]uintptr
+
+	if n := runtime.Callers(2, pcs[:]); n > 0 {
+		f := frameForPC(pcs[0])
+		return &f
+	}
+	return nil
+}
+
+// StackFrame returns the Frame skip levels above from where it
+// was called, or nil if it wasn't possible
+func StackFrame(skip int) *Frame {
+	const depth = MaxDepth
+	var pcs [depth]uintptr
+
+	if n := runtime.Callers(2, pcs[:]); n > skip {
+		f := frameForPC(pcs[skip])
+		return &f
+	}
+
+	return nil
+}
+
+// StackTrace returns a snapshot of the call stack starting
+// skip levels above from where it was called, on an empty
+// array if it wasn't possible
+func StackTrace(skip int) Stack {
+	const depth = MaxDepth
+	var pcs [depth]uintptr
+	var st Stack
+
+	if n := runtime.Callers(2, pcs[:]); n > skip {
+		var frames []Frame
+
+		n = n - skip
+		frames = make([]Frame, 0, n)
+
+		for _, pc := range pcs[skip:n] {
+			frames = append(frames, frameForPC(pc))
+		}
+
+		st = Stack(frames)
+	}
+
+	return st
 }
