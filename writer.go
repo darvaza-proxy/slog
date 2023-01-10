@@ -9,8 +9,12 @@ var (
 	_ io.Writer = (*LogWriter)(nil)
 )
 
+// LogWriterFunc is the prototype of the functions
+// used to process and log Write() calls
 type LogWriterFunc func(Logger, string) error
 
+// LogWriter is a io.Writer that calls a given function
+// to log each Write() call
 type LogWriter struct {
 	l  Logger
 	fn LogWriterFunc
@@ -36,10 +40,12 @@ func (w *LogWriter) Write(p []byte) (n int, err error) {
 }
 
 func defaultLogWriter(l Logger, s string) error {
-	l.Printf("%s", s)
+	l.Print(s)
 	return nil
 }
 
+// NewLogWriter creates a new LogWriter with the given slog.Logger
+// and handler function
 func NewLogWriter(l Logger, fn LogWriterFunc) *LogWriter {
 	if l == nil {
 		return nil
