@@ -9,7 +9,7 @@ GOPATH ?= $(shell $(GO) env GOPATH)
 GOBIN ?= $(GOPATH)/bin
 
 REVIVE ?= $(GOBIN)/revive
-REVIVE_FLAGS ?= -formatter friendly
+REVIVE_RUN_ARGS ?= -formatter friendly -set_exit_status
 REVIVE_INSTALL_URL ?= github.com/mgechev/revive
 
 V = 0
