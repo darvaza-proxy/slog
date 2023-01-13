@@ -87,7 +87,7 @@ EOT
 
 		cat <<EOT
 $cmd-$k:${depsx:+ $depsx}${deps:+ $(expand $cmd $deps)}
-$(echo "$callx" | sed -e "/^$/d;" -e "s|^|\t@$cd|")
+$(echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|")
 
 EOT
 	done
