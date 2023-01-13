@@ -20,27 +20,25 @@ PROJECTS = logrus zap zerolog cblog
 
 TMPDIR ?= .tmp
 
-all: get generate fmt tidy build
+all: get generate tidy build
 
-clean:
+clean: ; $(info $(M) cleaning…)
 	rm -rf $(TMPDIR)
 
-$(TMPDIR)/gen.mk: tools/gen_mk.sh Makefile; $(info $(M) $< $(PROJECTS) > $@)
+$(TMPDIR)/gen.mk: tools/gen_mk.sh Makefile ; $(info $(M) generating subproject rules)
 	$Q mkdir -p $(@D)
 	$Q $< $(PROJECTS) > $@~
 	$Q if cmp $@ $@~ 2> /dev/null >&2; then rm $@~; else mv $@~ $@; fi
 
 include $(TMPDIR)/gen.mk
 
-fmt:
+fmt: ; $(info $(M) reformatting sources…)
 	$Q find . -name '*.go' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
 
 tidy: fmt
 
-generate:
-	$Q git grep -l '^//go:generate' | sed -n -e 's|\(.*\)/[^/]\+\.go$$|\1|p' | sort -u | while read d; do \
-		git grep -l '^//go:generate' "$$d"/*.go | xargs -r $(GO) generate $(GOGENERATE_FLAGS); \
-	done
+generate: ; $(info $(M) running go:generate…)
+	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
 $(REVIVE):
 	$Q $(GO) install -v $(REVIVE_INSTALL_URL)
