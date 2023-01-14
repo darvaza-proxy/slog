@@ -5,38 +5,40 @@ GOFMT ?= gofmt
 GOFMT_FLAGS = -w -l -s
 GOGENERATE_FLAGS = -v
 
+GOPATH ?= $(shell $(GO) env GOPATH)
 GOBIN ?= $(GOPATH)/bin
 
 REVIVE ?= $(GOBIN)/revive
-REVIVE_FLAGS ?= -formatter friendly
+REVIVE_RUN_ARGS ?= -formatter friendly -set_exit_status
 REVIVE_INSTALL_URL ?= github.com/mgechev/revive
+
+V = 0
+Q = $(if $(filter 1,$V),,@)
+M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
 
 PROJECTS = logrus zap zerolog cblog
 
 TMPDIR ?= .tmp
 
-all: get generate fmt tidy build
+all: get generate tidy build
 
-clean:
+clean: ; $(info $(M) cleaning…)
 	rm -rf $(TMPDIR)
 
-$(TMPDIR)/gen.mk: tools/gen_mk.sh Makefile
-	@echo "$< $(PROJECTS) > $@" >&2
-	@mkdir -p $(@D)
-	@$< $(PROJECTS) > $@~
-	@if cmp $@ $@~ 2> /dev/null >&2; then rm $@~; else mv $@~ $@; fi
+$(TMPDIR)/gen.mk: tools/gen_mk.sh Makefile ; $(info $(M) generating subproject rules)
+	$Q mkdir -p $(@D)
+	$Q $< $(PROJECTS) > $@~
+	$Q if cmp $@ $@~ 2> /dev/null >&2; then rm $@~; else mv $@~ $@; fi
 
 include $(TMPDIR)/gen.mk
 
-fmt:
-	@find . -name '*.go' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
+fmt: ; $(info $(M) reformatting sources…)
+	$Q find . -name '*.go' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
 
 tidy: fmt
 
-generate:
-	@git grep -l '^//go:generate' | sed -n -e 's|\(.*\)/[^/]\+\.go$$|\1|p' | sort -u | while read d; do \
-		git grep -l '^//go:generate' "$$d"/*.go | xargs -r $(GO) generate $(GOGENERATE_FLAGS); \
-	done
+generate: ; $(info $(M) running go:generate…)
+	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
 $(REVIVE):
-	$(GO) install -v $(REVIVE_INSTALL_URL)
+	$Q $(GO) install -v $(REVIVE_INSTALL_URL)
