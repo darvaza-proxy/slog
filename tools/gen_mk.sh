@@ -6,15 +6,31 @@ PROJECTS="$*"
 COMMANDS="get tidy build test up"
 
 expand() {
-	local prefix="$1" x=
-	shift
+	local prefix="$1" suffix="$2"
+	local x= out=
+	shift 2
+
 	for x; do
-		echo "$prefix-$x"
-	done | tr '\n' ' '
+		out="${out:+$out }${prefix}$x${suffix}"
+	done
+
+	echo "$out"
+}
+
+prefixed() {
+	local prefix="${1:+$1-}"
+	shift
+	expand "$prefix" "" "$@"
+}
+
+suffixed() {
+	local suffix="${1:+-$1}"
+	shift
+	expand "" "$suffix" "$@"
 }
 
 for cmd in $COMMANDS; do
-	all="$(expand $cmd root $PROJECTS)"
+	all="$(prefixed $cmd root $PROJECTS)"
 	depsx=
 
 	cat <<EOT
@@ -86,7 +102,7 @@ EOT
 		fi
 
 		cat <<EOT
-$cmd-$k:${deps:+ $(expand $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $k)
+$cmd-$k:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $k)
 $(echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|")
 
 EOT
@@ -94,13 +110,7 @@ EOT
 done
 
 for x in $PROJECTS; do
-	all=
-	for cmd in get build tidy; do
-		all="${all:+$all }$cmd-$x"
-	done
-
 	cat <<EOT
-$x: $all
-
+$x: $(suffixed $x get build tidy)
 EOT
 done
