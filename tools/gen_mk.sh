@@ -96,7 +96,7 @@ EOT
 		fi
 
 		if $sequential; then
-			deps="$(sed -n -e 's|^.*=> \.\?\./\([^/]\+\).*$|\1|p' "$x/go.mod" | tr '\n' ' ')"
+			deps="$(sed -n -e 's|^.*=> \.\?\./\([^/]\+\).*$|\1|p' "$x/go.mod" | grep -v "^\.\.$" | tr '\n' ' ')"
 		else
 			deps=
 		fi
