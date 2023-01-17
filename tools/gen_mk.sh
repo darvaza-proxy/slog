@@ -95,10 +95,9 @@ EOT
 			esac
 		fi
 
+		deps=
 		if $sequential; then
-			deps="$(sed -n -e 's|^.*=> \.\?\./\([^/]\+\).*$|\1|p' "$x/go.mod" | tr '\n' ' ')"
-		else
-			deps=
+			[ "$k" = root ] || deps=root
 		fi
 
 		cat <<EOT
