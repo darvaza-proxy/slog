@@ -55,32 +55,32 @@ func (zl *Logger) print(msg string) {
 	zl.event.Msg(strings.TrimSpace(msg))
 }
 
-// Debug returns a new logger set to add entries as level Debug.
+// Debug returns a new Event Context set to add entries as level Debug.
 func (zl *Logger) Debug() slog.Logger {
 	return zl.WithLevel(slog.Debug)
 }
 
-// Info returns a new logger set to add entries as level Info.
+// Info returns a new Event Context set to add entries as level Info.
 func (zl *Logger) Info() slog.Logger {
 	return zl.WithLevel(slog.Info)
 }
 
-// Warn returns a new logger set to add entries as level Warn.
+// Warn returns a new Event Context set to add entries as level Warn.
 func (zl *Logger) Warn() slog.Logger {
 	return zl.WithLevel(slog.Warn)
 }
 
-// Error returns a new logger set to add entries as level Error.
+// Error returns a new Event Context set to add entries as level Error.
 func (zl *Logger) Error() slog.Logger {
 	return zl.WithLevel(slog.Error)
 }
 
-// Fatal returns a new logger set to add entries as level Fatal.
+// Fatal returns a new Event Context set to add entries as level Fatal.
 func (zl *Logger) Fatal() slog.Logger {
 	return zl.WithLevel(slog.Fatal)
 }
 
-// WithLevel returns a new logger set to add entries to the specified level.
+// WithLevel returns a new Event Context set to add entries to the specified level.
 func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	var levels = []zerolog.Level{
 		slog.UndefinedLevel: zerolog.NoLevel,
@@ -108,37 +108,29 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	return zl
 }
 
-// WithStack attaches a call stack to a new logger.
+// WithStack attaches a call stack to the Event Context
 func (zl *Logger) WithStack(skip int) slog.Logger {
-	if !zl.Enabled() {
-		return zl // NOP
+	if zl.Enabled() {
+		zl.event.CallerSkipFrame(skip + 1)
+		zl.event.Stack()
 	}
-
-	return zl.NewWithCallback(func(ev *zerolog.Event) {
-		ev.CallerSkipFrame(skip + 2).Stack()
-	})
+	return zl
 }
 
-// WithField returns a new logger with a field attached.
+// WithField adds a field to the Event Context
 func (zl *Logger) WithField(label string, value any) slog.Logger {
-	if !zl.Enabled() {
-		return zl // NOP
+	if zl.Enabled() {
+		zl.event.Interface(label, value)
 	}
-
-	return zl.NewWithCallback(func(ev *zerolog.Event) {
-		ev.Interface(label, value)
-	})
+	return zl
 }
 
-// WithFields returns a new logger with a set of fields attached.
+// WithFields adds fields to the Event Context
 func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
-	if !zl.Enabled() {
-		return zl // NOP
+	if zl.Enabled() {
+		zl.event.Fields(fields)
 	}
-
-	return zl.NewWithCallback(func(ev *zerolog.Event) {
-		ev.Fields(fields)
-	})
+	return zl
 }
 
 // New creates a slog.Logger adaptor using a zerolog as backend, if
