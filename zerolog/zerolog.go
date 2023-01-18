@@ -3,6 +3,7 @@ package zerolog
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -128,7 +129,20 @@ func (zl *Logger) WithField(label string, value any) slog.Logger {
 // WithFields adds fields to the Event Context
 func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if zl.Enabled() {
-		zl.event.Fields(fields)
+		if l := len(fields); l > 0 {
+			// sort keys
+			keys := make([]string, 0, l)
+			for key := range fields {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+
+			// append in order
+			ev := zl.event
+			for _, key := range keys {
+				ev.Interface(key, fields[key])
+			}
+		}
 	}
 	return zl
 }
