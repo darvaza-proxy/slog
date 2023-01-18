@@ -28,7 +28,7 @@ type Logger interface {
 	Printf(string, ...any) // Printf adds a log entry handled in the manner of fmt.Printf
 
 	WithLevel(LogLevel) Logger        // WithLevel returns a new log context set to add entries to the specified level
-	WithStack(int) Logger             // WithStack attaches a call stack a new log context
-	WithField(string, any) Logger     // WithField attaches a field to a new log context
-	WithFields(map[string]any) Logger // WithFields attaches a set of fields to a new log context
+	WithStack(int) Logger             // WithStack attaches a call stack a log context
+	WithField(string, any) Logger     // WithField attaches a field to a log context
+	WithFields(map[string]any) Logger // WithFields attaches a set of fields to a log context
 }
