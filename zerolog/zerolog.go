@@ -20,27 +20,14 @@ type Logger struct {
 	event  *zerolog.Event
 }
 
-// GetEvent returns the current zerolog.Event
-func (zl *Logger) GetEvent() *zerolog.Event {
-	ev := zl.event
-	if ev == nil {
-		ev = zl.logger.Log()
-	}
-	return ev
-}
-
 // Enabled tells if the underlying logger is enabled or not.
 func (zl *Logger) Enabled() bool {
 	if zl == nil || zl.logger == nil || zl.logger.GetLevel() == zerolog.Disabled {
 		// logger disabled
 		return false
-	} else if zl.event != nil && !zl.event.Enabled() {
-		// event disabled
-		return false
-	} else {
-		// logger enabled, and if we have an event it's enabled too
-		return true
 	}
+
+	return zl.event.Enabled()
 }
 
 // Print adds a log entry with arguments handled in the manner of fmt.Print.
@@ -65,8 +52,7 @@ func (zl *Logger) Printf(format string, args ...any) {
 }
 
 func (zl *Logger) print(msg string) {
-	zl.GetEvent().
-		Msg(strings.TrimSpace(msg))
+	zl.event.Msg(strings.TrimSpace(msg))
 }
 
 // Debug returns a new logger set to add entries as level Debug.
@@ -114,10 +100,8 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 		zlevel := levels[level]
 
 		// new event
-		return &Logger{
-			logger: zl.logger,
-			event:  zl.logger.WithLevel(zlevel),
-		}
+		ev := zl.logger.WithLevel(zlevel)
+		return newLogger(zl.logger, ev)
 	}
 
 	// NOP
@@ -130,8 +114,8 @@ func (zl *Logger) WithStack(skip int) slog.Logger {
 		return zl // NOP
 	}
 
-	return zl.NewWithCallback(func(ev *zerolog.Event) *zerolog.Event {
-		return ev.CallerSkipFrame(skip + 2).Stack()
+	return zl.NewWithCallback(func(ev *zerolog.Event) {
+		ev.CallerSkipFrame(skip + 2).Stack()
 	})
 }
 
@@ -141,8 +125,8 @@ func (zl *Logger) WithField(label string, value any) slog.Logger {
 		return zl // NOP
 	}
 
-	return zl.NewWithCallback(func(ev *zerolog.Event) *zerolog.Event {
-		return ev.Interface(label, value)
+	return zl.NewWithCallback(func(ev *zerolog.Event) {
+		ev.Interface(label, value)
 	})
 }
 
@@ -152,37 +136,41 @@ func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
 		return zl // NOP
 	}
 
-	return zl.NewWithCallback(func(ev *zerolog.Event) *zerolog.Event {
-		return ev.Fields(fields)
+	return zl.NewWithCallback(func(ev *zerolog.Event) {
+		ev.Fields(fields)
 	})
 }
 
 // New creates a slog.Logger adaptor using a zerolog as backend, if
 // one was passed.
 func New(logger *zerolog.Logger) slog.Logger {
-	var zl *Logger
 
-	if logger != nil {
-		zl = &Logger{
-			logger: logger,
-		}
+	if logger == nil {
+		return nil
 	}
 
-	return zl
+	return newLogger(logger, nil)
 }
 
 // NewWithCallback creates a new zerolog.Event using a callback to modify it.
-func (zl *Logger) NewWithCallback(fn func(ev *zerolog.Event) *zerolog.Event) *Logger {
+func (zl *Logger) NewWithCallback(fn func(ev *zerolog.Event)) *Logger {
 
-	ev := zl.GetEvent()
+	// new event
+	ev := zl.logger.Log()
 	if fn != nil {
-		if ev1 := fn(ev); ev1 != nil {
-			ev = ev1
-		}
+		fn(ev)
+	}
+
+	return newLogger(zl.logger, ev)
+}
+
+func newLogger(logger *zerolog.Logger, ev *zerolog.Event) *Logger {
+	if ev == nil {
+		ev = logger.Log()
 	}
 
 	return &Logger{
-		logger: zl.logger,
+		logger: logger,
 		event:  ev,
 	}
 }
