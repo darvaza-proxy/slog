@@ -29,31 +29,37 @@ func (zl *Logger) GetEvent() *zerolog.Event {
 	return ev
 }
 
-// IsDisabled tells if the underlying logger is disabled or not.
-func (zl *Logger) IsDisabled() bool {
+// Enabled tells if the underlying logger is enabled or not.
+func (zl *Logger) Enabled() bool {
 	if zl == nil || zl.logger == nil || zl.logger.GetLevel() == zerolog.Disabled {
+		// logger disabled
+		return false
+	} else if zl.event != nil && !zl.event.Enabled() {
+		// event disabled
+		return false
+	} else {
+		// logger enabled, and if we have an event it's enabled too
 		return true
 	}
-	return false
 }
 
 // Print adds a log entry with arguments handled in the manner of fmt.Print.
 func (zl *Logger) Print(args ...any) {
-	if !zl.IsDisabled() {
+	if zl.Enabled() {
 		zl.print(fmt.Sprint(args...))
 	}
 }
 
 // Println adds a log entry with arguments handled in the manner of fmt.Println.
 func (zl *Logger) Println(args ...any) {
-	if !zl.IsDisabled() {
+	if zl.Enabled() {
 		zl.print(fmt.Sprintln(args...))
 	}
 }
 
 // Printf adds a log entry with arguments handled in the manner of fmt.Printf.
 func (zl *Logger) Printf(format string, args ...any) {
-	if !zl.IsDisabled() {
+	if zl.Enabled() {
 		zl.print(fmt.Sprintf(format, args...))
 	}
 }
@@ -104,12 +110,7 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 		err := fmt.Errorf("slog: invalid log level %v", level)
 		zl.logger.Panic().Stack().Err(err).Send()
 
-		// unreachable
-		return zl
-	} else if zl.IsDisabled() {
-		// don't bother, it's disabled
-		return zl
-	} else {
+	} else if zl.Enabled() {
 		zlevel := levels[level]
 
 		// new event
@@ -118,11 +119,14 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 			event:  zl.logger.WithLevel(zlevel),
 		}
 	}
+
+	// NOP
+	return zl
 }
 
 // WithStack attaches a call stack to a new logger.
 func (zl *Logger) WithStack(skip int) slog.Logger {
-	if zl.IsDisabled() {
+	if !zl.Enabled() {
 		return zl // NOP
 	}
 
@@ -133,7 +137,7 @@ func (zl *Logger) WithStack(skip int) slog.Logger {
 
 // WithField returns a new logger with a field attached.
 func (zl *Logger) WithField(label string, value any) slog.Logger {
-	if zl.IsDisabled() {
+	if !zl.Enabled() {
 		return zl // NOP
 	}
 
@@ -144,7 +148,7 @@ func (zl *Logger) WithField(label string, value any) slog.Logger {
 
 // WithFields returns a new logger with a set of fields attached.
 func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
-	if zl.IsDisabled() {
+	if !zl.Enabled() {
 		return zl // NOP
 	}
 
