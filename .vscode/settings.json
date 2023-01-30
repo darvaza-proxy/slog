@@ -2,6 +2,7 @@
 	"files.exclude": {
 		"cblog": true,
 		"logrus": true,
+		"noop": true,
 		"zap": true,
 		"zerolog": true
 	}

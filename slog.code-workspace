@@ -10,6 +10,9 @@
 			"path": "logrus"
 		},
 		{
+			"path": "noop"
+		},
+		{
 			"path": "zap"
 		},
 		{
