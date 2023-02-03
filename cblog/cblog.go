@@ -39,6 +39,16 @@ type cblog struct {
 	Logger
 }
 
+// Enabled tells this logger is enabled
+func (l *Logger) Enabled() bool {
+	return true
+}
+
+// WithEnabled passes the logger and if it's enabled
+func (l *Logger) WithEnabled() (slog.Logger, bool) {
+	return l, true
+}
+
 // Print adds a log entry with arguments handled in the manner of fmt.Print
 func (l *Logger) Print(args ...any) {
 	l.sendMsg(fmt.Sprint(args...))

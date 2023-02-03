@@ -18,6 +18,16 @@ type Logger struct {
 	entry *logrus.Logger
 }
 
+// Enabled tells if the logger is enabled
+func (rl *Logger) Enabled() bool {
+	return false
+}
+
+// WithEnabled tells if the logger would log or not
+func (rl *Logger) WithEnabled() (slog.Logger, bool) {
+	return rl, false
+}
+
 // Print adds a log entry with arguments handled in the manner of fmt.Print
 func (rl *Logger) Print(args ...any) {
 	rl.print(fmt.Sprint(args...))

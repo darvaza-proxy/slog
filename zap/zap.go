@@ -22,6 +22,16 @@ type Logger struct {
 	entry LoggerEntry
 }
 
+// Enabled tells this logger is enabled
+func (zl *Logger) Enabled() bool {
+	return true
+}
+
+// WithEnabled passes the logger and if it's enabled
+func (zl *Logger) WithEnabled() (slog.Logger, bool) {
+	return zl, true
+}
+
 // Print adds a log entry with arguments handled in the manner of fmt.Print
 func (zl *Logger) Print(args ...any) {
 	zl.print(fmt.Sprint(args...))

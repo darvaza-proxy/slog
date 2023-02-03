@@ -31,4 +31,18 @@ type Logger interface {
 	WithStack(int) Logger             // WithStack attaches a call stack a log context
 	WithField(string, any) Logger     // WithField attaches a field to a log context
 	WithFields(map[string]any) Logger // WithFields attaches a set of fields to a log context
+
+	// Enabled tells if the Logger would actually log
+	Enabled() bool
+
+	// WithEnabled tells if Enabled but also passes a reference to
+	// the logger for convenience when choosing what to log
+	//
+	// e.g.
+	// if log, ok := logger.Debug().WithEnabled(); ok {
+	//    log.Print("Let's write detailed debug stuff")
+	// } elseif log, ok := logger.Info().WithEnabled(); ok {
+	//    log.Print("Let's write info stuff instead")
+	// }
+	WithEnabled() (Logger, bool)
 }

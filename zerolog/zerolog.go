@@ -31,6 +31,11 @@ func (zl *Logger) Enabled() bool {
 	return zl.event.Enabled()
 }
 
+// WithEnabled tells if the logger would log or not
+func (zl *Logger) WithEnabled() (slog.Logger, bool) {
+	return zl, zl.Enabled()
+}
+
 // Print adds a log entry with arguments handled in the manner of fmt.Print.
 func (zl *Logger) Print(args ...any) {
 	if zl.Enabled() {
