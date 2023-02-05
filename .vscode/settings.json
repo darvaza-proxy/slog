@@ -1,8 +1,8 @@
 {
 	"files.exclude": {
+		"cblog": true,
 		"logrus": true,
 		"zap": true,
-		"zerolog": true,
-		"cblog": true
+		"zerolog": true
 	}
 }

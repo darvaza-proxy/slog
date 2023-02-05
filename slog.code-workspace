@@ -1,6 +1,12 @@
 {
 	"folders": [
 		{
+			"path": "."
+		},
+		{
+			"path": "cblog"
+		},
+		{
 			"path": "logrus"
 		},
 		{
@@ -8,12 +14,6 @@
 		},
 		{
 			"path": "zerolog"
-		},
-		{
-			"path": "cblog"
-		},
-		{
-			"path": "."
 		},
 	]
 }
