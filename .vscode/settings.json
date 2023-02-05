@@ -1,6 +1,7 @@
 {
 	"files.exclude": {
 		"cblog": true,
+		"filtered": true,
 		"logrus": true,
 		"noop": true,
 		"zap": true,
