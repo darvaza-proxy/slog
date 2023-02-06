@@ -2,7 +2,7 @@
 package slog
 
 // LogLevel represents the level of criticality of a log entry
-type LogLevel uint
+type LogLevel int8
 
 const (
 	// UndefinedLevel is a placeholder for the zero-value when no level has been set
