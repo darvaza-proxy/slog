@@ -1,19 +1,22 @@
 {
 	"folders": [
 		{
+			"path": "."
+		},
+		{
+			"path": "cblog"
+		},
+		{
 			"path": "logrus"
+		},
+		{
+			"path": "noop"
 		},
 		{
 			"path": "zap"
 		},
 		{
 			"path": "zerolog"
-		},
-		{
-			"path": "cblog"
-		},
-		{
-			"path": "."
 		},
 	]
 }
