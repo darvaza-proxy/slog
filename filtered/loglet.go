@@ -37,22 +37,36 @@ func (l *Loglet) WithEnabled() (slog.Logger, bool) {
 // Print would, if conditions are met, add a log entry with the arguments in the manner of fmt.Print
 func (l *Loglet) Print(args ...any) {
 	if l.Enabled() {
-		l.entry.Print(fmt.Sprint(args...))
+		l.print(fmt.Sprint(args...))
 	}
 }
 
 // Println would, if conditions are met, add a log entry with the arguments in the manner of fmt.Println
 func (l *Loglet) Println(args ...any) {
 	if l.Enabled() {
-		l.entry.Print(fmt.Sprintln(args...))
+		l.print(fmt.Sprintln(args...))
 	}
 }
 
 // Printf would, if conditions are met, add a log entry with the arguments in the manner of fmt.Printf
 func (l *Loglet) Printf(format string, args ...any) {
 	if l.Enabled() {
-		l.entry.Print(fmt.Sprintf(format, args...))
+		l.print(fmt.Sprintf(format, args...))
 	}
+}
+
+// print applies MessageFilter before sending the message to
+// the parent Logger
+func (l *Loglet) print(msg string) {
+	if fn := l.logger.MessageFilter; fn != nil {
+		var ok bool
+
+		msg, ok = fn(msg)
+		if !ok {
+			return
+		}
+	}
+	l.entry.Print(msg)
 }
 
 // Debug creates a new filtered logger on level slog.Debug

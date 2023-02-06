@@ -22,6 +22,10 @@ type Logger struct {
 	// FieldFilter allows us to modify filters before passing them
 	// to the Parent logger
 	FieldFilter func(key string, val any) (string, any, bool)
+
+	// MessageFilter allows us to modify Print() messages before passing
+	// them to the Parent logger, on completely discard the entry
+	MessageFilter func(msg string) (string, bool)
 }
 
 // Enabled tells this logger doesn't log anything, but WithLevel() might
