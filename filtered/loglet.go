@@ -111,7 +111,10 @@ func (l *Loglet) WithStack(skip int) slog.Logger {
 // field could be altered if a FieldFilter is used
 func (l *Loglet) WithField(label string, value any) slog.Logger {
 	if l.Enabled() {
-		if fn := l.logger.FieldFilter; fn == nil {
+		if fn := l.logger.FieldOverride; fn != nil {
+			// intercepted
+			fn(l.entry, label, value)
+		} else if fn := l.logger.FieldFilter; fn == nil {
 			// as-is
 			l.entry.WithField(label, value)
 		} else if label, value, ok := fn(label, value); ok {
@@ -129,6 +132,14 @@ func (l *Loglet) WithFields(fields map[string]any) slog.Logger {
 		// skip empty
 	} else if !l.Enabled() {
 		// skip disabled
+	} else if fn := l.logger.FieldsOverride; fn != nil {
+		// intercepted
+		fn(l.entry, fields)
+	} else if fn := l.logger.FieldOverride; fn != nil {
+		// intercepted
+		for label, value := range fields {
+			fn(l.entry, label, value)
+		}
 	} else if fn := l.logger.FieldFilter; fn == nil {
 		// as-is
 		l.entry.WithFields(fields)

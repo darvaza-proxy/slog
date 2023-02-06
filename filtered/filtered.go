@@ -23,6 +23,14 @@ type Logger struct {
 	// to the Parent logger
 	FieldFilter func(key string, val any) (string, any, bool)
 
+	// FieldOverride intercepts calls to WithField() on enabled loggers
+	// to let you transform the field
+	FieldOverride func(entry slog.Logger, key string, val any)
+
+	// FieldsOverride intercepts calls to WithFields() on enabled loggers
+	// to let you transform the fields
+	FieldsOverride func(entry slog.Logger, fields map[string]any)
+
 	// MessageFilter allows us to modify Print() messages before passing
 	// them to the Parent logger, on completely discard the entry
 	MessageFilter func(msg string) (string, bool)
