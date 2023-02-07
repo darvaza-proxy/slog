@@ -11,6 +11,10 @@ import (
 	"github.com/darvaza-proxy/slog"
 )
 
+const (
+	ErrorFieldName = "error"
+)
+
 var (
 	_ slog.Logger = (*Logger)(nil)
 )
@@ -126,7 +130,7 @@ func (zl *Logger) WithStack(skip int) slog.Logger {
 // WithField adds a field to the Event Context
 func (zl *Logger) WithField(label string, value any) slog.Logger {
 	if zl.Enabled() {
-		zl.event.Interface(label, value)
+		zl.withField(label, value)
 	}
 	return zl
 }
@@ -143,13 +147,22 @@ func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
 			sort.Strings(keys)
 
 			// append in order
-			ev := zl.event
 			for _, key := range keys {
-				ev.Interface(key, fields[key])
+				zl.withField(key, fields[key])
 			}
 		}
 	}
 	return zl
+}
+
+func (zl *Logger) withField(label string, value any) {
+	if label == zerolog.ErrorFieldName {
+		if err, ok := value.(error); ok {
+			zl.event.Err(err)
+			return
+		}
+	}
+	zl.event.Interface(label, value)
 }
 
 // New creates a slog.Logger adaptor using a zerolog as backend, if
