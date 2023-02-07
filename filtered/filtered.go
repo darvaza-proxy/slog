@@ -2,8 +2,6 @@
 package filtered
 
 import (
-	"errors"
-
 	"github.com/darvaza-proxy/slog"
 )
 
@@ -72,10 +70,19 @@ func (l *Logger) Fatal() slog.Logger { return l.WithLevel(slog.Fatal) }
 
 // WithLevel returns a filtered logger set to the given level
 func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
+	var entry slog.Logger
+
+	if l.Parent != nil {
+		entry = l.Parent.WithLevel(level)
+	} else if level != slog.Fatal {
+		// Parentless non-Fatal, NOOP
+		return l
+	}
+
 	return &LogEntry{
 		logger: l,
 		level:  level,
-		entry:  l.Parent.WithLevel(level),
+		entry:  entry,
 	}
 }
 
@@ -90,15 +97,20 @@ func (l *Logger) WithFields(fields map[string]any) slog.Logger { return l }
 
 // New creates a new filtered log factory at a given level. Logger can be manually
 // initialised as well. Defaults filter entries at level slog.Error or higher
+// Parentless is treated as `noop`, with Fatal implemented like log.Fatal
 func New(parent slog.Logger, threshold slog.LogLevel) slog.Logger {
 	if parent == nil {
-		panic(errors.New("parent logger missing"))
-	}
-	if threshold <= slog.UndefinedLevel {
+		threshold = slog.Fatal
+	} else if threshold <= slog.UndefinedLevel {
 		threshold = slog.Error
 	}
 	return &Logger{
 		Parent:    parent,
 		Threshold: threshold,
 	}
+}
+
+// NewNoop creates a new filtered log factory that only implements Fatal().Print()
+func NewNoop() slog.Logger {
+	return New(nil, slog.Fatal)
 }

@@ -2,6 +2,8 @@ package filtered
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/darvaza-proxy/slog"
 )
@@ -20,12 +22,14 @@ type LogEntry struct {
 
 // Enabled tells this logger would record logs
 func (l *LogEntry) Enabled() bool {
-	if l == nil || l.logger == nil || l.entry == nil {
+	if l == nil || l.logger == nil {
 		return false
 	} else if l.level <= slog.UndefinedLevel || l.level > l.logger.Threshold {
 		return false
-	} else {
+	} else if l.entry != nil {
 		return l.entry.Enabled()
+	} else {
+		return l.level == slog.Fatal
 	}
 }
 
@@ -58,6 +62,11 @@ func (l *LogEntry) Printf(format string, args ...any) {
 // print applies MessageFilter before sending the message to
 // the parent Logger
 func (l *LogEntry) print(msg string) {
+	if l.entry == nil {
+		// log.Fatal()
+		log.Output(3, msg)
+		os.Exit(1)
+	}
 	if fn := l.logger.MessageFilter; fn != nil {
 		var ok bool
 
@@ -101,7 +110,7 @@ func (l *LogEntry) WithLevel(level slog.LogLevel) slog.Logger {
 
 // WithStack would, if conditions are met, attach a call stack to the log entry
 func (l *LogEntry) WithStack(skip int) slog.Logger {
-	if l.Enabled() {
+	if l.Enabled() && l.entry != nil {
 		l.entry.WithStack(skip + 1)
 	}
 	return l
@@ -111,7 +120,9 @@ func (l *LogEntry) WithStack(skip int) slog.Logger {
 // field could be altered if a FieldFilter is used
 func (l *LogEntry) WithField(label string, value any) slog.Logger {
 	if l.Enabled() {
-		if fn := l.logger.FieldOverride; fn != nil {
+		if l.entry == nil {
+			// parentless doesn't support fields
+		} else if fn := l.logger.FieldOverride; fn != nil {
 			// intercepted
 			fn(l.entry, label, value)
 		} else if fn := l.logger.FieldsOverride; fn != nil {
@@ -135,6 +146,8 @@ func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
 		// skip empty
 	} else if !l.Enabled() {
 		// skip disabled
+	} else if l.entry == nil {
+		// parentless doesn't support fields
 	} else if fn := l.logger.FieldsOverride; fn != nil {
 		// intercepted
 		fn(l.entry, fields)
