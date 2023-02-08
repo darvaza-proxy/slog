@@ -7,6 +7,9 @@
 			"path": "cblog"
 		},
 		{
+			"path": "filtered"
+		},
+		{
 			"path": "logrus"
 		},
 		{
