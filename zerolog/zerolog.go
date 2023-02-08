@@ -11,10 +11,6 @@ import (
 	"github.com/darvaza-proxy/slog"
 )
 
-const (
-	ErrorFieldName = "error"
-)
-
 var (
 	_ slog.Logger = (*Logger)(nil)
 )
@@ -156,7 +152,7 @@ func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
 }
 
 func (zl *Logger) withField(label string, value any) {
-	if label == zerolog.ErrorFieldName {
+	if label == slog.ErrorFieldName {
 		if err, ok := value.(error); ok {
 			zl.event.Err(err)
 			return
