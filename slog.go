@@ -13,6 +13,9 @@ const (
 	Warn  // Warn represents a log entry for something that might not a problem but it's worth mentioning
 	Info  // Info represents a log entry just to tell what we are doing
 	Debug // Debug represents a log entry that contains information important mostly only to developers
+
+	// ErrorFieldName is the preferred field label for errors
+	ErrorFieldName = "error"
 )
 
 // Logger is a backend agnostic interface for structured logs
