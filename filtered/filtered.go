@@ -72,7 +72,7 @@ func (l *Logger) Fatal() slog.Logger { return l.WithLevel(slog.Fatal) }
 
 // WithLevel returns a filtered logger set to the given level
 func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
-	return &Loglet{
+	return &LogEntry{
 		logger: l,
 		level:  level,
 		entry:  l.Parent.WithLevel(level),
