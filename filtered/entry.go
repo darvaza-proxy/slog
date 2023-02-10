@@ -127,7 +127,7 @@ func (l *LogEntry) WithField(label string, value any) slog.Logger {
 			fn(l.entry, label, value)
 		} else if fn := l.logger.FieldsOverride; fn != nil {
 			// intercepted
-			fn(l.entry, map[string]any{label: value})
+			fn(l.entry, slog.Fields{label: value})
 		} else if fn := l.logger.FieldFilter; fn == nil {
 			// as-is
 			l.entry.WithField(label, value)

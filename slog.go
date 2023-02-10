@@ -49,3 +49,8 @@ type Logger interface {
 	// }
 	WithEnabled() (Logger, bool)
 }
+
+// Fields is sugar syntax for WithFields() for those
+// who believe log.WithFields(slog.Fields{foo: bar}) is
+// nicer than log.WithFields(map[string]any{foo: var})
+type Fields map[string]any
