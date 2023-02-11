@@ -107,10 +107,9 @@ func (zpl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 		slog.Debug:          zapcore.DebugLevel,
 	}
 
-	if level < slog.UndefinedLevel || int(level) >= len(levels) {
+	if level <= slog.UndefinedLevel || int(level) >= len(levels) {
 		// fix your code
-		zpl.logger.Panic(fmt.Sprintf("slog: invalid log level %v", level))
-
+		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
 	} else if zpl.logger.Core().Enabled(levels[level]) {
 		zpl.config.Level.SetLevel(levels[level])
 	}

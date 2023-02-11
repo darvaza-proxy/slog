@@ -103,11 +103,9 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 		slog.Debug:          zerolog.DebugLevel,
 	}
 
-	if level < slog.UndefinedLevel || int(level) >= len(levels) {
+	if level <= slog.UndefinedLevel || int(level) >= len(levels) {
 		// fix your code
-		err := fmt.Errorf("slog: invalid log level %v", level)
-		zl.logger.Panic().Stack().Err(err).Send()
-
+		zl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
 	} else if zl.Enabled() {
 		zlevel := levels[level]
 

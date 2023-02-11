@@ -120,7 +120,10 @@ func (l *Logger) Panic() slog.Logger {
 
 // WithLevel returns a new logger set to add entries to the specified level
 func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
-	if level == l.Level() {
+	if level <= slog.UndefinedLevel {
+		// fix your code
+		l.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
+	} else if level == l.Level() {
 		return l
 	}
 

@@ -75,7 +75,10 @@ func (l *Logger) Panic() slog.Logger { return l.WithLevel(slog.Panic) }
 func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	var entry slog.Logger
 
-	if l.Parent != nil {
+	if level <= slog.UndefinedLevel {
+		// fix your code
+		l.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
+	} else if l.Parent != nil {
 		entry = l.Parent.WithLevel(level)
 	} else if level > slog.Fatal {
 		// Parentless non-Fatal, NOOP

@@ -112,10 +112,9 @@ func (rl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 		slog.Debug:          logrus.DebugLevel,
 	}
 
-	if level < slog.UndefinedLevel || int(level) >= len(levels) {
+	if level <= slog.UndefinedLevel || int(level) >= len(levels) {
 		// fix your code
-		err := fmt.Errorf("slog: invalid log level %v", level)
-		rl.logger.Panic(err)
+		rl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
 	}
 
 	out := rl.dup(nil)
