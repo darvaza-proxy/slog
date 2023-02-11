@@ -62,11 +62,6 @@ func (l *LogEntry) Printf(format string, args ...any) {
 // print applies MessageFilter before sending the message to
 // the parent Logger
 func (l *LogEntry) print(msg string) {
-	if l.entry == nil {
-		// log.Fatal()
-		log.Output(3, msg)
-		os.Exit(1)
-	}
 	if fn := l.logger.MessageFilter; fn != nil {
 		var ok bool
 
@@ -75,6 +70,14 @@ func (l *LogEntry) print(msg string) {
 			return
 		}
 	}
+
+	if l.entry == nil {
+		// log.Fatal()
+		log.Output(3, msg)
+		os.Exit(1)
+		// unreachable
+	}
+
 	l.entry.Print(msg)
 }
 
