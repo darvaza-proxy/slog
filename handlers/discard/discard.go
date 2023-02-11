@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/darvaza-proxy/slog"
 )
@@ -20,7 +21,7 @@ type Logger struct {
 
 // Enabled tells that we only handle Fatal
 func (nl *Logger) Enabled() bool {
-	if nl == nil || nl.level != slog.Fatal {
+	if nl == nil || nl.level > slog.Fatal {
 		return false
 	}
 	return true
@@ -54,9 +55,13 @@ func (nl *Logger) Printf(format string, args ...any) {
 }
 
 func (nl *Logger) print(msg string) {
+	msg = strings.TrimSpace(msg)
 	log.Output(3, msg)
+
 	if nl.level == slog.Fatal {
 		os.Exit(1)
+	} else {
+		panic(msg)
 	}
 }
 
@@ -75,6 +80,11 @@ func (nl *Logger) Error() slog.Logger { return nl }
 // Fatal return a new Fatal logger
 func (nl *Logger) Fatal() slog.Logger {
 	return nl.WithLevel(slog.Fatal)
+}
+
+// Panic return a new Panic logger
+func (nl *Logger) Panic() slog.Logger {
+	return nl.WithLevel(slog.Panic)
 }
 
 // WithLevel pretends to return a new logger set to add entries to the

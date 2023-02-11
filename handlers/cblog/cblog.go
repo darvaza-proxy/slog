@@ -113,6 +113,11 @@ func (l *Logger) Fatal() slog.Logger {
 	return l.WithLevel(slog.Fatal)
 }
 
+// Panic returns a new logger set to add entries as level Panic
+func (l *Logger) Panic() slog.Logger {
+	return l.WithLevel(slog.Panic)
+}
+
 // WithLevel returns a new logger set to add entries to the specified level
 func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level == l.Level() {

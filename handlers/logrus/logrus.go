@@ -95,10 +95,16 @@ func (rl *Logger) Fatal() slog.Logger {
 	return rl.WithLevel(slog.Fatal)
 }
 
+// Panic returns a new logger set to add entries as level Panic
+func (rl *Logger) Panic() slog.Logger {
+	return rl.WithLevel(slog.Panic)
+}
+
 // WithLevel returns a new logger set to add entries to the specified level
 func (rl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	var levels = []logrus.Level{
 		slog.UndefinedLevel: logrus.TraceLevel + 1,
+		slog.Panic:          logrus.PanicLevel,
 		slog.Fatal:          logrus.FatalLevel,
 		slog.Error:          logrus.ErrorLevel,
 		slog.Warn:           logrus.WarnLevel,

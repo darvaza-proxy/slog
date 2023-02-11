@@ -72,9 +72,15 @@ func (l *LogEntry) print(msg string) {
 	}
 
 	if l.entry == nil {
-		// log.Fatal()
+		// parentless is either Fatal or Panic
 		log.Output(3, msg)
-		os.Exit(1)
+
+		if l.level == slog.Fatal {
+			os.Exit(1)
+		} else {
+			panic(msg)
+		}
+
 		// unreachable
 	}
 
@@ -104,6 +110,11 @@ func (l *LogEntry) Error() slog.Logger {
 // Fatal creates a new filtered logger on level slog.Fatal
 func (l *LogEntry) Fatal() slog.Logger {
 	return l.logger.WithLevel(slog.Fatal)
+}
+
+// Panic creates a new filtered logger on level slog.Panic
+func (l *LogEntry) Panic() slog.Logger {
+	return l.logger.WithLevel(slog.Panic)
 }
 
 // WithLevel creates a new filtered logger on the given level

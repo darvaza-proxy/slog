@@ -89,11 +89,17 @@ func (zpl *Logger) Fatal() slog.Logger {
 	return zpl.WithLevel(slog.Fatal)
 }
 
+// Panic returns a new logger set to add entries as level Panic
+func (zpl *Logger) Panic() slog.Logger {
+	return zpl.WithLevel(slog.Panic)
+}
+
 // WithLevel returns a new logger set to add entries to the specified level
 func (zpl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 
 	var levels = []zapcore.Level{
 		slog.UndefinedLevel: zapcore.InvalidLevel,
+		slog.Panic:          zapcore.PanicLevel,
 		slog.Fatal:          zapcore.FatalLevel,
 		slog.Error:          zapcore.ErrorLevel,
 		slog.Warn:           zapcore.WarnLevel,

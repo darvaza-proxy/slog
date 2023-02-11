@@ -86,10 +86,16 @@ func (zl *Logger) Fatal() slog.Logger {
 	return zl.WithLevel(slog.Fatal)
 }
 
+// Panic returns a new Event Context set to add entries as level Panic.
+func (zl *Logger) Panic() slog.Logger {
+	return zl.WithLevel(slog.Panic)
+}
+
 // WithLevel returns a new Event Context set to add entries to the specified level.
 func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	var levels = []zerolog.Level{
 		slog.UndefinedLevel: zerolog.NoLevel,
+		slog.Panic:          zerolog.PanicLevel,
 		slog.Fatal:          zerolog.FatalLevel,
 		slog.Error:          zerolog.ErrorLevel,
 		slog.Warn:           zerolog.WarnLevel,

@@ -68,13 +68,16 @@ func (l *Logger) Error() slog.Logger { return l.WithLevel(slog.Error) }
 // Fatal returns a filtered logger on level slog.Fatal
 func (l *Logger) Fatal() slog.Logger { return l.WithLevel(slog.Fatal) }
 
+// Panic returns a filtered logger on level slog.Panic
+func (l *Logger) Panic() slog.Logger { return l.WithLevel(slog.Panic) }
+
 // WithLevel returns a filtered logger set to the given level
 func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	var entry slog.Logger
 
 	if l.Parent != nil {
 		entry = l.Parent.WithLevel(level)
-	} else if level != slog.Fatal {
+	} else if level > slog.Fatal {
 		// Parentless non-Fatal, NOOP
 		return l
 	}

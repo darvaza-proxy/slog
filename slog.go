@@ -8,6 +8,7 @@ const (
 	// UndefinedLevel is a placeholder for the zero-value when no level has been set
 	UndefinedLevel LogLevel = iota
 
+	Panic // Panic represents a log entry for a fatal problem that could be stoped by defer/recover
 	Fatal // Fatal represents a log entry for a problem we can't recover
 	Error // Error represents a log entry for a problem we can recover
 	Warn  // Warn represents a log entry for something that might not a problem but it's worth mentioning
@@ -25,6 +26,7 @@ type Logger interface {
 	Warn() Logger  // Warn is an alias of WithLevel(Warn)
 	Error() Logger // Error is an alias of WithLevel(Error)
 	Fatal() Logger // Fatal is an alias of WithLevel(Fatal)
+	Panic() Logger // Panic is an alias of WithLevel(Panic)
 
 	Print(...any)          // Print adds a log entry handled in the manner of fmt.Print
 	Println(...any)        // Println adds a log entry handled in the manner of fmt.Println
