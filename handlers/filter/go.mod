@@ -1,4 +1,4 @@
-module github.com/darvaza-proxy/slog/handlers/filtered
+module github.com/darvaza-proxy/slog/handlers/filter
 
 go 1.19
 

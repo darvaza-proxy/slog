@@ -10,7 +10,7 @@
 			"path": "handlers/discard"
 		},
 		{
-			"path": "handlers/filtered"
+			"path": "handlers/filter"
 		},
 		{
 			"path": "handlers/logrus"
