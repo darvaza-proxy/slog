@@ -1,4 +1,4 @@
-module github.com/darvaza-proxy/slog/handlers/noop
+module github.com/darvaza-proxy/slog/handlers/discard
 
 go 1.19
 

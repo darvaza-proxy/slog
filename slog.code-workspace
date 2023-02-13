@@ -7,13 +7,13 @@
 			"path": "handlers/cblog"
 		},
 		{
+			"path": "handlers/discard"
+		},
+		{
 			"path": "handlers/filtered"
 		},
 		{
 			"path": "handlers/logrus"
-		},
-		{
-			"path": "handlers/noop"
 		},
 		{
 			"path": "handlers/zap"

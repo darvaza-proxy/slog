@@ -1,9 +1,9 @@
 {
 	"files.exclude": {
 		"handlers/cblog": true,
+		"handlers/discard": true,
 		"handlers/filtered": true,
 		"handlers/logrus": true,
-		"handlers/noop": true,
 		"handlers/zap": true,
 		"handlers/zerolog": true
 	}
