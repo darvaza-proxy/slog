@@ -1,8 +1,8 @@
-module github.com/darvaza-proxy/slog/zap
+module github.com/darvaza-proxy/slog/handlers/zap
 
 go 1.19
 
-replace github.com/darvaza-proxy/slog => ../
+replace github.com/darvaza-proxy/slog => ../../
 
 require (
 	github.com/darvaza-proxy/slog v0.1.0
