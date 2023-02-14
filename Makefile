@@ -16,7 +16,7 @@ V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
 
-PROJECTS = cblog filtered logrus noop zap zerolog
+HANDLERS = cblog discard filter logrus zap zerolog
 
 TMPDIR ?= .tmp
 
@@ -25,9 +25,9 @@ all: get generate tidy build
 clean: ; $(info $(M) cleaning…)
 	rm -rf $(TMPDIR)
 
-$(TMPDIR)/gen.mk: tools/gen_mk.sh Makefile ; $(info $(M) generating subproject rules)
+$(TMPDIR)/gen.mk: internal/tools/gen_mk.sh Makefile ; $(info $(M) generating subproject rules)
 	$Q mkdir -p $(@D)
-	$Q $< $(PROJECTS) > $@~
+	$Q $< $(HANDLERS) > $@~
 	$Q if cmp $@ $@~ 2> /dev/null >&2; then rm $@~; else mv $@~ $@; fi
 
 include $(TMPDIR)/gen.mk

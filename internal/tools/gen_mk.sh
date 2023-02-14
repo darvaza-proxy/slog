@@ -73,7 +73,7 @@ EOT
 			cd=
 		else
 			k="$x"
-			cd="cd '$x' \&\& "
+			cd="cd 'handlers/$x' \&\& "
 		fi
 
 		callx="$call"

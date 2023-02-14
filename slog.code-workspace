@@ -4,22 +4,22 @@
 			"path": "."
 		},
 		{
-			"path": "cblog"
+			"path": "handlers/cblog"
 		},
 		{
-			"path": "filtered"
+			"path": "handlers/discard"
 		},
 		{
-			"path": "logrus"
+			"path": "handlers/filter"
 		},
 		{
-			"path": "noop"
+			"path": "handlers/logrus"
 		},
 		{
-			"path": "zap"
+			"path": "handlers/zap"
 		},
 		{
-			"path": "zerolog"
+			"path": "handlers/zerolog"
 		},
 	]
 }

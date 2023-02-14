@@ -1,5 +1,5 @@
-// Package noop is a Logger that doesn't really log anything
-package noop
+// Package discard is a Logger that doesn't really log anything
+package discard
 
 import (
 	"fmt"
@@ -92,5 +92,5 @@ func (nl *Logger) WithField(label string, value any) slog.Logger { return nl }
 // WithFields pretends to add fields to the Logger
 func (nl *Logger) WithFields(fields map[string]any) slog.Logger { return nl }
 
-// NewNoop creates a slog.Logger that doesn't really log anything
-func NewNoop() slog.Logger { return &Logger{} }
+// New creates a slog.Logger that doesn't really log anything
+func New() slog.Logger { return &Logger{} }

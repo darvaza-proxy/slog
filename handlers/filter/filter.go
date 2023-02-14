@@ -1,5 +1,5 @@
-// Package filtered is a Logger that only allows entries of a given level
-package filtered
+// Package filter is a Logger that only allows entries of a given level
+package filter
 
 import (
 	"github.com/darvaza-proxy/slog"

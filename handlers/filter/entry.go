@@ -1,4 +1,4 @@
-package filtered
+package filter
 
 import (
 	"fmt"
