@@ -5,7 +5,7 @@ go 1.19
 replace github.com/darvaza-proxy/slog => ../../
 
 require (
-	github.com/darvaza-proxy/slog v0.1.0
+	github.com/darvaza-proxy/slog v0.2.0
 	github.com/rs/zerolog v1.29.0
 )
 
