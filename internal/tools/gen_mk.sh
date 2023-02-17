@@ -88,7 +88,7 @@ EOT
 			tidy)
 				exclude=
 				for x in $PROJECTS; do
-					exclude="${exclude:+$exclude }-exclude ./$x/..."
+					exclude="${exclude:+$exclude }-exclude ./handlers/$x/..."
 				done
 				callx=$(echo "$call" | sed -e "s;\(REVIVE)\);\1 $exclude;")
 				;;
