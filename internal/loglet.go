@@ -109,7 +109,6 @@ type FieldsIterator struct {
 // is ready to be accessed using Key(), Value(), or Field()
 // when there are no new ones
 func (iter *FieldsIterator) Next() bool {
-
 	for iter.ll != nil {
 		ll := iter.ll
 

@@ -168,7 +168,6 @@ func (zl *Logger) withField(label string, value any) {
 // New creates a slog.Logger adaptor using a zerolog as backend, if
 // one was passed.
 func New(logger *zerolog.Logger) slog.Logger {
-
 	if logger == nil {
 		return nil
 	}
@@ -178,7 +177,6 @@ func New(logger *zerolog.Logger) slog.Logger {
 
 // NewWithCallback creates a new zerolog.Event using a callback to modify it.
 func (zl *Logger) NewWithCallback(fn func(ev *zerolog.Event)) *Logger {
-
 	// new event
 	ev := zl.logger.Log()
 	if fn != nil {

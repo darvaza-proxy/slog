@@ -1,4 +1,5 @@
-// Package logrus provides a slog.Logger adaptor using a github.com/sirupsen/logrus Logger as backend
+// Package logrus provides a slog.Logger using
+// github.com/sirupsen/logrus Logger as backend
 package logrus
 
 import (

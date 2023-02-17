@@ -38,21 +38,24 @@ func (l *LogEntry) WithEnabled() (slog.Logger, bool) {
 	return l, l.Enabled()
 }
 
-// Print would, if conditions are met, add a log entry with the arguments in the manner of fmt.Print
+// Print would, if conditions are met, add a log entry with the arguments
+// in the manner of fmt.Print
 func (l *LogEntry) Print(args ...any) {
 	if l.Enabled() {
 		l.print(fmt.Sprint(args...))
 	}
 }
 
-// Println would, if conditions are met, add a log entry with the arguments in the manner of fmt.Println
+// Println would, if conditions are met, add a log entry with the arguments
+// in the manner of fmt.Println
 func (l *LogEntry) Println(args ...any) {
 	if l.Enabled() {
 		l.print(fmt.Sprintln(args...))
 	}
 }
 
-// Printf would, if conditions are met, add a log entry with the arguments in the manner of fmt.Printf
+// Printf would, if conditions are met, add a log entry with the arguments
+// in the manner of fmt.Printf
 func (l *LogEntry) Printf(format string, args ...any) {
 	if l.Enabled() {
 		l.print(fmt.Sprintf(format, args...))
@@ -73,11 +76,13 @@ func (l *LogEntry) print(msg string) {
 
 	if l.entry == nil {
 		// parentless is either Fatal or Panic
-		log.Output(3, msg)
+		_ = log.Output(3, msg)
 
 		if l.level != slog.Fatal {
 			panic(msg)
 		}
+
+		// revive:disable:deep-exit
 		os.Exit(1)
 	}
 

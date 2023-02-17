@@ -36,7 +36,7 @@ func (w *LogWriter) Write(p []byte) (n int, err error) {
 		n = 0
 	}
 
-	return
+	return n, err
 }
 
 func defaultLogWriter(l Logger, s string) error {

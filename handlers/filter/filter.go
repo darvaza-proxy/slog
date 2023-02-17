@@ -35,7 +35,7 @@ type Logger struct {
 }
 
 // Enabled tells this logger doesn't log anything, but WithLevel() might
-func (l *Logger) Enabled() bool {
+func (*Logger) Enabled() bool {
 	return false
 }
 
@@ -45,13 +45,13 @@ func (l *Logger) WithEnabled() (slog.Logger, bool) {
 }
 
 // Print does nothing
-func (l *Logger) Print(...any) {}
+func (*Logger) Print(...any) {}
 
 // Println does nothing
-func (l *Logger) Println(...any) {}
+func (*Logger) Println(...any) {}
 
 // Printf does nothing
-func (l *Logger) Printf(string, ...any) {}
+func (*Logger) Printf(string, ...any) {}
 
 // Debug returns a filtered logger on level slog.Debug
 func (l *Logger) Debug() slog.Logger { return l.WithLevel(slog.Debug) }

@@ -56,11 +56,12 @@ func (nl *Logger) Printf(format string, args ...any) {
 
 func (nl *Logger) print(msg string) {
 	msg = strings.TrimSpace(msg)
-	log.Output(3, msg)
+	_ = log.Output(3, msg)
 
 	if nl.level != slog.Fatal {
 		panic(msg)
 	}
+	// revive:disable:deep-exit
 	os.Exit(1)
 }
 

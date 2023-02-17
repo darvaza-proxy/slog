@@ -40,7 +40,7 @@ type cblog struct {
 }
 
 // Enabled tells this logger is enabled
-func (l *Logger) Enabled() bool {
+func (*Logger) Enabled() bool {
 	return true
 }
 
@@ -77,7 +77,6 @@ func (l *Logger) sendMsg(msg string) {
 
 			m[k] = v
 		}
-
 	}
 
 	l.l.ch <- LogMsg{

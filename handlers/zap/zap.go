@@ -61,7 +61,6 @@ func (zpl *Logger) print(msg string) {
 	if ce := zpl.logger.Check(zpl.logger.Level(), msg); ce != nil {
 		ce.Write()
 	}
-
 }
 
 // Debug returns a new logger set to add entries as level Debug
@@ -96,7 +95,6 @@ func (zpl *Logger) Panic() slog.Logger {
 
 // WithLevel returns a new logger set to add entries to the specified level
 func (zpl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
-
 	var levels = []zapcore.Level{
 		slog.UndefinedLevel: zapcore.InvalidLevel,
 		slog.Panic:          zapcore.PanicLevel,
@@ -119,7 +117,9 @@ func (zpl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 
 // WithStack attaches a call stack to a new logger
 func (zpl *Logger) WithStack(skip int) slog.Logger {
-	zpl.logger = zpl.logger.WithOptions(zap.AddStacktrace(zpl.logger.Level()), zap.AddCallerSkip(skip+1))
+	zpl.logger = zpl.logger.WithOptions(
+		zap.AddStacktrace(zpl.logger.Level()),
+		zap.AddCallerSkip(skip+1))
 	return zpl
 }
 
@@ -181,7 +181,6 @@ func newLogger(logger *zap.Logger, cfg *zap.Config) *Logger {
 		logger: lg,
 		config: cfg,
 	}
-
 }
 
 func setDefaultConfig() *zap.Config {
