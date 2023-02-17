@@ -39,25 +39,25 @@ func (zl *Logger) WithEnabled() (slog.Logger, bool) {
 // Print adds a log entry with arguments handled in the manner of fmt.Print.
 func (zl *Logger) Print(args ...any) {
 	if zl.Enabled() {
-		zl.print(fmt.Sprint(args...))
+		zl.msg(fmt.Sprint(args...))
 	}
 }
 
 // Println adds a log entry with arguments handled in the manner of fmt.Println.
 func (zl *Logger) Println(args ...any) {
 	if zl.Enabled() {
-		zl.print(fmt.Sprintln(args...))
+		zl.msg(fmt.Sprintln(args...))
 	}
 }
 
 // Printf adds a log entry with arguments handled in the manner of fmt.Printf.
 func (zl *Logger) Printf(format string, args ...any) {
 	if zl.Enabled() {
-		zl.print(fmt.Sprintf(format, args...))
+		zl.msg(fmt.Sprintf(format, args...))
 	}
 }
 
-func (zl *Logger) print(msg string) {
+func (zl *Logger) msg(msg string) {
 	zl.event.Msg(strings.TrimSpace(msg))
 }
 
@@ -130,7 +130,7 @@ func (zl *Logger) WithStack(skip int) slog.Logger {
 // WithField adds a field to the Event Context
 func (zl *Logger) WithField(label string, value any) slog.Logger {
 	if zl.Enabled() {
-		zl.withField(label, value)
+		zl.addField(label, value)
 	}
 	return zl
 }
@@ -148,14 +148,14 @@ func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
 
 			// append in order
 			for _, key := range keys {
-				zl.withField(key, fields[key])
+				zl.addField(key, fields[key])
 			}
 		}
 	}
 	return zl
 }
 
-func (zl *Logger) withField(label string, value any) {
+func (zl *Logger) addField(label string, value any) {
 	if label == slog.ErrorFieldName {
 		if err, ok := value.(error); ok {
 			zl.event.Err(err)

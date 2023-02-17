@@ -49,25 +49,25 @@ func (rl *Logger) WithEnabled() (slog.Logger, bool) {
 // Print adds a log entry with arguments handled in the manner of fmt.Print
 func (rl *Logger) Print(args ...any) {
 	if rl.Enabled() {
-		rl.print(fmt.Sprint(args...))
+		rl.msg(fmt.Sprint(args...))
 	}
 }
 
 // Println adds a log entry with arguments handled in the manner of fmt.Println
 func (rl *Logger) Println(args ...any) {
 	if rl.Enabled() {
-		rl.print(fmt.Sprintln(args...))
+		rl.msg(fmt.Sprintln(args...))
 	}
 }
 
 // Printf adds a log entry with arguments handled in the manner of fmt.Printf
 func (rl *Logger) Printf(format string, args ...any) {
 	if rl.Enabled() {
-		rl.print(fmt.Sprintf(format, args...))
+		rl.msg(fmt.Sprintf(format, args...))
 	}
 }
 
-func (rl *Logger) print(msg string) {
+func (rl *Logger) msg(msg string) {
 	rl.entry.Log(rl.level, strings.TrimSpace(msg))
 }
 

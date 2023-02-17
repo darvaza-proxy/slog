@@ -56,12 +56,15 @@ func (zpl *Logger) Printf(format string, args ...any) {
 	}
 }
 
+// revive:disable:confusing-naming
 func (zpl *Logger) print(msg string) {
 	msg = strings.TrimSpace(msg)
 	if ce := zpl.logger.Check(zpl.logger.Level(), msg); ce != nil {
 		ce.Write()
 	}
 }
+
+// revive:enable:confusing-naming
 
 // Debug returns a new logger set to add entries as level Debug
 func (zpl *Logger) Debug() slog.Logger {

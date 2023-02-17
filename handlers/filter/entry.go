@@ -42,7 +42,7 @@ func (l *LogEntry) WithEnabled() (slog.Logger, bool) {
 // in the manner of fmt.Print
 func (l *LogEntry) Print(args ...any) {
 	if l.Enabled() {
-		l.print(fmt.Sprint(args...))
+		l.msg(fmt.Sprint(args...))
 	}
 }
 
@@ -50,7 +50,7 @@ func (l *LogEntry) Print(args ...any) {
 // in the manner of fmt.Println
 func (l *LogEntry) Println(args ...any) {
 	if l.Enabled() {
-		l.print(fmt.Sprintln(args...))
+		l.msg(fmt.Sprintln(args...))
 	}
 }
 
@@ -58,13 +58,13 @@ func (l *LogEntry) Println(args ...any) {
 // in the manner of fmt.Printf
 func (l *LogEntry) Printf(format string, args ...any) {
 	if l.Enabled() {
-		l.print(fmt.Sprintf(format, args...))
+		l.msg(fmt.Sprintf(format, args...))
 	}
 }
 
-// print applies MessageFilter before sending the message to
+// msg applies MessageFilter before sending the message to
 // the parent Logger
-func (l *LogEntry) print(msg string) {
+func (l *LogEntry) msg(msg string) {
 	if fn := l.logger.MessageFilter; fn != nil {
 		var ok bool
 

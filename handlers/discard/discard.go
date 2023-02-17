@@ -54,6 +54,7 @@ func (nl *Logger) Printf(format string, args ...any) {
 	}
 }
 
+// revive:disable:confusing-naming
 func (nl *Logger) print(msg string) {
 	msg = strings.TrimSpace(msg)
 	_ = log.Output(3, msg)
@@ -64,6 +65,8 @@ func (nl *Logger) print(msg string) {
 	// revive:disable:deep-exit
 	os.Exit(1)
 }
+
+// revive:enable:confusing-naming
 
 // Debug pretends to return a new NOOP logger
 func (nl *Logger) Debug() slog.Logger { return nl }
