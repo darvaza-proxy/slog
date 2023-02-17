@@ -58,11 +58,10 @@ func (nl *Logger) print(msg string) {
 	msg = strings.TrimSpace(msg)
 	log.Output(3, msg)
 
-	if nl.level == slog.Fatal {
-		os.Exit(1)
-	} else {
+	if nl.level != slog.Fatal {
 		panic(msg)
 	}
+	os.Exit(1)
 }
 
 // Debug pretends to return a new NOOP logger
@@ -98,13 +97,13 @@ func (nl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 }
 
 // WithStack pretends to attach a call stack to the logger
-func (nl *Logger) WithStack(skip int) slog.Logger { return nl }
+func (nl *Logger) WithStack(int) slog.Logger { return nl }
 
 // WithField pretends to add a fields to the Logger
-func (nl *Logger) WithField(label string, value any) slog.Logger { return nl }
+func (nl *Logger) WithField(string, any) slog.Logger { return nl }
 
 // WithFields pretends to add fields to the Logger
-func (nl *Logger) WithFields(fields map[string]any) slog.Logger { return nl }
+func (nl *Logger) WithFields(map[string]any) slog.Logger { return nl }
 
 // New creates a slog.Logger that doesn't really log anything
 func New() slog.Logger { return &Logger{} }

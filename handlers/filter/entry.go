@@ -75,13 +75,10 @@ func (l *LogEntry) print(msg string) {
 		// parentless is either Fatal or Panic
 		log.Output(3, msg)
 
-		if l.level == slog.Fatal {
-			os.Exit(1)
-		} else {
+		if l.level != slog.Fatal {
 			panic(msg)
 		}
-
-		// unreachable
+		os.Exit(1)
 	}
 
 	l.entry.Print(msg)
@@ -133,10 +130,8 @@ func (l *LogEntry) WithStack(skip int) slog.Logger {
 // WithField would, if conditions are met, attach a field to the log entry. This
 // field could be altered if a FieldFilter is used
 func (l *LogEntry) WithField(label string, value any) slog.Logger {
-	if l.Enabled() {
-		if l.entry == nil {
-			// parentless doesn't support fields
-		} else if fn := l.logger.FieldOverride; fn != nil {
+	if l.Enabled() && l.entry != nil {
+		if fn := l.logger.FieldOverride; fn != nil {
 			// intercepted
 			fn(l.entry, label, value)
 		} else if fn := l.logger.FieldsOverride; fn != nil {
@@ -156,33 +151,30 @@ func (l *LogEntry) WithField(label string, value any) slog.Logger {
 // WithFields would, if conditions are met, attach fields to the log entry.
 // These fields could be altered if a FieldFilter is used
 func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
-	if count := len(fields); count == 0 {
-		// skip empty
-	} else if !l.Enabled() {
-		// skip disabled
-	} else if l.entry == nil {
-		// parentless doesn't support fields
-	} else if fn := l.logger.FieldsOverride; fn != nil {
-		// intercepted
-		fn(l.entry, fields)
-	} else if fn := l.logger.FieldOverride; fn != nil {
-		// intercepted
-		for label, value := range fields {
-			fn(l.entry, label, value)
-		}
-	} else if fn := l.logger.FieldFilter; fn == nil {
-		// as-is
-		l.entry.WithFields(fields)
-	} else {
-		// modified
-		m := make(map[string]any, count)
-		for k, v := range fields {
-			if k, v, ok := fn(k, v); ok {
-				m[k] = v
+	count := len(fields)
+	if count != 0 && l.Enabled() && l.entry != nil {
+		if fn := l.logger.FieldsOverride; fn != nil {
+			// intercepted
+			fn(l.entry, fields)
+		} else if fn := l.logger.FieldOverride; fn != nil {
+			// intercepted
+			for label, value := range fields {
+				fn(l.entry, label, value)
 			}
-		}
-		if len(m) > 0 {
-			l.entry.WithFields(m)
+		} else if fn := l.logger.FieldFilter; fn == nil {
+			// as-is
+			l.entry.WithFields(fields)
+		} else {
+			// modified
+			m := make(map[string]any, count)
+			for k, v := range fields {
+				if k, v, ok := fn(k, v); ok {
+					m[k] = v
+				}
+			}
+			if len(m) > 0 {
+				l.entry.WithFields(m)
+			}
 		}
 	}
 	return l

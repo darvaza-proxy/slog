@@ -45,13 +45,13 @@ func (l *Logger) WithEnabled() (slog.Logger, bool) {
 }
 
 // Print does nothing
-func (l *Logger) Print(args ...any) {}
+func (l *Logger) Print(...any) {}
 
 // Println does nothing
-func (l *Logger) Println(args ...any) {}
+func (l *Logger) Println(...any) {}
 
 // Printf does nothing
-func (l *Logger) Printf(format string, args ...any) {}
+func (l *Logger) Printf(string, ...any) {}
 
 // Debug returns a filtered logger on level slog.Debug
 func (l *Logger) Debug() slog.Logger { return l.WithLevel(slog.Debug) }
@@ -93,13 +93,13 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 }
 
 // WithStack does nothing
-func (l *Logger) WithStack(skip int) slog.Logger { return l }
+func (l *Logger) WithStack(int) slog.Logger { return l }
 
 // WithField does nothing
-func (l *Logger) WithField(label string, value any) slog.Logger { return l }
+func (l *Logger) WithField(string, any) slog.Logger { return l }
 
 // WithFields does nothing
-func (l *Logger) WithFields(fields map[string]any) slog.Logger { return l }
+func (l *Logger) WithFields(map[string]any) slog.Logger { return l }
 
 // New creates a new filtered log factory at a given level. Logger can be manually
 // initialised as well. Defaults filter entries at level slog.Error or higher
