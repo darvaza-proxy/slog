@@ -1,0 +1,35 @@
+ignoreGeneratedHeader = false
+severity = "error"
+confidence = 0.8
+errorCode = 1
+warningCode = 0
+enableAllRules = true
+
+[rule.function-length]
+  arguments = [40,0]
+  severity = "warning"
+[rule.function-result-limit]
+  arguments = [3]
+[rule.argument-limit]
+  arguments = [5]
+[rule.cognitive-complexity]
+  arguments = [7]
+[rule.cyclomatic]
+  arguments = [10]
+[rule.line-length-limit]
+  arguments = [100]
+  severity = "warning"
+[rule.comment-spacings]
+  severity = "warning"
+[rule.empty-lines]
+  severity = "warning"
+
+# Disabled rules
+[rule.max-public-structs]
+  disabled = true
+[rule.file-header]
+  disabled = true
+[rule.add-constant]
+  disabled = true
+[rule.banned-characters]
+  disabled = true
