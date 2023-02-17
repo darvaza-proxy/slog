@@ -96,26 +96,35 @@ func (f Frame) Format(s fmt.State, verb rune) {
 	case 's':
 		switch {
 		case s.Flag('+'):
-			io.WriteString(s, f.name)
-			io.WriteString(s, "\n\t")
-			io.WriteString(s, f.file)
+			writeFormat(s, f.name)
+			writeFormat(s, "\n\t")
+			writeFormat(s, f.file)
 		default:
-			io.WriteString(s, path.Base(f.file))
+			writeFormat(s, path.Base(f.file))
 		}
 	case 'd':
-		io.WriteString(s, strconv.Itoa(f.line))
+		writeFormat(s, strconv.Itoa(f.line))
 	case 'n':
 		n := f.name
 		switch {
 		case s.Flag('+'):
-			io.WriteString(s, n)
+			writeFormat(s, n)
 		default:
-			io.WriteString(s, funcname(n))
+			writeFormat(s, funcname(n))
 		}
 	case 'v':
 		f.Format(s, 's')
-		io.WriteString(s, ":")
+		writeFormat(s, ":")
 		f.Format(s, 'd')
+	}
+}
+
+func writeFormat(s fmt.State, str string) {
+	n, err := io.WriteString(s, str)
+	if err != nil {
+		panic(fmt.Errorf("Frame: failed to write %q to buffer", str))
+	} else if l := len(str); n < l {
+		panic(fmt.Errorf("Frame: incomplete write (%v/%v)", n, l))
 	}
 }
 
@@ -133,12 +142,12 @@ func (st Stack) Format(s fmt.State, verb rune) {
 	if s.Flag('#') {
 		l := len(st)
 		for i, f := range st {
-			fmt.Fprintf(s, "\n[%v/%v] ", i, l)
+			writeFormat(s, fmt.Sprintf("\n[%v/%v] ", i, l))
 			f.Format(s, verb)
 		}
 	} else {
 		for _, f := range st {
-			io.WriteString(s, "\n")
+			writeFormat(s, "\n")
 			f.Format(s, verb)
 		}
 	}
