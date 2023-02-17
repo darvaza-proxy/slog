@@ -80,19 +80,35 @@ EOT
 		if [ "$k" = root ]; then
 			# special case
 			case "$cmd" in
-			up)	callx="$call
-\$(GO) get -v \$(REVIVE_INSTALL_URL)
-\$(GO) install -v \$(REVIVE_INSTALL_URL)
-\$(GO) mod tidy"
+			get)
+				cmdx="get -tags tools"
 				;;
-			tidy)
+			up)
+				cmdx="get -tags tools -u"
+				;;
+			*)
+				cmdx=
+				;;
+			esac
+
+			[ -z "$cmdx" ] || cmdx="\$(GO) $cmdx -v ./..."
+
+			if [ "up" = "$cmd" ]; then
+				callx="$cmdx
+\$(GO) mod tidy
+\$(GO) install -v \$(REVIVE_INSTALL_URL)"
+			elif [ "get" = "$cmd" ]; then
+				callx="$cmdx
+\$(GO) install -v \$(REVIVE_INSTALL_URL)"
+			elif [ "tidy" = "$cmd" ]; then
 				exclude=
 				for x in $PROJECTS; do
 					exclude="${exclude:+$exclude }-exclude ./handlers/$x/..."
 				done
 				callx=$(echo "$call" | sed -e "s;\(REVIVE)\);\1 $exclude;")
-				;;
-			esac
+			elif [ -n "$cmdx" ]; then
+				classx="$cmdx"
+			fi
 		fi
 
 		deps=
