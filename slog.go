@@ -8,12 +8,18 @@ const (
 	// UndefinedLevel is a placeholder for the zero-value when no level has been set
 	UndefinedLevel LogLevel = iota
 
-	Panic // Panic represents a log entry for a fatal problem that could be stoped by defer/recover
-	Fatal // Fatal represents a log entry for a problem we can't recover
-	Error // Error represents a log entry for a problem we can recover
-	Warn  // Warn represents a log entry for something that might not a problem but it's worth mentioning
-	Info  // Info represents a log entry just to tell what we are doing
-	Debug // Debug represents a log entry that contains information important mostly only to developers
+	// Panic represents a log entry for a fatal problem that could be stoped by defer/recover
+	Panic
+	// Fatal represents a log entry for a problem we can't recover
+	Fatal
+	// Error represents a log entry for a problem we can recover
+	Error
+	// Warn represents a log entry for something that might not a problem but it's worth mentioning
+	Warn
+	// Info represents a log entry just to tell what we are doing
+	Info
+	// Debug represents a log entry that contains information important mostly only to developers
+	Debug
 
 	// ErrorFieldName is the preferred field label for errors
 	ErrorFieldName = "error"
@@ -28,14 +34,22 @@ type Logger interface {
 	Fatal() Logger // Fatal is an alias of WithLevel(Fatal)
 	Panic() Logger // Panic is an alias of WithLevel(Panic)
 
-	Print(...any)          // Print adds a log entry handled in the manner of fmt.Print
-	Println(...any)        // Println adds a log entry handled in the manner of fmt.Println
-	Printf(string, ...any) // Printf adds a log entry handled in the manner of fmt.Printf
+	// Print adds a log entry handled in the manner of fmt.Print
+	Print(...any)
+	// Println adds a log entry handled in the manner of fmt.Println
+	Println(...any)
+	// Printf adds a log entry handled in the manner of fmt.Printf
+	Printf(string, ...any)
 
-	WithLevel(LogLevel) Logger        // WithLevel returns a new log context set to add entries to the specified level
-	WithStack(int) Logger             // WithStack attaches a call stack a log context
-	WithField(string, any) Logger     // WithField attaches a field to a log context
-	WithFields(map[string]any) Logger // WithFields attaches a set of fields to a log context
+	// WithLevel returns a new log context set to add entries to the specified level
+	WithLevel(LogLevel) Logger
+
+	// WithStack attaches a call stack a log context
+	WithStack(int) Logger
+	// WithField attaches a field to a log context
+	WithField(string, any) Logger
+	// WithFields attaches a set of fields to a log context
+	WithFields(map[string]any) Logger
 
 	// Enabled tells if the Logger would actually log
 	Enabled() bool
