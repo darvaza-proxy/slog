@@ -1,5 +1,7 @@
 # slog.Logger adapter for logrus
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/darvaza-proxy/slog/handlers/logrus.svg)](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/logrus)
+
 This package implements a wrapper around a `*logrus.Logger` so
 it can be used as a `slog.Logger`.
 
