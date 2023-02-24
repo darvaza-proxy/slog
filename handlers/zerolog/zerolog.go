@@ -3,12 +3,12 @@ package zerolog
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/rs/zerolog"
 
 	"github.com/darvaza-proxy/slog"
+	"github.com/darvaza-proxy/slog/internal"
 )
 
 var (
@@ -129,7 +129,7 @@ func (zl *Logger) WithStack(skip int) slog.Logger {
 
 // WithField adds a field to the Event Context
 func (zl *Logger) WithField(label string, value any) slog.Logger {
-	if zl.Enabled() {
+	if zl.Enabled() && label != "" {
 		zl.addField(label, value)
 	}
 	return zl
@@ -137,19 +137,10 @@ func (zl *Logger) WithField(label string, value any) slog.Logger {
 
 // WithFields adds fields to the Event Context
 func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
-	if zl.Enabled() {
-		if l := len(fields); l > 0 {
-			// sort keys
-			keys := make([]string, 0, l)
-			for key := range fields {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-
-			// append in order
-			for _, key := range keys {
-				zl.addField(key, fields[key])
-			}
+	if zl.Enabled() && len(fields) > 0 {
+		// append in order
+		for _, key := range internal.SortedKeys(fields) {
+			zl.addField(key, fields[key])
 		}
 	}
 	return zl
