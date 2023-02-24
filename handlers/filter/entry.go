@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/darvaza-proxy/slog"
+	"github.com/darvaza-proxy/slog/internal"
 )
 
 var (
@@ -24,13 +25,11 @@ type LogEntry struct {
 func (l *LogEntry) Enabled() bool {
 	if l == nil || l.logger == nil {
 		return false
-	} else if l.level <= slog.UndefinedLevel || l.level > l.logger.Threshold {
-		return false
-	} else if l.entry != nil {
-		return l.entry.Enabled()
-	} else {
-		return l.level == slog.Fatal
 	}
+	if l.level <= slog.UndefinedLevel || l.level > l.logger.Threshold {
+		return false
+	}
+	return l.entry == nil || l.entry.Enabled()
 }
 
 // WithEnabled returns itself and if it's enabled
@@ -135,52 +134,80 @@ func (l *LogEntry) WithStack(skip int) slog.Logger {
 // WithField would, if conditions are met, attach a field to the log entry. This
 // field could be altered if a FieldFilter is used
 func (l *LogEntry) WithField(label string, value any) slog.Logger {
-	if l.Enabled() && l.entry != nil {
-		if fn := l.logger.FieldOverride; fn != nil {
-			// intercepted
-			fn(l.entry, label, value)
-		} else if fn := l.logger.FieldsOverride; fn != nil {
-			// intercepted
-			fn(l.entry, slog.Fields{label: value})
-		} else if fn := l.logger.FieldFilter; fn == nil {
-			// as-is
-			l.entry.WithField(label, value)
-		} else if label, value, ok := fn(label, value); ok {
-			// modified
-			l.entry.WithField(label, value)
-		}
+	if label != "" && l.Enabled() && l.entry != nil {
+		l.addField(label, value)
 	}
 	return l
+}
+
+func (l *LogEntry) addField(label string, value any) {
+	if fn := l.logger.FieldOverride; fn != nil {
+		// intercepted
+		fn(l.entry, label, value)
+		return
+	}
+
+	if fn := l.logger.FieldsOverride; fn != nil {
+		// intercepted
+		fn(l.entry, slog.Fields{label: value})
+		return
+	}
+
+	if fn := l.logger.FieldFilter; fn != nil {
+		// modified
+		var ok bool
+		label, value, ok = fn(label, value)
+
+		if !ok {
+			return
+		}
+	}
+
+	l.entry.WithField(label, value)
 }
 
 // WithFields would, if conditions are met, attach fields to the log entry.
 // These fields could be altered if a FieldFilter is used
 func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
-	count := len(fields)
-	if count != 0 && l.Enabled() && l.entry != nil {
-		if fn := l.logger.FieldsOverride; fn != nil {
-			// intercepted
-			fn(l.entry, fields)
-		} else if fn := l.logger.FieldOverride; fn != nil {
-			// intercepted
-			for label, value := range fields {
-				fn(l.entry, label, value)
-			}
-		} else if fn := l.logger.FieldFilter; fn == nil {
-			// as-is
-			l.entry.WithFields(fields)
-		} else {
-			// modified
-			m := make(map[string]any, count)
-			for k, v := range fields {
-				if k, v, ok := fn(k, v); ok {
-					m[k] = v
-				}
-			}
-			if len(m) > 0 {
-				l.entry.WithFields(m)
-			}
-		}
+	if len(fields) > 0 && l.Enabled() && l.entry != nil {
+		delete(fields, "")
+
+		l.addFields(fields)
 	}
 	return l
+}
+
+func (l *LogEntry) addFields(fields map[string]any) {
+	if fn := l.logger.FieldsOverride; fn != nil {
+		// intercepted
+		fn(l.entry, fields)
+		return
+	}
+
+	if fn := l.logger.FieldOverride; fn != nil {
+		// intercepted
+		for _, key := range internal.SortedKeys(fields) {
+			fn(l.entry, key, fields[key])
+		}
+		return
+	}
+
+	if fn := l.logger.FieldFilter; fn != nil {
+		// modified
+		fields = modifyFields(fields, fn)
+	}
+
+	l.entry.WithFields(fields)
+}
+
+func modifyFields(fields map[string]any, fn func(string, any) (string, any, bool)) map[string]any {
+	m := make(map[string]any, len(fields))
+
+	for k, v := range fields {
+		if k, v, ok := fn(k, v); ok {
+			m[k] = v
+		}
+	}
+
+	return m
 }
