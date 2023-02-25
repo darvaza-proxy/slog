@@ -5,7 +5,7 @@ go 1.19
 replace github.com/darvaza-proxy/slog => ../../
 
 require (
-	github.com/darvaza-proxy/slog v0.2.0
+	github.com/darvaza-proxy/slog v0.4.2
 	go.uber.org/zap v1.24.0
 )
 

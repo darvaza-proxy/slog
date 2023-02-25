@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/darvaza-proxy/slog"
+	"github.com/darvaza-proxy/slog/internal"
 )
 
 var (
@@ -128,7 +129,7 @@ func (zpl *Logger) WithStack(skip int) slog.Logger {
 
 // WithField returns a new logger with a field attached
 func (zpl *Logger) WithField(label string, value any) slog.Logger {
-	if zpl.Enabled() {
+	if zpl.Enabled() && label != "" {
 		zpl.logger = zpl.logger.With(zap.Any(label, value))
 	}
 	return zpl
@@ -138,8 +139,8 @@ func (zpl *Logger) WithField(label string, value any) slog.Logger {
 func (zpl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if zpl.Enabled() {
 		zs := make([]zap.Field, len(fields))
-		for k, v := range fields {
-			zs = append(zs, zap.Any(k, v))
+		for _, k := range internal.SortedKeys(fields) {
+			zs = append(zs, zap.Any(k, fields[k]))
 		}
 		zpl.logger = zpl.logger.With(zs...)
 	}
