@@ -45,13 +45,18 @@ func (ll *Loglet) WithStack(skip int) Loglet {
 
 // WithField attaches a field to a new Loglet
 func (ll *Loglet) WithField(label string, value any) Loglet {
-	return Loglet{
+	out := Loglet{
 		parent: ll,
 		level:  ll.level,
 		stack:  ll.stack,
-		keys:   []string{label},
-		values: []any{value},
 	}
+
+	if label != "" {
+		out.keys = []string{label}
+		out.values = []any{value}
+	}
+
+	return out
 }
 
 // WithFields attaches a set of fields to a new Loglet
@@ -62,9 +67,11 @@ func (ll *Loglet) WithFields(fields map[string]any) Loglet {
 
 		i := 0
 		for k, v := range fields {
-			keys[i] = k
-			values[i] = v
-			i++
+			if k != "" {
+				keys[i] = k
+				values[i] = v
+				i++
+			}
 		}
 
 		return Loglet{
