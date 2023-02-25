@@ -143,7 +143,7 @@ func (rl *Logger) WithStack(skip int) slog.Logger {
 
 // WithField adds a field to the log entry
 func (rl *Logger) WithField(label string, value any) slog.Logger {
-	if rl.Enabled() {
+	if rl.Enabled() && label != "" {
 		entry := rl.entry.WithFields(logrus.Fields{
 			label: value,
 		})
@@ -155,8 +155,12 @@ func (rl *Logger) WithField(label string, value any) slog.Logger {
 // WithFields adds fields to the log entry
 func (rl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if rl.Enabled() {
-		entry := rl.entry.WithFields(fields)
-		return rl.dup(entry)
+		delete(fields, "")
+
+		if len(fields) > 0 {
+			entry := rl.entry.WithFields(fields)
+			return rl.dup(entry)
+		}
 	}
 	return rl
 }
