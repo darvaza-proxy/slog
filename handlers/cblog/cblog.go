@@ -144,24 +144,28 @@ func (l *Logger) WithStack(skip int) slog.Logger {
 
 // WithField returns a new logger with a field attached
 func (l *Logger) WithField(label string, value any) slog.Logger {
-	out := &Logger{
-		Loglet: l.Loglet.WithField(label, value),
-		l:      l.l,
+	if label != "" {
+		out := &Logger{
+			Loglet: l.Loglet.WithField(label, value),
+			l:      l.l,
+		}
+		return out
 	}
-	return out
+	return l
 }
 
 // WithFields returns a new logger with a set of fields attached
 func (l *Logger) WithFields(fields map[string]any) slog.Logger {
-	if len(fields) == 0 {
-		return l
-	}
+	delete(fields, "")
 
-	out := &Logger{
-		Loglet: l.Loglet.WithFields(fields),
-		l:      l.l,
+	if len(fields) > 0 {
+		out := &Logger{
+			Loglet: l.Loglet.WithFields(fields),
+			l:      l.l,
+		}
+		return out
 	}
-	return out
+	return l
 }
 
 // New creates a new Channel Based Logger
