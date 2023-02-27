@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 
+	"github.com/darvaza-proxy/core"
 	"github.com/darvaza-proxy/slog"
 )
 
@@ -59,7 +60,7 @@ func NewPanicErrorf(skip int, format string, args ...any) *PanicError {
 // NewPanicWrapf creates a new PanicError wrapping a given error as part of the payload
 func NewPanicWrapf(skip int, err error, format string, args ...any) *PanicError {
 	return &PanicError{
-		payload: slog.Wrapf(err, format, args...),
+		payload: core.Wrapf(err, format, args...),
 		stack:   StackTrace(skip + 1),
 	}
 }

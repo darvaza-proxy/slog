@@ -2,11 +2,14 @@ module github.com/darvaza-proxy/slog
 
 go 1.19
 
-require github.com/mgechev/revive v1.2.5
+require (
+	github.com/darvaza-proxy/core v0.1.1
+	github.com/mgechev/revive v1.2.5
+)
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
-	github.com/chavacava/garif v0.0.0-20221024190013-b3ef35877348 // indirect
+	github.com/chavacava/garif v0.0.0-20230227094218-b8c73b2037b8 // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
