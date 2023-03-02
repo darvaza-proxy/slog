@@ -4,11 +4,10 @@ import (
 	"fmt"
 
 	"github.com/darvaza-proxy/core"
-	"github.com/darvaza-proxy/slog"
 )
 
 var (
-	_ slog.PanicError = (*PanicError)(nil)
+	_ core.Recovered = (*PanicError)(nil)
 )
 
 // PanicError is an error to be sent via panic, ideally
