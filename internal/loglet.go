@@ -5,6 +5,10 @@ import (
 	"github.com/darvaza-proxy/slog"
 )
 
+var (
+	_ core.CallStacker = (*Loglet)(nil)
+)
+
 // Loglet represents a link on the Logger context chain
 type Loglet struct {
 	parent *Loglet
@@ -32,8 +36,8 @@ func (ll *Loglet) WithLevel(level slog.LogLevel) Loglet {
 	}
 }
 
-// Stack returns the callstack associated to a Loglet
-func (ll *Loglet) Stack() core.Stack {
+// CallStack returns the callstack associated to a Loglet
+func (ll *Loglet) CallStack() core.Stack {
 	return ll.stack
 }
 

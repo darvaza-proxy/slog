@@ -84,7 +84,7 @@ func (l *Logger) sendMsg(msg string) {
 		Message: strings.TrimSpace(msg),
 		Level:   l.Level(),
 		Fields:  m,
-		Stack:   l.Stack(),
+		Stack:   l.CallStack(),
 	}
 }
 
