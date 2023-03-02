@@ -3,7 +3,7 @@ module github.com/darvaza-proxy/slog
 go 1.19
 
 require (
-	github.com/darvaza-proxy/core v0.1.1
+	github.com/darvaza-proxy/core v0.5.0
 	github.com/mgechev/revive v1.2.5
 )
 
@@ -20,6 +20,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 )

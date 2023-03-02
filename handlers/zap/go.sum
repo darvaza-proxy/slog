@@ -1,6 +1,6 @@
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
-github.com/darvaza-proxy/core v0.1.1 h1:Cu0AWNOYuJGqvX+ZxmO3oAyLuBvamg/BlyR451JXZNQ=
-github.com/darvaza-proxy/core v0.1.1/go.mod h1:ZImPFrOKEzwDTU5vS9dC7QpBAzl+3I8XhtnCkB6l5Ss=
+github.com/darvaza-proxy/core v0.5.0 h1:0qO08LOhfR+KgBJ/X59BspukfYGHBV8xYeqcnfzBcu4=
+github.com/darvaza-proxy/core v0.5.0/go.mod h1:ZImPFrOKEzwDTU5vS9dC7QpBAzl+3I8XhtnCkB6l5Ss=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
