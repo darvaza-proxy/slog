@@ -14,7 +14,7 @@ var (
 // to be caught using slog.Recover()
 type PanicError struct {
 	payload any
-	stack   Stack
+	stack   core.Stack
 }
 
 // Error returns the payload as a string
@@ -36,7 +36,7 @@ func (p *PanicError) Recovered() any {
 }
 
 // Stack returns the call stack associated to this panic() event
-func (p *PanicError) Stack() Stack {
+func (p *PanicError) Stack() core.Stack {
 	return p.stack
 }
 
@@ -44,7 +44,7 @@ func (p *PanicError) Stack() Stack {
 func NewPanicError(skip int, payload any) *PanicError {
 	return &PanicError{
 		payload: payload,
-		stack:   StackTrace(skip + 1),
+		stack:   core.StackTrace(skip + 1),
 	}
 }
 
@@ -52,7 +52,7 @@ func NewPanicError(skip int, payload any) *PanicError {
 func NewPanicErrorf(skip int, format string, args ...any) *PanicError {
 	return &PanicError{
 		payload: fmt.Errorf(format, args...),
-		stack:   StackTrace(skip + 1),
+		stack:   core.StackTrace(skip + 1),
 	}
 }
 
@@ -60,6 +60,6 @@ func NewPanicErrorf(skip int, format string, args ...any) *PanicError {
 func NewPanicWrapf(skip int, err error, format string, args ...any) *PanicError {
 	return &PanicError{
 		payload: core.Wrapf(err, format, args...),
-		stack:   StackTrace(skip + 1),
+		stack:   core.StackTrace(skip + 1),
 	}
 }

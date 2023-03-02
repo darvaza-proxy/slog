@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/darvaza-proxy/core"
 	"github.com/darvaza-proxy/slog"
 	"github.com/darvaza-proxy/slog/internal"
 )
@@ -23,7 +24,7 @@ type LogMsg struct {
 	Message string
 	Level   slog.LogLevel
 	Fields  map[string]any
-	Stack   internal.Stack
+	Stack   core.Stack
 }
 
 // Logger is a slog.Logger using a channel as backend

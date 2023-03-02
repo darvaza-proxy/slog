@@ -8,8 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/darvaza-proxy/core"
 	"github.com/darvaza-proxy/slog"
-	"github.com/darvaza-proxy/slog/internal"
 )
 
 var (
@@ -126,7 +126,7 @@ func (rl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 // WithStack attaches a call stack to the log entry
 func (rl *Logger) WithStack(skip int) slog.Logger {
 	if rl.Enabled() {
-		frames := internal.StackTrace(skip + 1)
+		frames := core.StackTrace(skip + 1)
 		if len(frames) > 0 {
 			caller := frames[0]
 

@@ -1,6 +1,9 @@
 package internal
 
-import "github.com/darvaza-proxy/slog"
+import (
+	"github.com/darvaza-proxy/core"
+	"github.com/darvaza-proxy/slog"
+)
 
 // Loglet represents a link on the Logger context chain
 type Loglet struct {
@@ -8,7 +11,7 @@ type Loglet struct {
 	level  slog.LogLevel
 	keys   []string
 	values []any
-	stack  Stack
+	stack  core.Stack
 }
 
 // Level returns the LogLevel of a Loglet
@@ -30,7 +33,7 @@ func (ll *Loglet) WithLevel(level slog.LogLevel) Loglet {
 }
 
 // Stack returns the callstack associated to a Loglet
-func (ll *Loglet) Stack() Stack {
+func (ll *Loglet) Stack() core.Stack {
 	return ll.stack
 }
 
@@ -39,7 +42,7 @@ func (ll *Loglet) WithStack(skip int) Loglet {
 	return Loglet{
 		parent: ll,
 		level:  ll.level,
-		stack:  StackTrace(skip + 1),
+		stack:  core.StackTrace(skip + 1),
 	}
 }
 
