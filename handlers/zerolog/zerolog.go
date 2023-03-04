@@ -3,10 +3,12 @@ package zerolog
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/rs/zerolog"
 
+	"github.com/darvaza-proxy/core"
 	"github.com/darvaza-proxy/slog"
 	"github.com/darvaza-proxy/slog/internal"
 )
@@ -19,6 +21,8 @@ var (
 type Logger struct {
 	logger *zerolog.Logger
 	event  *zerolog.Event
+	action func(string, error)
+	err    error
 }
 
 // Enabled tells if the underlying logger is enabled or not.
@@ -59,6 +63,9 @@ func (zl *Logger) Printf(format string, args ...any) {
 
 func (zl *Logger) msg(msg string) {
 	zl.event.Msg(strings.TrimSpace(msg))
+	if fn := zl.action; fn != nil {
+		fn(msg, zl.err)
+	}
 }
 
 // Debug returns a new Event Context set to add entries as level Debug.
@@ -107,15 +114,43 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 		// fix your code
 		zl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
 	} else if zl.Enabled() {
+		var fn func(string, error)
+
 		zlevel := levels[level]
+
+		switch level {
+		case slog.Fatal:
+			fn = zl.triggerExit
+		case slog.Panic:
+			fn = zl.triggerPanic
+		}
 
 		// new event
 		ev := zl.logger.WithLevel(zlevel)
-		return newLogger(zl.logger, ev)
+		return newLogger(zl.logger, ev, fn)
 	}
 
 	// NOP
 	return zl
+}
+
+func (*Logger) triggerExit(string, error) {
+	// revive:disable:deep-exit
+	os.Exit(1)
+	// revive:enable:deep-exit
+}
+
+func (*Logger) triggerPanic(msg string, err error) {
+	const skip = 2 // whoever called Print
+	var perr error
+	if msg == "" {
+		perr = core.NewPanicError(skip, err)
+	} else if err == nil {
+		perr = core.NewPanicError(skip, msg)
+	} else {
+		perr = core.NewPanicWrap(skip, err, msg)
+	}
+	panic(perr)
 }
 
 // WithStack attaches a call stack to the Event Context
@@ -150,6 +185,7 @@ func (zl *Logger) addField(label string, value any) {
 	if label == slog.ErrorFieldName {
 		if err, ok := value.(error); ok {
 			zl.event.Err(err)
+			zl.err = err
 			return
 		}
 	}
@@ -163,7 +199,7 @@ func New(logger *zerolog.Logger) slog.Logger {
 		return nil
 	}
 
-	return newLogger(logger, nil)
+	return newLogger(logger, nil, nil)
 }
 
 // NewWithCallback creates a new zerolog.Event using a callback to modify it.
@@ -174,10 +210,10 @@ func (zl *Logger) NewWithCallback(fn func(ev *zerolog.Event)) *Logger {
 		fn(ev)
 	}
 
-	return newLogger(zl.logger, ev)
+	return newLogger(zl.logger, ev, nil)
 }
 
-func newLogger(logger *zerolog.Logger, ev *zerolog.Event) *Logger {
+func newLogger(logger *zerolog.Logger, ev *zerolog.Event, fn func(string, error)) *Logger {
 	if ev == nil {
 		ev = logger.Log()
 	}
@@ -185,5 +221,6 @@ func newLogger(logger *zerolog.Logger, ev *zerolog.Event) *Logger {
 	return &Logger{
 		logger: logger,
 		event:  ev,
+		action: fn,
 	}
 }
