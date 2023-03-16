@@ -2,8 +2,10 @@
 
 set -eu
 
-PROJECTS="$*"
-COMMANDS="get tidy build test up"
+INDEX="$1"
+
+PROJECTS="$(cut -d':' -f1 "$INDEX")"
+COMMANDS="tidy get build test up"
 
 expand() {
 	local prefix="$1" suffix="$2"
@@ -29,8 +31,28 @@ suffixed() {
 	expand "" "$suffix" "$@"
 }
 
+gen_install_tools() {
+	cat <<EOT
+for url in \$(GO_INSTALL_URLS); do \$(GO) install -v \$\$url; done
+EOT
+}
+
+gen_revive_exclude() {
+	local self="$1"
+	local dirs= d=
+
+	dirs="$(cut -d: -f2 "$INDEX" | grep -v '^.$')"
+	if [ "." != "$self" ]; then
+		dirs=$(echo "$dirs" | sed -n -e "s;^$self/\(.*\)$;\1;p")
+	fi
+
+	for d in $dirs; do
+		printf -- "-exclude ./$d/... "
+	done
+}
+
 for cmd in $COMMANDS; do
-	all="$(prefixed $cmd root $PROJECTS)"
+	all="$(prefixed $cmd $PROJECTS)"
 	depsx=
 
 	cat <<EOT
@@ -39,6 +61,7 @@ $cmd: $all
 
 EOT
 
+	# default calls
 	case "$cmd" in
 	tidy)
 		call="$(cat <<EOT | sed -e '/^$/d;'
@@ -47,18 +70,19 @@ EOT
 \$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
 EOT
 )"
-		depsx="\$(REVIVE)"
+		depsx="fmt \$(REVIVE)"
 		;;
 	up)
 		call="\$(GO) get -u -v ./...
 \$(GO) mod tidy"
 		;;
+	test)
+		call="\$(GO) $cmd ./..."
+		;;
 	*)
 		call="\$(GO) $cmd -v ./..."
 		;;
 	esac
-
-	# tidy up call
 
 	case "$cmd" in
 	build|test)
@@ -67,17 +91,20 @@ EOT
 		sequential=false ;;
 	esac
 
-	for x in . $PROJECTS; do
-		if [ "$x" = . ]; then
-			k="root"
+	while IFS=: read name dir mod deps; do
+
+		deps=$(echo "$deps" | tr ',' ' ')
+
+		# cd $dir
+		if [ "." = "$dir" ]; then
+			# root
 			cd=
 		else
-			k="$x"
-			cd="cd 'handlers/$x' \&\& "
+			cd="cd '$dir' \&\& "
 		fi
 
 		callx="$call"
-		if [ "$k" = root ]; then
+		if [ "$name" = root ]; then
 			# special case
 			case "$cmd" in
 			get)
@@ -96,32 +123,33 @@ EOT
 			if [ "up" = "$cmd" ]; then
 				callx="$cmdx
 \$(GO) mod tidy
-\$(GO) install -v \$(REVIVE_INSTALL_URL)"
+$(gen_install_tools)"
 			elif [ "get" = "$cmd" ]; then
 				callx="$cmdx
-\$(GO) install -v \$(REVIVE_INSTALL_URL)"
-			elif [ "tidy" = "$cmd" ]; then
-				exclude=
-				for x in $PROJECTS; do
-					exclude="${exclude:+$exclude }-exclude ./handlers/$x/..."
-				done
-				callx=$(echo "$call" | sed -e "s;\(REVIVE)\);\1 $exclude;")
+$(gen_install_tools)"
 			elif [ -n "$cmdx" ]; then
 				classx="$cmdx"
 			fi
+
 		fi
 
-		deps=
-		if $sequential; then
-			[ "$k" = root ] || deps=root
+		if [ "tidy" = "$cmd" ]; then
+			exclude=$(gen_revive_exclude "$dir")
+			if [ -n "$exclude" ]; then
+				callx=$(echo "$callx" | sed -e "s;\(REVIVE)\);\1 $exclude;")
+			fi
+		fi
+
+		if ! $sequential; then
+			deps=
 		fi
 
 		cat <<EOT
-$cmd-$k:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $k)
+$cmd-$name:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $name)
 $(echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|")
 
 EOT
-	done
+	done < "$INDEX"
 done
 
 for x in $PROJECTS; do
