@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	github.com/darvaza-proxy/core v0.5.2 // indirect
+	github.com/darvaza-proxy/core v0.6.1 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/multierr v1.9.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 )
