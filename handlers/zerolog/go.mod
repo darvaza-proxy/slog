@@ -6,7 +6,7 @@ replace github.com/darvaza-proxy/slog => ../../
 
 require (
 	github.com/darvaza-proxy/core v0.8.1
-	github.com/darvaza-proxy/slog v0.4.6
+	github.com/darvaza-proxy/slog v0.4.7
 	github.com/rs/zerolog v1.29.0
 )
 
