@@ -2,7 +2,7 @@ package internal
 
 import (
 	"darvaza.org/core"
-	"github.com/darvaza-proxy/slog"
+	"darvaza.org/slog"
 )
 
 var (

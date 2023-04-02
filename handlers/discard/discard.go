@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/darvaza-proxy/slog"
+	"darvaza.org/slog"
 )
 
 var (

@@ -1,7 +1,7 @@
-module github.com/darvaza-proxy/slog/handlers/discard
+module darvaza.org/slog/handlers/discard
 
 go 1.19
 
-replace github.com/darvaza-proxy/slog => ../../
+replace darvaza.org/slog => ../../
 
-require github.com/darvaza-proxy/slog v0.4.7
+require darvaza.org/slog v0.4.7

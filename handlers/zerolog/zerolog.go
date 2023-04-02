@@ -9,8 +9,8 @@ import (
 	"github.com/rs/zerolog"
 
 	"darvaza.org/core"
-	"github.com/darvaza-proxy/slog"
-	"github.com/darvaza-proxy/slog/internal"
+	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 var (

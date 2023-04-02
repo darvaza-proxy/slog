@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/darvaza-proxy/slog"
-	"github.com/darvaza-proxy/slog/internal"
+	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 var (

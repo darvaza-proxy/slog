@@ -1,7 +1,7 @@
 # Channel Based back-end for slog.Logger
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/darvaza-proxy/slog/handlers/cblog.svg)](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/cblog)
+[![Go Reference](https://pkg.go.dev/badge/darvaza.org/slog/handlers/cblog.svg)](https://pkg.go.dev/darvaza.org/slog/handlers/cblog)
 
 ## See also
 
-* [github.com/darvaza-proxy/slog](https://pkg.go.dev/github.com/darvaza-proxy/slog)
+* [darvaza.org/slog](https://pkg.go.dev/darvaza.org/slog)

@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"darvaza.org/core"
-	"github.com/darvaza-proxy/slog"
+	"darvaza.org/slog"
 )
 
 var (

@@ -1,4 +1,4 @@
-module github.com/darvaza-proxy/slog
+module darvaza.org/slog
 
 go 1.19
 

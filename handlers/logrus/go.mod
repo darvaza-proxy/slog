@@ -1,12 +1,12 @@
-module github.com/darvaza-proxy/slog/handlers/logrus
+module darvaza.org/slog/handlers/logrus
 
 go 1.19
 
-replace github.com/darvaza-proxy/slog => ../../
+replace darvaza.org/slog => ../../
 
 require (
 	darvaza.org/core v0.9.0
-	github.com/darvaza-proxy/slog v0.4.7
+	darvaza.org/slog v0.4.7
 	github.com/sirupsen/logrus v1.9.0
 )
 

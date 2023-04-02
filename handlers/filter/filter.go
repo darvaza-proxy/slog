@@ -2,7 +2,7 @@
 package filter
 
 import (
-	"github.com/darvaza-proxy/slog"
+	"darvaza.org/slog"
 )
 
 var (

@@ -1,6 +1,6 @@
 # slog, a back-end agnostic interface for structured logs
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/darvaza-proxy/slog.svg)](https://pkg.go.dev/github.com/darvaza-proxy/slog)
+[![Go Reference](https://pkg.go.dev/badge/darvaza.org/slog.svg)](https://pkg.go.dev/darvaza.org/slog)
 
 [`slog.Logger`](#interface) provides a simple standardised interface for structured logs for libraries. It supports [six log levels](#log-levels) and [fields](#fields) with unique string labels (keys).
 
@@ -58,13 +58,13 @@ Alternatively a generic handler is provided when using `NewStdLogger()`.
 A handler is an object that implements the `slog.Logger` interface.
 We provide handlers to use popular loggers as _backend_.
 
-* [logrus](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/logrus)
-* [zap](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/zap)
-* [zerolog](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/zerolog)
+* [logrus](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)
+* [zap](https://pkg.go.dev/darvaza.org/slog/handlers/zap)
+* [zerolog](https://pkg.go.dev/darvaza.org/slog/handlers/zerolog)
 
 We also offer backend independent handlers
 
-* [cblog](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/cblog), a implementation
+* [cblog](https://pkg.go.dev/darvaza.org/slog/handlers/cblog), a implementation
 that allows you to receive log entries through a channel.
-* [filter](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/filter), that can filter by level and also alter log entries before passing them to another slog.Logger.
-* [discard](https://pkg.go.dev/github.com/darvaza-proxy/slog/handlers/discard), a placeholder that won't log anything but saves the user from checking if a logger was provided or not every time.
+* [filter](https://pkg.go.dev/darvaza.org/slog/handlers/filter), that can filter by level and also alter log entries before passing them to another slog.Logger.
+* [discard](https://pkg.go.dev/darvaza.org/slog/handlers/discard), a placeholder that won't log anything but saves the user from checking if a logger was provided or not every time.
