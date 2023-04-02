@@ -8,7 +8,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/darvaza-proxy/core"
+	"darvaza.org/core"
 	"github.com/darvaza-proxy/slog"
 	"github.com/darvaza-proxy/slog/internal"
 )
