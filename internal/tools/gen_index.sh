@@ -7,7 +7,7 @@ set -eu
 MODULES=$(find * -name go.mod -exec dirname '{}' \;)
 GROUPS="x handlers"
 BASE="$PWD"
-MODULE=$($GO list -m)
+MODULE=$($GO list)
 
 namedir() {
 	local d="$1" g= n=
@@ -30,7 +30,7 @@ namedir() {
 
 mod() {
 	cd "$1"
-	$GO list -m
+	$GO list
 }
 
 mod_replace() {
