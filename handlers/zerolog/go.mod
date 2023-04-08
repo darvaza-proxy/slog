@@ -5,7 +5,7 @@ go 1.19
 replace darvaza.org/slog => ../../
 
 require (
-	darvaza.org/core v0.9.0
+	darvaza.org/core v0.9.2
 	darvaza.org/slog v0.5.0
 	github.com/rs/zerolog v1.29.0
 )

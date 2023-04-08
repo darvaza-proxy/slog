@@ -10,7 +10,7 @@ require (
 )
 
 require (
-	darvaza.org/core v0.9.0 // indirect
+	darvaza.org/core v0.9.2 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/stretchr/testify v1.8.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect

@@ -3,7 +3,7 @@ module darvaza.org/slog
 go 1.19
 
 require (
-	darvaza.org/core v0.9.0
+	darvaza.org/core v0.9.2
 	github.com/mgechev/revive v1.3.1
 )
 
