@@ -4,7 +4,7 @@ go 1.19
 
 replace darvaza.org/slog => ../../
 
-require darvaza.org/slog v0.5.0
+require darvaza.org/slog v0.5.2
 
 require (
 	darvaza.org/core v0.9.4 // indirect
