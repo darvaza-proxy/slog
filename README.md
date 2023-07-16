@@ -1,6 +1,7 @@
 # slog, a back-end agnostic interface for structured logs
 
 [![Go Reference](https://pkg.go.dev/badge/darvaza.org/slog.svg)](https://pkg.go.dev/darvaza.org/slog)
+[![Codebeat Badge](https://codebeat.co/badges/f96b7fad-4653-4421-9cb9-c2fe7a4678da)](https://codebeat.co/projects/github-com-darvaza-proxy-slog-main)
 
 [`slog.Logger`](#interface) provides a simple standardised interface for structured logs for libraries. It supports [six log levels](#log-levels) and [fields](#fields) with unique string labels (keys).
 

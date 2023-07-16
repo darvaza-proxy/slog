@@ -41,7 +41,7 @@ gen_revive_exclude() {
 	local self="$1"
 	local dirs= d=
 
-	dirs="$(cut -d: -f2 "$INDEX" | grep -v '^.$')"
+	dirs="$(cut -d: -f2 "$INDEX" | grep -v '^.$' || true)"
 	if [ "." != "$self" ]; then
 		dirs=$(echo "$dirs" | sed -n -e "s;^$self/\(.*\)$;\1;p")
 	fi
@@ -66,8 +66,7 @@ EOT
 	tidy)
 		call="$(cat <<EOT | sed -e '/^$/d;'
 \$(GO) mod tidy
-\$(GO) vet ./...
-\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
+if [ -n "\$\$(\$(GO) list -f '{{len .GoFiles}}' ./... 2> /dev/null)" ]; then \$(GO) vet ./...; \$(REVIVE) \$(REVIVE_RUN_ARGS) ./...; fi
 EOT
 )"
 		depsx="fmt \$(REVIVE)"
@@ -133,7 +132,16 @@ $(gen_install_tools)"
 
 		fi
 
+		if [ "build" = "$cmd" ]; then
+			# special build flags for cmd/*
+			#
+			callx="MOD=\$\$(\$(GO) list -f '{{.ImportPath}}' ./... 2> /dev/null); if echo \"\$\$MOD\" | grep -q -e '.*/cmd/[^/]\+\$\$'; then \
+\$(GO_BUILD_CMD) ./...; elif [ -n \"\$\$MOD\" ]; then \$(GO_BUILD) ./...; fi"
+		fi
+
 		if [ "tidy" = "$cmd" ]; then
+			# exclude submodules when running revive
+			#
 			exclude=$(gen_revive_exclude "$dir")
 			if [ -n "$exclude" ]; then
 				callx=$(echo "$callx" | sed -e "s;\(REVIVE)\);\1 $exclude;")
