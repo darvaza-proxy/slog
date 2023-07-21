@@ -31,6 +31,16 @@ suffixed() {
 	expand "" "$suffix" "$@"
 }
 
+# packed remove excess whitespace from lines of commands
+packed() {
+	sed -e 's/^[ \t]\+//' -e 's/[ \t]\+$//' -e '/^$/d;' -e '/^#/d';
+}
+
+# packet_oneline converts a multiline script into packed single-line equivalent
+packed_oneline() {
+	packed | tr '\n' ';' | sed -e 's|;$||' -e 's|then;|then |g' -e 's|;[ \t]*|; |g'
+}
+
 gen_install_tools() {
 	cat <<EOT
 for url in \$(GO_INSTALL_URLS); do \$(GO) install -v \$\$url; done
@@ -64,11 +74,22 @@ EOT
 	# default calls
 	case "$cmd" in
 	tidy)
-		call="$(cat <<EOT | sed -e '/^$/d;'
-\$(GO) mod tidy
-if [ -n "\$\$(\$(GO) list -f '{{len .GoFiles}}' ./... 2> /dev/null)" ]; then \$(GO) vet ./...; \$(REVIVE) \$(REVIVE_RUN_ARGS) ./...; fi
-EOT
-)"
+		call="$(cat <<-EOT | packed
+		\$(GO) mod tidy
+
+		# go vet and revive only if there are .go files
+		#
+		$(cat <<-EOL | packed_oneline
+			set -e
+			FILES="\$\$(\$(GO) list -f '{{len .GoFiles}}')"
+			if [ -n "\$\$FILES" ]; then
+				\$(GO) vet ./...
+				\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
+			fi
+			EOL
+			)
+		EOT
+		)"
 		depsx="fmt \$(REVIVE)"
 		;;
 	up)
@@ -99,7 +120,7 @@ EOT
 			# root
 			cd=
 		else
-			cd="cd '$dir' \&\& "
+			cd="cd '$dir'; "
 		fi
 
 		callx="$call"
@@ -135,8 +156,16 @@ $(gen_install_tools)"
 		if [ "build" = "$cmd" ]; then
 			# special build flags for cmd/*
 			#
-			callx="MOD=\$\$(\$(GO) list -f '{{.ImportPath}}' ./... 2> /dev/null); if echo \"\$\$MOD\" | grep -q -e '.*/cmd/[^/]\+\$\$'; then \
-\$(GO_BUILD_CMD) ./...; elif [ -n \"\$\$MOD\" ]; then \$(GO_BUILD) ./...; fi"
+			callx="$(cat <<-EOL | packed_oneline
+			set -e
+			MOD="\$\$(\$(GO) list -f '{{.ImportPath}}' ./...)"
+			if echo "\$\$MOD" | grep -q -e '.*/cmd/[^/]\+\$\$'; then
+				\$(GO_BUILD_CMD) ./...
+			elif [ -n "\$\$MOD" ]; then
+				\$(GO_BUILD) ./...
+			fi
+			EOL
+			)"
 		fi
 
 		if [ "tidy" = "$cmd" ]; then
