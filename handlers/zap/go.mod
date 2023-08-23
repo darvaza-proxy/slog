@@ -10,10 +10,10 @@ require (
 )
 
 require (
-	darvaza.org/core v0.9.5 // indirect
+	darvaza.org/core v0.9.6 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/text v0.12.0 // indirect
 )
