@@ -22,6 +22,11 @@ type Logger struct {
 	config *zap.Config
 }
 
+// Unwrap returns the underlying zap logger
+func (zpl *Logger) Unwrap() (*zap.Logger, *zap.Config) {
+	return zpl.logger, zpl.config
+}
+
 // Enabled tells this logger is enabled
 func (zpl *Logger) Enabled() bool {
 	if zpl == nil || zpl.logger == nil || zpl.logger.Level() == zapcore.InvalidLevel {
