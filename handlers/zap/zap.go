@@ -133,6 +133,16 @@ func toZapLevel(level slog.LogLevel) (zapcore.Level, bool) {
 	return levels[level], true
 }
 
+func fromZapLevel(level zapcore.Level) (slog.LogLevel, bool) {
+	for i, zl := range levels {
+		if level == zl {
+			// match
+			return slog.LogLevel(i), true
+		}
+	}
+	return slog.UndefinedLevel, false
+}
+
 // WithStack attaches a call stack to a new logger
 func (zpl *Logger) WithStack(skip int) slog.Logger {
 	zpl.logger = zpl.logger.WithOptions(
@@ -205,13 +215,17 @@ func newLogger(cfg *zap.Config) *Logger {
 // console.
 func NewDefaultConfig() *zap.Config {
 	cfg := zap.NewProductionConfig()
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
 	cfg.Encoding = "console"
-	cfg.EncoderConfig = encoderConfig
+	cfg.EncoderConfig = newDefaultEncoderConfig()
 	cfg.Sampling = nil
 	cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	cfg.DisableStacktrace = true
 	cfg.DisableCaller = true
 	return &cfg
+}
+
+func newDefaultEncoderConfig() zapcore.EncoderConfig {
+	conf := zap.NewProductionEncoderConfig()
+	conf.EncodeTime = zapcore.RFC3339TimeEncoder
+	return conf
 }
