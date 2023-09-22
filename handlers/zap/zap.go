@@ -173,7 +173,7 @@ func NewNoop() *Logger {
 
 func newLogger(logger *zap.Logger, cfg *zap.Config) *Logger {
 	if cfg == nil {
-		cfg = setDefaultConfig()
+		cfg = NewDefaultConfig()
 	}
 
 	lg, err := cfg.Build()
@@ -187,7 +187,9 @@ func newLogger(logger *zap.Logger, cfg *zap.Config) *Logger {
 	}
 }
 
-func setDefaultConfig() *zap.Config {
+// NewDefaultConfig creates a new [zap.Config] logging to the
+// console.
+func NewDefaultConfig() *zap.Config {
 	cfg := zap.NewProductionConfig()
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
