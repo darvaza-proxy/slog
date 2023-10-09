@@ -104,24 +104,33 @@ func (zpl *Logger) Panic() slog.Logger {
 
 // WithLevel returns a new logger set to add entries to the specified level
 func (zpl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
-	var levels = []zapcore.Level{
-		slog.UndefinedLevel: zapcore.InvalidLevel,
-		slog.Panic:          zapcore.PanicLevel,
-		slog.Fatal:          zapcore.FatalLevel,
-		slog.Error:          zapcore.ErrorLevel,
-		slog.Warn:           zapcore.WarnLevel,
-		slog.Info:           zapcore.InfoLevel,
-		slog.Debug:          zapcore.DebugLevel,
-	}
-
-	if level <= slog.UndefinedLevel || int(level) >= len(levels) {
+	zl, ok := toZapLevel(level)
+	if !ok {
 		// fix your code
 		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if zpl.logger.Core().Enabled(levels[level]) {
-		zpl.config.Level.SetLevel(levels[level])
+	} else if zpl.logger.Core().Enabled(zl) {
+		zpl.config.Level.SetLevel(zl)
 	}
 
 	return zpl
+}
+
+var levels = []zapcore.Level{
+	slog.UndefinedLevel: zapcore.InvalidLevel,
+	slog.Panic:          zapcore.PanicLevel,
+	slog.Fatal:          zapcore.FatalLevel,
+	slog.Error:          zapcore.ErrorLevel,
+	slog.Warn:           zapcore.WarnLevel,
+	slog.Info:           zapcore.InfoLevel,
+	slog.Debug:          zapcore.DebugLevel,
+}
+
+func toZapLevel(level slog.LogLevel) (zapcore.Level, bool) {
+	if level <= slog.UndefinedLevel || int(level) >= len(levels) {
+		return zapcore.InvalidLevel, false
+	}
+
+	return levels[level], true
 }
 
 // WithStack attaches a call stack to a new logger
@@ -153,7 +162,7 @@ func (zpl *Logger) WithFields(fields map[string]any) slog.Logger {
 }
 
 // New creates a slog.Logger adaptor using a zap as backend. If
-// none was passed it will create an opiniated new one.
+// none was passed it will create an opinionated new one.
 func New(cfg *zap.Config) slog.Logger {
 	return newLogger(cfg)
 }
