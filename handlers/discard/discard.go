@@ -19,11 +19,12 @@ type Logger struct {
 	level slog.LogLevel
 }
 
-// Enabled tells that we only handle Fatal
+// Enabled tells that we only handle Fatal and Panic.
 func (nl *Logger) Enabled() bool {
-	if nl == nil || nl.level > slog.Fatal {
+	if nl == nil || nl.level < slog.Panic || nl.level > slog.Fatal {
 		return false
 	}
+
 	return true
 }
 
