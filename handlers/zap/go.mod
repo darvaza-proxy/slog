@@ -10,10 +10,10 @@ require (
 )
 
 require (
-	darvaza.org/core v0.11.2 // indirect
+	darvaza.org/core v0.11.3 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )

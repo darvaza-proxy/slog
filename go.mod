@@ -3,7 +3,7 @@ module darvaza.org/slog
 go 1.19
 
 require (
-	darvaza.org/core v0.11.2
+	darvaza.org/core v0.11.3
 	github.com/mgechev/revive v1.3.4
 )
 
@@ -21,7 +21,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
