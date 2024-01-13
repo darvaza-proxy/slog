@@ -12,10 +12,12 @@ GOBIN ?= $(GOPATH)/bin
 TOOLSDIR := $(CURDIR)/internal/build
 TMPDIR ?= .tmp
 
+REVIVE_VERSION ?= v1.3.6
+
 REVIVE ?= $(GOBIN)/revive
 REVIVE_CONF ?= $(TOOLSDIR)/revive.toml
 REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
-REVIVE_INSTALL_URL ?= github.com/mgechev/revive
+REVIVE_INSTALL_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
 
 GO_INSTALL_URLS = \
 	$(REVIVE_INSTALL_URL) \

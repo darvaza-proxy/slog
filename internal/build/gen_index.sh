@@ -5,7 +5,7 @@ set -eu
 : ${GO:=go}
 
 MODULES=$(find * -name go.mod -exec dirname '{}' \;)
-GROUPS="x handlers"
+GROUPS="handlers"
 BASE="$PWD"
 
 mod() {
