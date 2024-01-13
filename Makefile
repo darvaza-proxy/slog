@@ -9,7 +9,7 @@ GOGENERATE_FLAGS = -v
 GOPATH ?= $(shell $(GO) env GOPATH)
 GOBIN ?= $(GOPATH)/bin
 
-TOOLSDIR := $(CURDIR)/internal/tools
+TOOLSDIR := $(CURDIR)/internal/build
 TMPDIR ?= .tmp
 
 REVIVE ?= $(GOBIN)/revive

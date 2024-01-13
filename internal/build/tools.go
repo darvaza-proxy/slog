@@ -1,6 +1,6 @@
 //go:build tools
 
-package tools
+package build
 
 import (
 	_ "github.com/mgechev/revive"
