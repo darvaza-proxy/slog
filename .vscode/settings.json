@@ -1,10 +1,1 @@
-{
-	"files.exclude": {
-		"handlers/cblog": true,
-		"handlers/discard": true,
-		"handlers/filter": true,
-		"handlers/logrus": true,
-		"handlers/zap": true,
-		"handlers/zerolog": true
-	}
-}
+{}
