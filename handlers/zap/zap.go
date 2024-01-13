@@ -154,8 +154,8 @@ func (zpl *Logger) WithFields(fields map[string]any) slog.Logger {
 
 // New creates a slog.Logger adaptor using a zap as backend. If
 // none was passed it will create an opiniated new one.
-func New(logger *zap.Logger, cfg *zap.Config) slog.Logger {
-	return newLogger(logger, cfg)
+func New(cfg *zap.Config) slog.Logger {
+	return newLogger(cfg)
 }
 
 // NewWithCallback creates a new zap logger using a callback to modify it.
@@ -176,7 +176,7 @@ func NewNoop() *Logger {
 	}
 }
 
-func newLogger(logger *zap.Logger, cfg *zap.Config) *Logger {
+func newLogger(cfg *zap.Config) *Logger {
 	if cfg == nil {
 		cfg = NewDefaultConfig()
 	}
