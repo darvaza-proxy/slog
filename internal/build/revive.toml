@@ -17,7 +17,7 @@ enableAllRules = true
 [rule.cyclomatic]
   arguments = [10]
 [rule.line-length-limit]
-  arguments = [100]
+  arguments = [120]
   severity = "warning"
 [rule.comment-spacings]
   severity = "warning"
