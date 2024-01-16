@@ -7,6 +7,12 @@ INDEX="$1"
 PROJECTS="$(cut -d':' -f1 "$INDEX")"
 COMMANDS="tidy get build test up"
 
+TAB=$(printf "\t")
+
+escape_dir() {
+	echo "$1" | sed -e 's|/|\\/|g' -e 's|\.|\\.|g'
+}
+
 expand() {
 	local prefix="$1" suffix="$2"
 	local x= out=
@@ -61,35 +67,71 @@ gen_revive_exclude() {
 	done
 }
 
-for cmd in $COMMANDS; do
-	all="$(prefixed $cmd $PROJECTS)"
-	depsx=
+gen_var_name() {
+	local x=
+	for x; do
+		echo "$x" | tr 'a-z-' 'A-Z_'
+	done
+}
+
+# generate files lists
+#
+gen_files_lists() {
+	local name= dir= mod= deps=
+	local files= files_cmd=
+	local filter= out_pat=
 
 	cat <<EOT
-.PHONY: $cmd $all
-$cmd: $all
+GO_FILES = \$(shell find * \\
+	-type d -name node_modules -prune -o \\
+	-path internal/build -prune -o \\
+	-type f -name '*.go' -print )
 
 EOT
+
+	while IFS=: read name dir mod deps; do
+		files=GO_FILES_$(gen_var_name "$name")
+		filter="-e '/^\.$/d;'"
+		[ "x$dir" = "x." ] || filter="$filter -e '/^$(escape_dir "$dir")$/d;'"
+		out_pat="$(cut -d: -f2 "$INDEX" | eval "sed $filter -e 's|$|/%|'" | tr '\n' ' ' | sed -e 's| \+$||')"
+
+		if [ "x$dir" = "x." ]; then
+			# root
+			files_cmd="\$(GO_FILES)"
+			files_cmd="\$(filter-out $out_pat, $files_cmd)"
+		else
+			files_cmd="\$(filter $dir/%, \$(GO_FILES))"
+			files_cmd="\$(filter-out $out_pat, $files_cmd)"
+			files_cmd="\$(patsubst $dir/%,%,$files_cmd)"
+		fi
+
+		cat <<-EOT
+		$files$TAB=$TAB$files_cmd
+		EOT
+	done < "$INDEX" | column -t -s "$TAB" -o " "
+}
+
+gen_make_targets() {
+	local cmd="$1" name="$2" dir="$3" mod="$4" deps="$5"
+	local call= callu= callx=
+	local depsx= cmdx=
+	local sequential=
 
 	# default calls
 	case "$cmd" in
 	tidy)
-		call="$(cat <<-EOT | packed
-		\$(GO) mod tidy
+		# unconditional
+		callu="\$(GO) mod tidy"
 
 		# go vet and revive only if there are .go files
 		#
-		$(cat <<-EOL | packed_oneline
-			set -e
-			FILES="\$\$(\$(GO) list -f '{{len .GoFiles}}')"
-			if [ -n "\$\$FILES" ]; then
-				\$(GO) vet ./...
-				\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
-			fi
-			EOL
-			)
+		call="$(cat <<-EOT | packed
+		\$(GO) vet ./...
+		\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
+		\$(GOLANGCI_LINT) run
 		EOT
 		)"
+
 		depsx="fmt \$(REVIVE)"
 		;;
 	up)
@@ -111,10 +153,6 @@ EOT
 		sequential=false ;;
 	esac
 
-	while IFS=: read name dir mod deps; do
-
-		deps=$(echo "$deps" | tr ',' ' ')
-
 		# cd $dir
 		if [ "." = "$dir" ]; then
 			# root
@@ -123,7 +161,6 @@ EOT
 			cd="cd '$dir'; "
 		fi
 
-		callx="$call"
 		if [ "$name" = root ]; then
 			# special case
 			case "$cmd" in
@@ -140,17 +177,24 @@ EOT
 
 			[ -z "$cmdx" ] || cmdx="\$(GO) $cmdx -v ./..."
 
-			if [ "up" = "$cmd" ]; then
-				callx="$cmdx
+			case "$cmd" in
+			up)
+				# unconditional because of the tools
+				callu="$cmdx
 \$(GO) mod tidy
 $(gen_install_tools)"
-			elif [ "get" = "$cmd" ]; then
-				callx="$cmdx
+				;;
+			get)
+				# unconditional because of the tools
+				callu="$cmdx
 $(gen_install_tools)"
-			elif [ -n "$cmdx" ]; then
-				classx="$cmdx"
-			fi
-
+				;;
+			*)
+				callx="$call"
+				;;
+			esac
+		else
+			callx="$call"
 		fi
 
 		if [ "build" = "$cmd" ]; then
@@ -181,16 +225,45 @@ $(gen_install_tools)"
 			deps=
 		fi
 
+		files=GO_FILES_$(gen_var_name "$name")
 		cat <<EOT
-$cmd-$name:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $name)
-$(echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|")
 
+$cmd-$name:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $name)
 EOT
+	if [ -n "$callu" ]; then
+		# unconditionally
+		echo "$callu" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
+	fi
+	if [ -n "$callx" ]; then
+		# only if there are files
+		echo "ifneq (\$($files),)"
+		echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
+		echo "endif"
+	fi
+}
+
+gen_files_lists
+
+for cmd in $COMMANDS; do
+	all="$(prefixed $cmd $PROJECTS)"
+	depsx=
+
+	cat <<EOT
+
+.PHONY: $cmd $all
+$cmd: $all
+EOT
+
+	while IFS=: read name dir mod deps; do
+		deps=$(echo "$deps" | tr ',' ' ')
+
+		gen_make_targets "$cmd" "$name" "$dir" "$mod" "$deps"
 	done < "$INDEX"
 done
 
 for x in $PROJECTS; do
 	cat <<EOT
+
 $x: $(suffixed $x get build tidy)
 EOT
 done

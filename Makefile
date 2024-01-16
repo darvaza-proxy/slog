@@ -9,15 +9,22 @@ GOGENERATE_FLAGS = -v
 GOPATH ?= $(shell $(GO) env GOPATH)
 GOBIN ?= $(GOPATH)/bin
 
-TOOLSDIR := $(CURDIR)/internal/tools
+TOOLSDIR := $(CURDIR)/internal/build
 TMPDIR ?= .tmp
+
+GOLANGCI_LINT_VERSION ?= v1.55
+REVIVE_VERSION ?= v1.3.6
+
+GOLANGCI_LINT ?= $(GOBIN)/golangci-lint
+GOLANGCI_LINT_URL ?= github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 REVIVE ?= $(GOBIN)/revive
 REVIVE_CONF ?= $(TOOLSDIR)/revive.toml
 REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
-REVIVE_INSTALL_URL ?= github.com/mgechev/revive
+REVIVE_INSTALL_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
 
 GO_INSTALL_URLS = \
+	$(GOLANGCI_LINT_URL) \
 	$(REVIVE_INSTALL_URL) \
 
 V = 0
