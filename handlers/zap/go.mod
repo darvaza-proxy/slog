@@ -1,6 +1,6 @@
 module darvaza.org/slog/handlers/zap
 
-go 1.19
+go 1.20
 
 replace darvaza.org/slog => ../../
 
@@ -10,10 +10,10 @@ require (
 )
 
 require (
-	darvaza.org/core v0.12.0 // indirect
+	darvaza.org/core v0.14.1 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.20.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 )
