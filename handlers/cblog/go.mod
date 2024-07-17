@@ -1,6 +1,6 @@
 module darvaza.org/slog/handlers/cblog
 
-go 1.19
+go 1.20
 
 replace darvaza.org/slog => ../../
 
