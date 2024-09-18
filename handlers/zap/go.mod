@@ -5,7 +5,7 @@ go 1.20
 replace darvaza.org/slog => ../../
 
 require (
-	darvaza.org/slog v0.5.9
+	darvaza.org/slog v0.5.10
 	go.uber.org/zap v1.27.0
 )
 
