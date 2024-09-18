@@ -1,9 +1,14 @@
 # slog, a back-end agnostic interface for structured logs
 
-[![Go Reference](https://pkg.go.dev/badge/darvaza.org/slog.svg)](https://pkg.go.dev/darvaza.org/slog)
-[![Codebeat Badge](https://codebeat.co/badges/f96b7fad-4653-4421-9cb9-c2fe7a4678da)](https://codebeat.co/projects/github-com-darvaza-proxy-slog-main)
+[![Go Reference][godoc-badge]][godoc]
+[![Go Report Card][goreport-badge]][goreport]
 
 [`slog.Logger`](#interface) provides a simple standardised interface for structured logs for libraries. It supports [six log levels](#log-levels) and [fields](#fields) with unique string labels (keys).
+
+[godoc]: https://pkg.go.dev/darvaza.org/slog
+[godoc-badge]: https://pkg.go.dev/badge/darvaza.org/slog.svg
+[goreport]: https://goreportcard.com/report/darvaza.org/slog
+[goreport-badge]: https://goreportcard.com/badge/darvaza.org/slog
 
 ## Interface
 Every method of this interface, with the exception of [`Print()`](#print), returns a `slog.Logger` so it can be daisy chained when composing a log entry.
