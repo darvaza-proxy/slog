@@ -6,7 +6,7 @@ replace darvaza.org/slog => ../../
 
 require (
 	darvaza.org/core v0.14.10
-	darvaza.org/slog v0.5.10
+	darvaza.org/slog v0.5.11
 	github.com/sirupsen/logrus v1.9.3
 )
 
