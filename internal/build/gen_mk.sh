@@ -47,12 +47,6 @@ packed_oneline() {
 	packed | tr '\n' ';' | sed -e 's|;$||' -e 's|then;|then |g' -e 's|;[ \t]*|; |g'
 }
 
-gen_install_tools() {
-	cat <<EOT
-for url in \$(GO_INSTALL_URLS); do \$(GO) install -v \$\$url; done
-EOT
-}
-
 gen_revive_exclude() {
 	local self="$1"
 	local dirs= d=
@@ -84,7 +78,6 @@ gen_files_lists() {
 	cat <<EOT
 GO_FILES = \$(shell find * \\
 	-type d -name node_modules -prune -o \\
-	-path internal/build -prune -o \\
 	-type f -name '*.go' -print )
 
 EOT
@@ -108,13 +101,13 @@ EOT
 		cat <<-EOT
 		$files$TAB=$TAB$files_cmd
 		EOT
-	done < "$INDEX" | column -t -s "$TAB" -o " "
+	done < "$INDEX" | column -t -s "$TAB"
 }
 
 gen_make_targets() {
 	local cmd="$1" name="$2" dir="$3" mod="$4" deps="$5"
 	local call= callu= callx=
-	local depsx= cmdx=
+	local depsx=
 	local sequential=
 
 	# default calls
@@ -127,15 +120,15 @@ gen_make_targets() {
 		#
 		call="$(cat <<-EOT | packed
 		\$(GO) vet ./...
-		\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
 		\$(GOLANGCI_LINT) run
+		\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
 		EOT
 		)"
 
-		depsx="fmt \$(REVIVE)"
+		depsx="fmt"
 		;;
 	up)
-		call="\$(GO) get -u -v ./...
+		call="\$(GO) get -u \$(GOUP_FLAGS) \$(GOUP_PACKAGES)
 \$(GO) mod tidy"
 		;;
 	test)
@@ -153,82 +146,51 @@ gen_make_targets() {
 		sequential=false ;;
 	esac
 
-		# cd $dir
-		if [ "." = "$dir" ]; then
-			# root
-			cd=
-		else
-			cd="cd '$dir'; "
+	# cd $dir
+	if [ "." = "$dir" ]; then
+		# root
+		cd=
+	else
+		cd="cd '$dir'; "
+	fi
+
+	case "$cmd" in
+	build)
+		# special build flags for cmd/*
+		#
+		callx="$(cat <<-EOL | packed_oneline
+		set -e
+		MOD="\$\$(\$(GO) list -f '{{.ImportPath}}' ./...)"
+		if echo "\$\$MOD" | grep -q -e '.*/cmd/[^/]\+\$\$'; then
+			\$(GO_BUILD_CMD) ./...
+		elif [ -n "\$\$MOD" ]; then
+			\$(GO_BUILD) ./...
 		fi
-
-		if [ "$name" = root ]; then
-			# special case
-			case "$cmd" in
-			get)
-				cmdx="get -tags tools"
-				;;
-			up)
-				cmdx="get -tags tools -u"
-				;;
-			*)
-				cmdx=
-				;;
-			esac
-
-			[ -z "$cmdx" ] || cmdx="\$(GO) $cmdx -v ./..."
-
-			case "$cmd" in
-			up)
-				# unconditional because of the tools
-				callu="$cmdx
-\$(GO) mod tidy
-$(gen_install_tools)"
-				;;
-			get)
-				# unconditional because of the tools
-				callu="$cmdx
-$(gen_install_tools)"
-				;;
-			*)
-				callx="$call"
-				;;
-			esac
-		else
-			callx="$call"
+		EOL
+		)"
+		;;
+	tidy)
+		# exclude submodules when running revive
+		#
+		exclude=$(gen_revive_exclude "$dir")
+		if [ -n "$exclude" ]; then
+			callx=$(echo "$call" | sed -e "s;\(REVIVE)\);\1 $exclude;")
 		fi
+		;;
+	*)
+		callx="$call"
+		;;
+	esac
 
-		if [ "build" = "$cmd" ]; then
-			# special build flags for cmd/*
-			#
-			callx="$(cat <<-EOL | packed_oneline
-			set -e
-			MOD="\$\$(\$(GO) list -f '{{.ImportPath}}' ./...)"
-			if echo "\$\$MOD" | grep -q -e '.*/cmd/[^/]\+\$\$'; then
-				\$(GO_BUILD_CMD) ./...
-			elif [ -n "\$\$MOD" ]; then
-				\$(GO_BUILD) ./...
-			fi
-			EOL
-			)"
-		fi
 
-		if [ "tidy" = "$cmd" ]; then
-			# exclude submodules when running revive
-			#
-			exclude=$(gen_revive_exclude "$dir")
-			if [ -n "$exclude" ]; then
-				callx=$(echo "$callx" | sed -e "s;\(REVIVE)\);\1 $exclude;")
-			fi
-		fi
+	if ! $sequential; then
+		deps=
+	fi
 
-		if ! $sequential; then
-			deps=
-		fi
+	files=GO_FILES_$(gen_var_name "$name")
+	cat <<EOT
 
-		files=GO_FILES_$(gen_var_name "$name")
-		cat <<EOT
-
-$cmd-$name:${deps:+ $(prefixed $cmd $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $name)
+$cmd-$name:${deps:+ $(prefixed "$cmd" $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $name)
 EOT
 	if [ -n "$callu" ]; then
 		# unconditionally
@@ -245,7 +207,7 @@ EOT
 gen_files_lists
 
 for cmd in $COMMANDS; do
-	all="$(prefixed $cmd $PROJECTS)"
+	all="$(prefixed "$cmd" $PROJECTS)"
 	depsx=
 
 	cat <<EOT
@@ -264,6 +226,6 @@ done
 for x in $PROJECTS; do
 	cat <<EOT
 
-$x: $(suffixed $x get build tidy)
+$x: $(suffixed "$x" get build tidy)
 EOT
 done

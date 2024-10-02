@@ -6,7 +6,6 @@ set -eu
 
 MODULES=$(find * -name go.mod -exec dirname '{}' \;)
 GROUPS="handlers"
-BASE="$PWD"
 
 mod() {
 	local d="${1:-.}"

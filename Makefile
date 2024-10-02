@@ -5,34 +5,32 @@ GO ?= go
 GOFMT ?= gofmt
 GOFMT_FLAGS = -w -l -s
 GOGENERATE_FLAGS = -v
-
-GOPATH ?= $(shell $(GO) env GOPATH)
-GOBIN ?= $(GOPATH)/bin
+GOUP_FLAGS ?= -v
+GOUP_PACKAGES ?= ./...
 
 TOOLSDIR := $(CURDIR)/internal/build
-TMPDIR ?= .tmp
+TMPDIR ?= $(CURDIR)/.tmp
+OUTDIR ?= $(TMPDIR)
 
-GOLANGCI_LINT_VERSION ?= v1.55
-REVIVE_VERSION ?= v1.3.6
+# Dynamic version selection based on Go version
+# Format: $(TOOLSDIR)/get_version.sh <go_version> <tool_version1> <tool_version2> ..
+GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.21 v1.59 v1.61)
+REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.21 v1.4)
 
-GOLANGCI_LINT ?= $(GOBIN)/golangci-lint
 GOLANGCI_LINT_URL ?= github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+GOLANGCI_LINT ?= $(GO) run $(GOLANGCI_LINT_URL)
 
-REVIVE ?= $(GOBIN)/revive
 REVIVE_CONF ?= $(TOOLSDIR)/revive.toml
 REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
-REVIVE_INSTALL_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
-
-GO_INSTALL_URLS = \
-	$(GOLANGCI_LINT_URL) \
-	$(REVIVE_INSTALL_URL) \
+REVIVE_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
+REVIVE ?= $(GO) run $(REVIVE_URL)
 
 V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
 
 GO_BUILD = $(GO) build -v
-GO_BUILD_CMD= $(GO_BUILD) -o "$(OUTDIR)"
+GO_BUILD_CMD = $(GO_BUILD) -o "$(OUTDIR)"
 
 all: get generate tidy build
 
@@ -58,6 +56,3 @@ tidy: fmt
 
 generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
-
-$(REVIVE):
-	$Q $(GO) install -v $(REVIVE_INSTALL_URL)
