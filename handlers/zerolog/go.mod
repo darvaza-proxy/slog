@@ -1,6 +1,6 @@
 module darvaza.org/slog/handlers/zerolog
 
-go 1.20
+go 1.21
 
 replace darvaza.org/slog => ../../
 
