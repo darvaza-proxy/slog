@@ -106,7 +106,7 @@ EOT
 
 gen_make_targets() {
 	local cmd="$1" name="$2" dir="$3" mod="$4" deps="$5"
-	local call= callu= callx=
+	local call= callu=
 	local depsx=
 	local sequential=
 
@@ -158,7 +158,7 @@ gen_make_targets() {
 	build)
 		# special build flags for cmd/*
 		#
-		callx="$(cat <<-EOL | packed_oneline
+		call="$(cat <<-EOL | packed_oneline
 		set -e
 		MOD="\$\$(\$(GO) list -f '{{.ImportPath}}' ./...)"
 		if echo "\$\$MOD" | grep -q -e '.*/cmd/[^/]\+\$\$'; then
@@ -174,11 +174,8 @@ gen_make_targets() {
 		#
 		exclude=$(gen_revive_exclude "$dir")
 		if [ -n "$exclude" ]; then
-			callx=$(echo "$call" | sed -e "s;\(REVIVE)\);\1 $exclude;")
+			call=$(echo "$call" | sed -e "s;\(REVIVE)\);\1 $exclude;")
 		fi
-		;;
-	*)
-		callx="$call"
 		;;
 	esac
 
@@ -196,10 +193,10 @@ EOT
 		# unconditionally
 		echo "$callu" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
 	fi
-	if [ -n "$callx" ]; then
+	if [ -n "$call" ]; then
 		# only if there are files
 		echo "ifneq (\$($files),)"
-		echo "$callx" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
+		echo "$call" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
 		echo "endif"
 	fi
 }
