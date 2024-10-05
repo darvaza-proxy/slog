@@ -1,5 +1,5 @@
-darvaza.org/core v0.15.0 h1:9BCUOH3Evu7l4KzqSr49AgQHw9hQSckYVzTkaa3bOB0=
-darvaza.org/core v0.15.0/go.mod h1:pXwSuJ8r20wSBOS8s5QfhkI2UvRSZgriwYtSIa+fojs=
+darvaza.org/core v0.15.1 h1:OxAeTM1HnbpkGzalk2HmZiEsRKeOZrgoeQyHokEKVMA=
+darvaza.org/core v0.15.1/go.mod h1:zvFshV8ncuQcvZxjPsHfBgBvVtwa+bHAWDpMQ3N/Ajc=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvA=

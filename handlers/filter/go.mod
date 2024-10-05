@@ -7,7 +7,7 @@ replace darvaza.org/slog => ../../
 require darvaza.org/slog v0.5.11
 
 require (
-	darvaza.org/core v0.15.0 // indirect
+	darvaza.org/core v0.15.1 // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
 )
