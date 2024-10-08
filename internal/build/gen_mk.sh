@@ -132,7 +132,7 @@ gen_make_targets() {
 \$(GO) mod tidy"
 		;;
 	test)
-		call="\$(GO) $cmd ./..."
+		call="\$(GO) $cmd \$(GOTEST_FLAGS) ./..."
 		;;
 	*)
 		call="\$(GO) $cmd -v ./..."
