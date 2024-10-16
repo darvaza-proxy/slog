@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
-	"darvaza.org/slog/internal"
 )
 
 var (
@@ -186,7 +186,7 @@ func (l *LogEntry) addFields(fields map[string]any) {
 
 	if fn := l.logger.FieldOverride; fn != nil {
 		// intercepted
-		for _, key := range internal.SortedKeys(fields) {
+		for _, key := range core.SortedKeys(fields) {
 			fn(l.entry, key, fields[key])
 		}
 		return

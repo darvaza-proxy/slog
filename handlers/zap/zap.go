@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
-	"darvaza.org/slog/internal"
 )
 
 var (
@@ -144,7 +144,7 @@ func (zpl *Logger) WithField(label string, value any) slog.Logger {
 func (zpl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if zpl.Enabled() {
 		zs := make([]zap.Field, len(fields))
-		for _, k := range internal.SortedKeys(fields) {
+		for _, k := range core.SortedKeys(fields) {
 			zs = append(zs, zap.Any(k, fields[k]))
 		}
 		zpl.logger = zpl.logger.With(zs...)

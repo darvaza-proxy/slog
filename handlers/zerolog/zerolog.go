@@ -10,7 +10,6 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
-	"darvaza.org/slog/internal"
 )
 
 var (
@@ -174,7 +173,7 @@ func (zl *Logger) WithField(label string, value any) slog.Logger {
 func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if zl.Enabled() && len(fields) > 0 {
 		// append in order
-		for _, key := range internal.SortedKeys(fields) {
+		for _, key := range core.SortedKeys(fields) {
 			zl.addField(key, fields[key])
 		}
 	}
