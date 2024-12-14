@@ -1,6 +1,4 @@
-darvaza.org/core v0.15.2 h1:reSkWMHTkqCjhDJox89+gObadAikKDjddRbzS+5/wIQ=
-darvaza.org/core v0.15.2/go.mod h1:zvFshV8ncuQcvZxjPsHfBgBvVtwa+bHAWDpMQ3N/Ajc=
-golang.org/x/net v0.30.0 h1:AcW1SDZMkb8IpzCdQUaIq2sP4sZ4zw+55h6ynffypl4=
-golang.org/x/net v0.30.0/go.mod h1:2wGyMJ5iFasEhkwi13ChkO/t1ECNC4X4eBKkVFyYFlU=
-golang.org/x/text v0.19.0 h1:kTxAhCbGbxhK0IwgSKiMO5awPoDQ0RpfiVYBfK860YM=
-golang.org/x/text v0.19.0/go.mod h1:BuEKDfySbSR4drPmRPG/7iBdf8hvFMuRexcpahXilzY=
+darvaza.org/core v0.15.3 h1:gfzWN8CyRrQVikFpEj89W4WZ00OIN8VYxRWHEwG2WyQ=
+darvaza.org/core v0.15.3/go.mod h1:S8QWBUX2FOYcT7Cl3K6oG6PSJDm6/2cI79MPEyRh844=
+golang.org/x/net v0.32.0 h1:ZqPmj8Kzc+Y6e0+skZsuACbx+wzMgo5MQsJh9Qd6aYI=
+golang.org/x/text v0.21.0 h1:zyQAAkrwaneQ066sspRyJaG9VNi/YJ1NfzcGB3hZ/qo=
