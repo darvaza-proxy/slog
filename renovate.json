@@ -6,7 +6,7 @@
   "packageRules": [
     {
       "matchDatasources": ["golang-version"],
-      "allowedVersions": "1.21"
+      "allowedVersions": "1.22"
     },
     {
       "groupName": "Darvaza Projects",

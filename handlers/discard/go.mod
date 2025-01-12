@@ -1,6 +1,6 @@
 module darvaza.org/slog/handlers/discard
 
-go 1.21
+go 1.22
 
 replace darvaza.org/slog => ../../
 
