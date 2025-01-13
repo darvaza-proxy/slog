@@ -6,7 +6,7 @@ replace darvaza.org/slog => ../../
 
 require (
 	darvaza.org/core v0.16.0
-	darvaza.org/slog v0.5.15
+	darvaza.org/slog v0.6.0
 	go.uber.org/zap v1.27.0
 )
 
