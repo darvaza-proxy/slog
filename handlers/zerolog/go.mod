@@ -7,7 +7,7 @@ replace darvaza.org/slog => ../../
 require (
 	darvaza.org/core v0.16.1
 	darvaza.org/slog v0.6.1
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 )
 
 require (
