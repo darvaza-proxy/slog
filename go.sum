@@ -1,5 +1,5 @@
-darvaza.org/core v0.16.1 h1:SlxZNDBaCbP7mgHmCLSQFYL65pZP9QbxdE1JfMXgTjM=
-darvaza.org/core v0.16.1/go.mod h1:2waZw8lmo4E9B/R9XltA2bcUmZQURwEoct1iPLesDEQ=
+darvaza.org/core v0.16.2 h1:lUQUwszMEmLeCO0DkLeVYYPBx0g/EzhwaRYZrtReYxE=
+darvaza.org/core v0.16.2/go.mod h1:2waZw8lmo4E9B/R9XltA2bcUmZQURwEoct1iPLesDEQ=
 golang.org/x/net v0.35.0 h1:T5GQRQb2y08kTAByq9L4/bz8cipCdA8FbRTXewonqY8=
 golang.org/x/net v0.35.0/go.mod h1:EglIi67kWsHKlRzzVMUD93VMSWGFOMSZgxFjparz1Qk=
 golang.org/x/text v0.22.0 h1:bofq7m3/HAFvbF51jz3Q9wLg3jkvSPuiZu/pD1XwgtM=
