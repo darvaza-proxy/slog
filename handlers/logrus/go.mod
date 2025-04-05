@@ -5,7 +5,7 @@ go 1.22
 replace darvaza.org/slog => ../../
 
 require (
-	darvaza.org/core v0.16.2
+	darvaza.org/core v0.16.3
 	darvaza.org/slog v0.6.1
 	github.com/sirupsen/logrus v1.9.3
 )
