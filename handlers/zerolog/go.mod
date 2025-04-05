@@ -6,9 +6,10 @@ replace darvaza.org/slog => ../../
 
 require (
 	darvaza.org/core v0.16.3
-	darvaza.org/slog v0.6.1
-	github.com/rs/zerolog v1.34.0
+	darvaza.org/slog v0.6.2
 )
+
+require github.com/rs/zerolog v1.34.0
 
 require (
 	github.com/mattn/go-colorable v0.1.13 // indirect

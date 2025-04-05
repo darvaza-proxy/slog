@@ -6,9 +6,10 @@ replace darvaza.org/slog => ../../
 
 require (
 	darvaza.org/core v0.16.3
-	darvaza.org/slog v0.6.1
-	github.com/sirupsen/logrus v1.9.3
+	darvaza.org/slog v0.6.2
 )
+
+require github.com/sirupsen/logrus v1.9.3
 
 require (
 	github.com/stretchr/testify v1.9.0 // indirect
