@@ -6,9 +6,10 @@ replace darvaza.org/slog => ../../
 
 require (
 	darvaza.org/core v0.16.3
-	darvaza.org/slog v0.6.1
-	go.uber.org/zap v1.27.0
+	darvaza.org/slog v0.6.2
 )
+
+require go.uber.org/zap v1.27.0
 
 require (
 	github.com/stretchr/testify v1.9.0 // indirect
