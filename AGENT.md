@@ -15,7 +15,7 @@ support for structured fields.
 
 Before starting development, ensure you have:
 
-- Go 1.22 or later installed (check with `go version`).
+- Go 1.23 or later installed (check with `go version`).
 - `make` command available (usually pre-installed on Unix systems).
 - `$GOPATH` configured correctly (typically `~/go`).
 - Git configured for proper line endings.

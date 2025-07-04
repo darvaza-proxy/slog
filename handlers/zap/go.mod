@@ -1,6 +1,6 @@
 module darvaza.org/slog/handlers/zap
 
-go 1.22
+go 1.23
 
 replace darvaza.org/slog => ../../
 
