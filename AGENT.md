@@ -111,6 +111,70 @@ Always run `make tidy` before committing to ensure proper formatting.
 - Field keys must be non-empty strings; values can be any type.
 - The build system automatically discovers and builds all handler modules.
 
+## CI and Testing
+
+### Version Selection System
+
+The build system uses `internal/build/get_version.sh` to dynamically select
+tool versions based on the Go version being used. This allows different
+versions of tools like golangci-lint for different Go versions.
+
+#### How get_version.sh Works
+
+```bash
+# Usage: get_version.sh <base_go_version> <version1> [version2] ...
+# Example: $(TOOLSDIR)/get_version.sh 1.23 v1.63.4 v1.64
+```
+
+The script:
+
+1. Detects the current Go version from `go version`
+2. Compares it with the base Go version (first argument)
+3. If current Go >= base version, it selects versions from the list:
+   - For Go == base version: uses the first version (v1.63.4)
+   - For Go > base version: increments through the list
+   - Returns the last version if Go version exceeds the list
+
+This allows the Makefile to use appropriate tool versions:
+
+- Go 1.22: would use v1.63.4 (if base is 1.23)
+- Go 1.23: uses v1.63.4 (first version after base)
+- Go 1.24+: uses v1.64 (second version)
+
+### Testing Tool Compatibility
+
+When updating Go versions or tool versions, test compatibility using a
+separate branch:
+
+```bash
+# Create test branch
+git checkout -b test/ci-go-version
+
+# Update tool version in Makefile
+# Edit line: GOLANGCI_LINT_VERSION ?= \
+#   $(shell $(TOOLSDIR)/get_version.sh 1.23 vX.Y.Z)
+
+# Commit and push
+git add Makefile
+git commit -m "test: try golangci-lint vX.Y.Z"
+git push -u origin test/ci-go-version
+
+# Monitor CI run
+gh run watch --exit-status
+
+# Check specific job details if needed
+gh run view --job=<job-id>
+```
+
+### Common Version Issues
+
+1. **Tool built with older Go**: If golangci-lint was built with Go 1.22,
+   it cannot analyze code requiring Go 1.23+.
+2. **Version selection**: Ensure versions in get_version.sh calls are
+   ordered correctly (older to newer).
+3. **CI failures**: Check the actual Go version used by the runner, not just
+   the matrix version.
+
 ## Working with Handlers
 
 When developing or modifying handlers:
