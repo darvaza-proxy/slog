@@ -1,76 +1,204 @@
-# slog, a back-end agnostic interface for structured logs
+# slog
 
 [![Go Reference][godoc-badge]][godoc]
 [![Go Report Card][goreport-badge]][goreport]
 
-[`slog.Logger`](#interface) provides a simple standardised interface for structured logs for libraries. It supports [six log levels](#log-levels) and [fields](#fields) with unique string labels (keys).
+`darvaza.org/slog` provides a backend-agnostic interface for structured logging
+in Go. It defines a simple, standardised API that libraries can use without
+forcing a specific logging implementation on their users.
 
 [godoc]: https://pkg.go.dev/darvaza.org/slog
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/slog.svg
 [goreport]: https://goreportcard.com/report/darvaza.org/slog
 [goreport-badge]: https://goreportcard.com/badge/darvaza.org/slog
 
-## Interface
-Every method of this interface, with the exception of [`Print()`](#print), returns a `slog.Logger` so it can be daisy chained when composing a log entry.
-A log entry begins with setting the [level](#log-levels) followed by optional addition of [fields](#fields) and a [call stack](#call-stack) and ends with a message calling a [Print](#print) method.
-Based on the specified [level](#log-levels) an entry can be [enabled or disabled](#enabled). Calls to methods on disabled entries will cause no action unless it's used to create a new entry with a [level](#log-levels) that is enabled.
+## Features
 
-## Log Levels
-An `slog.Logger` entry can have of one of six levels, of which Fatal is expected to end the execution just like the standard `log.Fatal()`right after adding the log entry, and Panic to raise a recoverable panic like `log.Panic()`.
+- **Backend-agnostic**: Define logging interfaces without forcing
+  implementation choices.
+- **Structured logging**: Support for typed fields with string keys.
+- **Method chaining**: Fluent API for composing log entries.
+- **Six log levels**: Debug, Info, Warn, Error, Fatal, and Panic.
+- **Context integration**: Store and retrieve loggers from context values.
+- **Standard library compatible**: Adapters for Go's standard `log` package.
+- **Multiple handlers**: Pre-built integrations with popular logging libraries.
 
- 1. Debug
- 2. Info
- 3. Warn
- 4. Error
- 5. Fatal
- 6. Panic
+## Installation
 
-New log entries can be created by calling the named shortcut methods (`Debug()`, `Info()`, `Warn()`, `Error()`, `Fatal()`, and `Panic()`) or via `WithLevel(level)`.
+```bash
+go get darvaza.org/slog
+```
 
+## Quick Start
 
-## Enabled
-A log entry is considered _Enabled_ if the handler would actually log entries of the specified level.
-It is always safe to operate on disabled loggers and the cost of should be negletable as when a logger
-is not `Enabled()` string formatting operations or fields and stack commands are not performed.
-
-Sometimes it is useful to know if a certain level is *Enabled* so you can decide between two levels with different degree
-of detail. For this purpose one can use `WithEnabled()` like this:
 ```go
-if log, ok := logger.Debug().WithEnabled(); ok {
-	log.WithField("request", req).Print("Let's write detailed debug stuff")
-} else if log, ok := logger.Info().WithEnabled(); ok {
-	log.Print("Let's write info stuff instead")
+package main
+
+import (
+    "errors"
+
+    "darvaza.org/slog"
+    "darvaza.org/slog/handlers/discard"
+)
+
+func main() {
+    // Create a logger (using discard handler for example)
+    logger := discard.New()
+
+    // Log with different levels
+    logger.Info().Print("Application started")
+
+    // Add fields
+    logger.Debug().
+        WithField("user", "john").
+        WithField("action", "login").
+        Print("User logged in")
+
+    // Use Printf-style formatting
+    logger.Warn().
+        WithField("retry_count", 3).
+        Printf("Connection failed, will retry")
 }
 ```
 
-Logs of Fatal and Panic level are expected to exit/panic regardless of the _Enabled_ state.
+## Interface
+
+The `slog.Logger` interface provides a fluent API where most methods return a
+`Logger` for method chaining. A log entry is composed by:
+
+1. Setting the log level
+2. Optionally adding fields and call stack information
+3. Emitting the entry with a Print method
+
+Disabled log entries incur minimal overhead as string formatting and field
+collection are skipped.
+
+## Log Levels
+
+The library supports six log levels with clear semantics:
+
+1. **Debug**: Detailed information for developers.
+2. **Info**: General informational messages.
+3. **Warn**: Warning messages for potentially harmful situations.
+4. **Error**: Error conditions that allow continued operation.
+5. **Fatal**: Critical errors that terminate the program (like `log.Fatal()`).
+6. **Panic**: Errors that trigger a recoverable panic (like `log.Panic()`).
+
+Create log entries using named methods (`Debug()`, `Info()`, etc.) or
+`WithLevel(level)`.
+
+## Enabled State
+
+A log entry is "enabled" if the handler will actually emit it. Operating on
+disabled loggers is safe and efficient - string formatting and field collection
+are skipped.
+
+Use `WithEnabled()` to check if a level is enabled:
+
+```go
+if log, ok := logger.Debug().WithEnabled(); ok {
+    // Expensive debug logging
+    log.WithField("details", expensiveOperation()).Print("Debug info")
+} else if log, ok := logger.Info().WithEnabled(); ok {
+    // Simpler info logging
+    log.Print("Operation completed")
+}
+```
+
+**Note**: Fatal and Panic levels always execute regardless of enabled state.
 
 ## Fields
-In `slog` fields are unique key/value pairs where the key is a non-empty string and the value could be any type.
+
+Fields are key/value pairs for structured logging:
+
+- Keys must be non-empty strings
+- Values can be any type
+- Fields are attached using `WithField(key, value)`
+- Multiple fields can be attached by chaining calls
+
+```go
+import "time"
+
+start := time.Now()
+// ... perform some work ...
+
+logger.Info().
+    WithField("user_id", 123).
+    WithField("duration", time.Since(start)).
+    Print("Request processed")
+```
 
 ## Call Stack
-A Call stack is attached to a log entry considering the given distance to a caller/initiator function.
 
-## Print
-`slog.Logger` support three Print methods mimicking their equivalent in the `fmt` package from the standard library. `Print()`, `Println()`, and `Printf()` that finally attempt to emit the log entry with the given message and any previously attached [Field](#fields).
+Attach stack traces to log entries using `WithStack(skip)`:
 
-## Standard *log.Logger
-In order to be compatible with the standard library's provided `log.Logger`, `slog` provides an `io.Writer` interface connected to a handler function that is expected to parse the entry and call a provided `slog.Logger` as appropriate. This _writer_ is created by calling `NewLogWriter` and passing the logger and the handler function, which is then passed to `log.New()` to create the `*log.Logger`.
+```go
+logger.Error().
+    WithStack(0).  // 0 = current function
+    WithField("error", err).
+    Print("Operation failed")
+```
 
-Alternatively a generic handler is provided when using `NewStdLogger()`.
+The `skip` parameter specifies how many stack frames to skip (0 = current
+function).
 
-## Handlers
+## Print Methods
 
-A handler is an object that implements the `slog.Logger` interface.
-We provide handlers to use popular loggers as _backend_.
+Three print methods match the `fmt` package conventions:
 
-* [logrus](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)
-* [zap](https://pkg.go.dev/darvaza.org/slog/handlers/zap)
-* [zerolog](https://pkg.go.dev/darvaza.org/slog/handlers/zerolog)
+- `Print(v ...any)`: Like `fmt.Print`
+- `Println(v ...any)`: Like `fmt.Println`
+- `Printf(format string, v ...any)`: Like `fmt.Printf`
 
-We also offer backend independent handlers
+These methods emit the log entry with all attached fields.
 
-* [cblog](https://pkg.go.dev/darvaza.org/slog/handlers/cblog), a implementation
-that allows you to receive log entries through a channel.
-* [filter](https://pkg.go.dev/darvaza.org/slog/handlers/filter), that can filter by level and also alter log entries before passing them to another slog.Logger.
-* [discard](https://pkg.go.dev/darvaza.org/slog/handlers/discard), a placeholder that won't log anything but saves the user from checking if a logger was provided or not every time.
+## Standard Library Integration
+
+Integrate with Go's standard `log` package:
+
+```go
+import (
+    "log"
+    "net/http"
+
+    "darvaza.org/slog"
+)
+
+// Assuming you have a slog logger instance
+// var logger slog.Logger
+
+// Create a standard logger that writes to slog
+stdLogger := slog.NewStdLogger(logger, "[HTTP]", log.LstdFlags)
+
+// Use with libraries expecting *log.Logger
+server := &http.Server{
+    ErrorLog: stdLogger,
+}
+```
+
+For custom parsing, use `NewLogWriter()` with a handler function.
+
+## Available Handlers
+
+### Backend Adapters
+
+- **[logrus](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)**:
+  Integration with Sirupsen/logrus.
+- **[zap](https://pkg.go.dev/darvaza.org/slog/handlers/zap)**:
+  Integration with Uber's zap logger.
+- **[zerolog](https://pkg.go.dev/darvaza.org/slog/handlers/zerolog)**:
+  Integration with rs/zerolog.
+
+### Utility Handlers
+
+- **[cblog](https://pkg.go.dev/darvaza.org/slog/handlers/cblog)**:
+  Channel-based handler for custom processing.
+- **[filter](https://pkg.go.dev/darvaza.org/slog/handlers/filter)**:
+  Filter and transform log entries.
+- **[discard](https://pkg.go.dev/darvaza.org/slog/handlers/discard)**:
+  No-op handler for testing.
+
+## Development
+
+See [AGENT.md](AGENT.md) for development guidelines and
+[LICENCE.txt](LICENCE.txt) for licensing information.
