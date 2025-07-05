@@ -105,7 +105,7 @@ Always run `make tidy` before committing to ensure proper formatting.
 - The main module and each handler are separate Go modules with their own
   `go.mod` files.
 - Handlers use `replace` directives during development to reference the local
-  slog module.
+  slog module - these are permanent and should not be removed.
 - Fatal and Panic log levels are expected to exit/panic regardless of enabled
   state.
 - Field keys must be non-empty strings; values can be any type.
@@ -175,6 +175,9 @@ gh run view --job=<job-id>
 3. **CI failures**: Check the actual Go version used by the runner, not just
    the matrix version.
 
+For version numbering strategy when creating releases, see
+[RELEASE.md Version Numbering](RELEASE.md#version-numbering).
+
 ## Working with Handlers
 
 When developing or modifying handlers:
@@ -184,6 +187,76 @@ When developing or modifying handlers:
 3. Level mapping between slog and the backend should be clearly documented.
 4. Handlers should handle nil or invalid inputs gracefully.
 5. Performance characteristics should match the underlying library.
+
+### Handler Development Mode
+
+Handlers use `replace` directives to reference the local slog module during
+development:
+
+```go
+// In handlers/*/go.mod - always present
+replace darvaza.org/slog => ../..
+```
+
+**IMPORTANT**: These replace directives are essential for development:
+
+- They allow handlers to use the local slog module instead of the published
+  version
+- They must **remain in the repository** - do not remove them
+- Go automatically ignores them when the module is imported externally
+- They enable testing changes to the slog interface without publishing
+
+### Updating Handler Dependencies
+
+When updating slog version in handlers:
+
+```bash
+# Update all handlers to a new slog version
+for handler in cblog discard filter logrus zap zerolog; do
+  go -C handlers/$handler get darvaza.org/slog@v0.7.0
+done
+
+# The replace directives remain intact - this is correct behavior
+```
+
+To update all dependencies in handlers:
+
+```bash
+# Update all dependencies (use with caution)
+for handler in cblog discard filter logrus zap zerolog; do
+  go -C handlers/$handler get -u
+done
+```
+
+### Common Development Tasks
+
+1. **Testing a change across all handlers**:
+
+   ```bash
+   # Make your changes to slog interface
+   # Then test all handlers
+   make test
+   ```
+
+2. **Adding a new method to the Logger interface**:
+   - Update the interface in slog.go
+   - Implement the method in all handlers
+   - The replace directives ensure handlers use your local changes
+
+3. **Updating handler-specific dependencies**:
+
+   ```bash
+   # Update a specific dependency in a handler
+   go -C handlers/zap get go.uber.org/zap@latest
+   ```
+
+### Common Mistakes to Avoid
+
+1. **Do not remove replace directives** - they are needed for development
+2. **Do not run `go get -u` without considering impact** - it updates all
+   dependencies which may include breaking changes
+3. **Always verify replace directives exist** after dependency updates
+4. **Remember to test all handlers** after interface changes
 
 ## Linting and Code Quality
 
@@ -259,3 +332,9 @@ When creating or editing documentation files:
 4. Ensure no linting violations remain.
 5. Update handler documentation if modifying handler behavior.
 6. Verify handler examples still compile and run correctly.
+
+## Release Process
+
+For information about releasing slog and its handlers, including version
+numbering, release procedures, and coordinating handler releases, see
+[RELEASE.md](RELEASE.md).
