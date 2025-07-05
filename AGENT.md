@@ -60,6 +60,7 @@ make generate
 make tidy-cblog    # Tidy cblog handler
 make test-filter   # Test filter handler
 make build-zap     # Build zap handler
+make test-logr     # Test logr handler
 ```
 
 ## Code Architecture
@@ -91,6 +92,7 @@ Each handler is a separate Go module in the `handlers/` directory:
 - **cblog**: Channel-based logger for receiving log entries through channels.
 - **discard**: No-op logger for testing and optional logging scenarios.
 - **filter**: Middleware logger for filtering and transforming log entries.
+- **logr**: Bidirectional adapter for the go-logr/logr interface.
 - **logrus**: Adapter for the popular logrus logging library.
 - **zap**: Adapter for Uber's zap high-performance logger.
 - **zerolog**: Adapter for the zerolog JSON logger.
@@ -234,8 +236,8 @@ When updating slog version in handlers:
 
 ```bash
 # Update all handlers to a new slog version
-for handler in cblog discard filter logrus zap zerolog; do
-  go -C handlers/$handler get darvaza.org/slog@v0.7.0
+for handler in handlers/*/; do
+  go -C "$handler" get darvaza.org/slog@v0.7.0
 done
 
 # The replace directives remain intact - this is correct behavior
@@ -245,8 +247,8 @@ To update all dependencies in handlers:
 
 ```bash
 # Update all dependencies (use with caution)
-for handler in cblog discard filter logrus zap zerolog; do
-  go -C handlers/$handler get -u
+for handler in handlers/*/; do
+  go -C "$handler" get -u
 done
 ```
 
