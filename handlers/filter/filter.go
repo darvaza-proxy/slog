@@ -3,6 +3,7 @@ package filter
 
 import (
 	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 var (
@@ -11,6 +12,8 @@ var (
 
 // Logger implements a factory for level filtered loggers
 type Logger struct {
+	internal.Loglet
+
 	// Parent is the Logger to used as backend when conditions are met
 	Parent slog.Logger
 
@@ -86,20 +89,56 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	}
 
 	return &LogEntry{
+		Loglet: l.Loglet.WithLevel(level),
 		logger: l,
-		level:  level,
 		entry:  entry,
 	}
 }
 
 // WithStack does nothing
-func (l *Logger) WithStack(int) slog.Logger { return l }
+func (l *Logger) WithStack(skip int) slog.Logger {
+	return &Logger{
+		Loglet:         l.Loglet.WithStack(skip + 1),
+		Parent:         l.Parent,
+		Threshold:      l.Threshold,
+		FieldFilter:    l.FieldFilter,
+		FieldOverride:  l.FieldOverride,
+		FieldsOverride: l.FieldsOverride,
+		MessageFilter:  l.MessageFilter,
+	}
+}
 
 // WithField does nothing
-func (l *Logger) WithField(string, any) slog.Logger { return l }
+func (l *Logger) WithField(label string, value any) slog.Logger {
+	if label != "" {
+		return &Logger{
+			Loglet:         l.Loglet.WithField(label, value),
+			Parent:         l.Parent,
+			Threshold:      l.Threshold,
+			FieldFilter:    l.FieldFilter,
+			FieldOverride:  l.FieldOverride,
+			FieldsOverride: l.FieldsOverride,
+			MessageFilter:  l.MessageFilter,
+		}
+	}
+	return l
+}
 
 // WithFields does nothing
-func (l *Logger) WithFields(map[string]any) slog.Logger { return l }
+func (l *Logger) WithFields(fields map[string]any) slog.Logger {
+	if internal.HasFields(fields) {
+		return &Logger{
+			Loglet:         l.Loglet.WithFields(fields),
+			Parent:         l.Parent,
+			Threshold:      l.Threshold,
+			FieldFilter:    l.FieldFilter,
+			FieldOverride:  l.FieldOverride,
+			FieldsOverride: l.FieldsOverride,
+			MessageFilter:  l.MessageFilter,
+		}
+	}
+	return l
+}
 
 // New creates a new filtered log factory at a given level. Logger can be manually
 // initialised as well. Defaults filter entries at level slog.Error or higher

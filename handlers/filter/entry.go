@@ -7,6 +7,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 var (
@@ -15,10 +16,10 @@ var (
 
 // LogEntry implements a level filtered logger
 type LogEntry struct {
-	logger *Logger
+	internal.Loglet
 
-	level slog.LogLevel
-	entry slog.Logger
+	logger *Logger
+	entry  slog.Logger
 }
 
 // Enabled tells this logger would record logs
@@ -26,7 +27,8 @@ func (l *LogEntry) Enabled() bool {
 	if l == nil || l.logger == nil {
 		return false
 	}
-	if l.level <= slog.UndefinedLevel || l.level > l.logger.Threshold {
+	level := l.Level()
+	if level <= slog.UndefinedLevel || level > l.logger.Threshold {
 		return false
 	}
 	return l.entry == nil || l.entry.Enabled()
@@ -77,7 +79,7 @@ func (l *LogEntry) msg(msg string) {
 		// parentless is either Fatal or Panic
 		_ = log.Output(3, msg)
 
-		if l.level != slog.Fatal {
+		if l.Level() != slog.Fatal {
 			panic(msg)
 		}
 
@@ -125,17 +127,32 @@ func (l *LogEntry) WithLevel(level slog.LogLevel) slog.Logger {
 
 // WithStack would, if conditions are met, attach a call stack to the log entry
 func (l *LogEntry) WithStack(skip int) slog.Logger {
-	if l.Enabled() && l.entry != nil {
-		l.entry.WithStack(skip + 1)
+	out := &LogEntry{
+		Loglet: l.Loglet.WithStack(skip + 1),
+		logger: l.logger,
+		entry:  l.entry,
 	}
-	return l
+
+	if l.Enabled() && l.entry != nil {
+		out.entry = l.entry.WithStack(skip + 1)
+	}
+	return out
 }
 
 // WithField would, if conditions are met, attach a field to the log entry. This
 // field could be altered if a FieldFilter is used
 func (l *LogEntry) WithField(label string, value any) slog.Logger {
-	if label != "" && l.Enabled() && l.entry != nil {
-		l.addField(label, value)
+	if label != "" {
+		out := &LogEntry{
+			Loglet: l.Loglet.WithField(label, value),
+			logger: l.logger,
+			entry:  l.entry,
+		}
+
+		if l.Enabled() && l.entry != nil {
+			out.addField(label, value)
+		}
+		return out
 	}
 	return l
 }
@@ -163,16 +180,23 @@ func (l *LogEntry) addField(label string, value any) {
 		}
 	}
 
-	l.entry.WithField(label, value)
+	l.entry = l.entry.WithField(label, value)
 }
 
 // WithFields would, if conditions are met, attach fields to the log entry.
 // These fields could be altered if a FieldFilter is used
 func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
-	if len(fields) > 0 && l.Enabled() && l.entry != nil {
-		delete(fields, "")
+	if internal.HasFields(fields) {
+		out := &LogEntry{
+			Loglet: l.Loglet.WithFields(fields),
+			logger: l.logger,
+			entry:  l.entry,
+		}
 
-		l.addFields(fields)
+		if l.Enabled() && l.entry != nil {
+			out.addFields(fields)
+		}
+		return out
 	}
 	return l
 }
@@ -197,7 +221,7 @@ func (l *LogEntry) addFields(fields map[string]any) {
 		fields = modifyFields(fields, fn)
 	}
 
-	l.entry.WithFields(fields)
+	l.entry = l.entry.WithFields(fields)
 }
 
 func modifyFields(fields map[string]any, fn func(string, any) (string, any, bool)) map[string]any {
