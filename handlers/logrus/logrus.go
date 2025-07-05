@@ -10,6 +10,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 var (
@@ -27,9 +28,10 @@ const (
 
 // Logger is an adaptor for using github.com/sirupsen/logrus as slog.Logger
 type Logger struct {
+	internal.Loglet
+
 	logger *logrus.Logger
 	entry  *logrus.Entry
-	level  logrus.Level
 }
 
 // Enabled tells if the logger is enabled
@@ -38,7 +40,8 @@ func (rl *Logger) Enabled() bool {
 		// invalid
 		return false
 	}
-	return rl.logger.IsLevelEnabled(rl.level)
+	level := mapToLogrusLevel(rl.Level())
+	return rl.logger.IsLevelEnabled(level)
 }
 
 // WithEnabled tells if the logger would log or not
@@ -68,7 +71,31 @@ func (rl *Logger) Printf(format string, args ...any) {
 }
 
 func (rl *Logger) msg(msg string) {
-	rl.entry.Log(rl.level, strings.TrimSpace(msg))
+	level := mapToLogrusLevel(rl.Level())
+
+	// Build entry with fields from Loglet chain
+	entry := rl.entry
+	if n := rl.FieldsCount(); n > 0 {
+		fields := make(logrus.Fields, n)
+		iter := rl.Fields()
+		for iter.Next() {
+			k, v := iter.Field()
+			fields[k] = v
+		}
+		entry = entry.WithFields(fields)
+	}
+
+	// Add stack trace if present
+	if stack := rl.CallStack(); len(stack) > 0 {
+		var frames core.Stack = stack
+		caller := frames[0]
+		entry = entry.WithFields(logrus.Fields{
+			CallerFieldName: fmt.Sprintf("%+n", caller),
+			StackFieldName:  fmt.Sprintf("%+n", frames),
+		})
+	}
+
+	entry.Log(level, strings.TrimSpace(msg))
 }
 
 // Debug returns a new logger set to add entries as level Debug
@@ -103,63 +130,48 @@ func (rl *Logger) Panic() slog.Logger {
 
 // WithLevel returns a new logger set to add entries to the specified level
 func (rl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
-	var levels = []logrus.Level{
-		slog.UndefinedLevel: logrus.TraceLevel + 1,
-		slog.Panic:          logrus.PanicLevel,
-		slog.Fatal:          logrus.FatalLevel,
-		slog.Error:          logrus.ErrorLevel,
-		slog.Warn:           logrus.WarnLevel,
-		slog.Info:           logrus.InfoLevel,
-		slog.Debug:          logrus.DebugLevel,
-	}
-
-	if level <= slog.UndefinedLevel || int(level) >= len(levels) {
+	if level <= slog.UndefinedLevel {
 		// fix your code
 		rl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
+	} else if level == rl.Level() {
+		return rl
 	}
 
-	out := rl.dup(nil)
-	out.level = levels[level]
-	return out
+	return &Logger{
+		Loglet: rl.Loglet.WithLevel(level),
+		logger: rl.logger,
+		entry:  rl.entry,
+	}
 }
 
 // WithStack attaches a call stack to the log entry
 func (rl *Logger) WithStack(skip int) slog.Logger {
-	if rl.Enabled() {
-		frames := core.StackTrace(skip + 1)
-		if len(frames) > 0 {
-			caller := frames[0]
-
-			entry := rl.entry.WithFields(logrus.Fields{
-				CallerFieldName: fmt.Sprintf("%+n", caller),
-				StackFieldName:  fmt.Sprintf("%+n", frames),
-			})
-
-			return rl.dup(entry)
-		}
+	return &Logger{
+		Loglet: rl.Loglet.WithStack(skip + 1),
+		logger: rl.logger,
+		entry:  rl.entry,
 	}
-	return rl
 }
 
 // WithField adds a field to the log entry
 func (rl *Logger) WithField(label string, value any) slog.Logger {
-	if rl.Enabled() && label != "" {
-		entry := rl.entry.WithFields(logrus.Fields{
-			label: value,
-		})
-		return rl.dup(entry)
+	if label != "" {
+		return &Logger{
+			Loglet: rl.Loglet.WithField(label, value),
+			logger: rl.logger,
+			entry:  rl.entry,
+		}
 	}
 	return rl
 }
 
 // WithFields adds fields to the log entry
 func (rl *Logger) WithFields(fields map[string]any) slog.Logger {
-	if rl.Enabled() {
-		delete(fields, "")
-
-		if len(fields) > 0 {
-			entry := rl.entry.WithFields(fields)
-			return rl.dup(entry)
+	if internal.HasFields(fields) {
+		return &Logger{
+			Loglet: rl.Loglet.WithFields(fields),
+			logger: rl.logger,
+			entry:  rl.entry,
 		}
 	}
 	return rl
@@ -174,20 +186,28 @@ func New(logger *logrus.Logger) slog.Logger {
 	return &Logger{
 		logger: logger,
 		entry:  logrus.NewEntry(logger),
-		level:  logger.GetLevel(),
 	}
 }
 
-// dup duplicates the entry to be modified
-func (rl *Logger) dup(entry *logrus.Entry) *Logger {
-	if entry == nil {
-		// unless one is given, duplicate the current
-		entry = rl.entry.Dup()
-	}
+const invalidLogrusLevel = logrus.TraceLevel + 1
 
-	return &Logger{
-		logger: rl.logger,
-		entry:  entry,
-		level:  rl.level,
+// mapToLogrusLevel maps slog levels to logrus levels
+func mapToLogrusLevel(level slog.LogLevel) logrus.Level {
+	switch level {
+	case slog.Panic:
+		return logrus.PanicLevel
+	case slog.Fatal:
+		return logrus.FatalLevel
+	case slog.Error:
+		return logrus.ErrorLevel
+	case slog.Warn:
+		return logrus.WarnLevel
+	case slog.Info:
+		return logrus.InfoLevel
+	case slog.Debug:
+		return logrus.DebugLevel
+	default:
+		// Return an invalid logrus level for undefined slog levels
+		return invalidLogrusLevel
 	}
 }
