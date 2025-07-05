@@ -5,6 +5,7 @@ import (
 
 	"darvaza.org/slog"
 	"darvaza.org/slog/handlers/filter"
+	slogtest "darvaza.org/slog/internal/testing"
 )
 
 // mockLogger is a simple logger for testing
@@ -32,13 +33,23 @@ func (m *mockLogger) WithField(_ string, _ any) slog.Logger   { return m }
 func (m *mockLogger) WithFields(_ map[string]any) slog.Logger { return m }
 
 func TestFilterLoglet(t *testing.T) {
-	// Create a base logger
-	base := &mockLogger{enabled: true}
+	// Test basic level methods using internal/testing utilities
+	t.Run("LevelMethods", testFilterLevelMethods)
+	t.Run("ThresholdFiltering", testFilterThresholdFiltering)
+}
 
-	// Create a filter logger with Info threshold
+func testFilterLevelMethods(t *testing.T) {
+	slogtest.TestLevelMethods(t, func() slog.Logger {
+		base := &mockLogger{enabled: true}
+		return filter.New(base, slog.Debug) // Use Debug to allow all levels
+	})
+}
+
+func testFilterThresholdFiltering(t *testing.T) {
+	base := &mockLogger{enabled: true}
 	logger := filter.New(base, slog.Info)
 
-	// Test level transitions
+	// Test level transitions with threshold
 	testLevels := []struct {
 		name    string
 		method  func() slog.Logger
@@ -54,7 +65,7 @@ func TestFilterLoglet(t *testing.T) {
 	}
 
 	for _, tt := range testLevels {
-		t.Run(tt.name, func(t *testing.T) {
+		slogtest.RunWithLogger(t, tt.name, logger, func(t *testing.T, _ slog.Logger) {
 			l := tt.method()
 			if l == nil {
 				t.Fatal("logger method returned nil")
@@ -68,48 +79,19 @@ func TestFilterLoglet(t *testing.T) {
 	}
 }
 
-func TestFilterWithFields(t *testing.T) {
-	base := &mockLogger{enabled: true}
-	logger := filter.New(base, slog.Info)
-
-	// Test WithField on root logger (should store in Loglet)
-	l1 := logger.WithField("root", "value")
-	if l1 == nil {
-		t.Fatal("WithField returned nil")
-	}
-
-	// Test WithField on enabled logger
-	l2 := logger.Info().WithField("key1", "value1")
-	if l2 == nil {
-		t.Fatal("WithField on enabled logger returned nil")
-	}
-
-	// Test WithFields
-	fields := map[string]any{
-		"key2": "value2",
-		"key3": 123,
-	}
-	l3 := logger.Info().WithFields(fields)
-	if l3 == nil {
-		t.Fatal("WithFields returned nil")
-	}
+func TestFilterFieldMethods(t *testing.T) {
+	// Use TestFieldMethods which tests both WithField and WithFields
+	slogtest.TestFieldMethods(t, func() slog.Logger {
+		base := &mockLogger{enabled: true}
+		return filter.New(base, slog.Info)
+	})
 }
 
 func TestFilterWithStack(t *testing.T) {
 	base := &mockLogger{enabled: true}
 	logger := filter.New(base, slog.Info)
 
-	// Test WithStack on root logger
-	l1 := logger.WithStack(1)
-	if l1 == nil {
-		t.Fatal("WithStack on root returned nil")
-	}
-
-	// Test WithStack on enabled logger
-	l2 := logger.Info().WithStack(1)
-	if l2 == nil {
-		t.Fatal("WithStack on enabled logger returned nil")
-	}
+	slogtest.TestWithStack(t, logger)
 }
 
 func TestFilterChaining(t *testing.T) {
