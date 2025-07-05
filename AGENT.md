@@ -4,6 +4,18 @@ This file provides guidance to AI agents when working with code in this
 repository. For developers and general project information, please refer to
 [README.md](README.md) first.
 
+## Critical Rules for AI Agents
+
+### Never Push Directly to Main Branch
+
+All code changes must go through pull requests. When working with this
+repository:
+
+1. Always create a feature branch for changes
+2. Never use `git push origin main`
+3. Always create a pull request for review
+4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section
+
 ## Repository Overview
 
 `darvaza.org/slog` is a backend-agnostic structured logging interface for Go
@@ -332,6 +344,57 @@ When creating or editing documentation files:
 4. Ensure no linting violations remain.
 5. Update handler documentation if modifying handler behavior.
 6. Verify handler examples still compile and run correctly.
+
+## Git Workflow and Pull Requests
+
+**IMPORTANT**: Never push directly to the main branch. All changes must go
+through pull requests.
+
+### Required Workflow
+
+1. **Always create a feature branch**:
+
+   ```bash
+   git checkout -b feature/description
+   # or
+   git checkout -b chore/description
+   # or
+   git checkout -b docs/description
+   ```
+
+2. **Make commits on the feature branch**:
+
+   ```bash
+   git add <files>
+   git commit -m "type: description"
+   ```
+
+3. **Push the feature branch** (never main):
+
+   ```bash
+   git push -u origin feature/description
+   ```
+
+4. **Create a pull request**:
+
+   ```bash
+   gh pr create --title "Description" --body "Details"
+   ```
+
+### Branch Naming Conventions
+
+- `feature/` - New features or enhancements
+- `fix/` - Bug fixes
+- `docs/` - Documentation only changes
+- `chore/` - Maintenance tasks (deps, build, etc.)
+- `test/` - Test-only changes
+
+### Git Workflow Mistakes to Avoid
+
+1. **NEVER run `git push origin main`** - This bypasses PR review
+2. **Always verify current branch** before pushing: `git branch --show-current`
+3. **Create PR branch before making changes** - Don't work on main
+4. **Never force push to main** - This can break the repository
 
 ## Release Process
 
