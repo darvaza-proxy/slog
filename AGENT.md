@@ -195,10 +195,12 @@ For version numbering strategy when creating releases, see
 When developing or modifying handlers:
 
 1. Each handler must implement the full `slog.Logger` interface.
-2. Handlers should properly delegate to their underlying logging library.
-3. Level mapping between slog and the backend should be clearly documented.
-4. Handlers should handle nil or invalid inputs gracefully.
-5. Performance characteristics should match the underlying library.
+2. All handlers should embed `internal.Loglet` for consistent field chain
+   management and immutable logger behavior.
+3. Handlers should properly delegate to their underlying logging library.
+4. Level mapping between slog and the backend should be clearly documented.
+5. Handlers should handle nil or invalid inputs gracefully.
+6. Performance characteristics should match the underlying library.
 
 ### Handler Development Mode
 

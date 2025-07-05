@@ -48,6 +48,7 @@ slogLogger.Info().
 - Preserves structured fields through the adapter
 - Stack trace support via `WithStack()`
 - Correct level mapping between slog and logrus
+- Immutable logger instances ensure thread-safe field management
 
 ## Important Notes
 

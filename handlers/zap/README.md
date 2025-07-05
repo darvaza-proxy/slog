@@ -57,6 +57,7 @@ slogDev := slogzap.New(devLogger.Sugar())
 - Natural fit for structured logging with fields
 - Supports both production and development configurations
 - Preserves zap's excellent performance characteristics
+- Immutable logger instances ensure thread-safe field management
 
 ## Performance Tips
 

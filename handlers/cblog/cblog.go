@@ -157,9 +157,7 @@ func (l *Logger) WithField(label string, value any) slog.Logger {
 
 // WithFields returns a new logger with a set of fields attached
 func (l *Logger) WithFields(fields map[string]any) slog.Logger {
-	delete(fields, "")
-
-	if len(fields) > 0 {
+	if internal.HasFields(fields) {
 		out := &Logger{
 			Loglet: l.Loglet.WithFields(fields),
 			l:      l.l,

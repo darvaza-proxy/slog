@@ -59,6 +59,7 @@ filterLogger := &filter.Logger{
 - Field enrichment and modification
 - Conditional log filtering
 - Composable with any slog.Logger
+- Immutable logger instances ensure thread-safe field management
 
 ## Documentation
 

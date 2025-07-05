@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 var (
@@ -16,16 +17,16 @@ var (
 
 // Logger implements slog.Logger but doesn't log anything
 type Logger struct {
-	level slog.LogLevel
+	internal.Loglet
 }
 
 // Enabled tells that we only handle Fatal and Panic.
 func (nl *Logger) Enabled() bool {
-	if nl == nil || nl.level < slog.Panic || nl.level > slog.Fatal {
+	if nl == nil {
 		return false
 	}
-
-	return true
+	level := nl.Level()
+	return level >= slog.Panic && level <= slog.Fatal
 }
 
 // WithEnabled passes the logger, but also indicates if it's enabled or not.
@@ -60,7 +61,7 @@ func (nl *Logger) print(msg string) {
 	msg = strings.TrimSpace(msg)
 	_ = log.Output(3, msg)
 
-	if nl.level != slog.Fatal {
+	if nl.Level() != slog.Fatal {
 		panic(msg)
 	}
 	// revive:disable:deep-exit
@@ -70,16 +71,24 @@ func (nl *Logger) print(msg string) {
 // revive:enable:confusing-naming
 
 // Debug pretends to return a new NOOP logger
-func (nl *Logger) Debug() slog.Logger { return nl }
+func (nl *Logger) Debug() slog.Logger {
+	return nl.WithLevel(slog.Debug)
+}
 
 // Info pretends to return a new NOOP logger
-func (nl *Logger) Info() slog.Logger { return nl }
+func (nl *Logger) Info() slog.Logger {
+	return nl.WithLevel(slog.Info)
+}
 
 // Warn pretends to return a new NOOP logger
-func (nl *Logger) Warn() slog.Logger { return nl }
+func (nl *Logger) Warn() slog.Logger {
+	return nl.WithLevel(slog.Warn)
+}
 
 // Error pretends to return a new NOOP logger
-func (nl *Logger) Error() slog.Logger { return nl }
+func (nl *Logger) Error() slog.Logger {
+	return nl.WithLevel(slog.Error)
+}
 
 // Fatal return a new Fatal logger
 func (nl *Logger) Fatal() slog.Logger {
@@ -96,19 +105,44 @@ func (nl *Logger) Panic() slog.Logger {
 func (nl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
 		// fix your code
-		nl.Panic().Printf("slog: invalid log level %v", level)
+		nl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
+	} else if level == nl.Level() {
+		return nl
 	}
-	return &Logger{level}
+
+	return &Logger{
+		Loglet: nl.Loglet.WithLevel(level),
+	}
 }
 
 // WithStack pretends to attach a call stack to the logger
-func (nl *Logger) WithStack(int) slog.Logger { return nl }
+func (nl *Logger) WithStack(skip int) slog.Logger {
+	// For discard logger, we don't really need to maintain the stack
+	// but we'll use Loglet for consistency
+	return &Logger{
+		Loglet: nl.Loglet.WithStack(skip + 1),
+	}
+}
 
 // WithField pretends to add a fields to the Logger
-func (nl *Logger) WithField(string, any) slog.Logger { return nl }
+func (nl *Logger) WithField(label string, value any) slog.Logger {
+	if label != "" {
+		return &Logger{
+			Loglet: nl.Loglet.WithField(label, value),
+		}
+	}
+	return nl
+}
 
 // WithFields pretends to add fields to the Logger
-func (nl *Logger) WithFields(map[string]any) slog.Logger { return nl }
+func (nl *Logger) WithFields(fields map[string]any) slog.Logger {
+	if internal.HasFields(fields) {
+		return &Logger{
+			Loglet: nl.Loglet.WithFields(fields),
+		}
+	}
+	return nl
+}
 
 // New creates a slog.Logger that doesn't really log anything
 func New() slog.Logger { return &Logger{} }

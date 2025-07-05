@@ -22,6 +22,8 @@ forcing a specific logging implementation on their users.
 - **Context integration**: Store and retrieve loggers from context values.
 - **Standard library compatible**: Adapters for Go's standard `log` package.
 - **Multiple handlers**: Pre-built integrations with popular logging libraries.
+- **Immutable logger instances**: Each modification creates a new logger,
+  enabling safe concurrent use and proper branching behavior.
 
 ## Installation
 
@@ -128,6 +130,33 @@ logger.Info().
     Print("Request processed")
 ```
 
+## Branching Behavior
+
+Each logger instance is immutable. When you call methods like `WithField()` or
+`WithLevel()`, you get a new logger instance that inherits from the parent:
+
+```go
+// Create a base logger with common fields
+baseLogger := logger.WithField("service", "api")
+
+// Branch off for different request handlers
+userLogger := baseLogger.WithField("handler", "user")
+adminLogger := baseLogger.WithField("handler", "admin")
+
+// Each logger maintains its own field chain
+userLogger.Info().Print("Processing user request")   // has service=api, handler=user
+adminLogger.Info().Print("Processing admin request") // has service=api, handler=admin
+
+// Original logger is unchanged
+baseLogger.Info().Print("Base logger message") // only has service=api
+```
+
+This design ensures:
+
+- Thread-safe concurrent use without locks
+- No unintended field pollution between different code paths
+- Clear ownership and lifecycle of logger configurations
+
 ## Call Stack
 
 Attach stack traces to log entries using `WithStack(skip)`:
@@ -192,15 +221,20 @@ For custom parsing, use `NewLogWriter()` with a handler function.
 │                            slog Core                               │
 ├──────────────────────┬─────────────────────┬───────────────────────┤
 │   Logger Interface   │ Context Integration │ Std Library Adapter   │
-└──────────┬───────────┴─────────┬───────────┴───────────────────────┘
-           │                     │
-           ▼                     ▼
+├──────────────────────┴─────────────────────┴───────────────────────┤
+│             internal.Loglet (field chain management)               │
+└──────────┬─────────────────────────────────────────────────────────┘
+           │
+           ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │                            Handlers                                │
 ├───────────┬───────────┬───────────┬───────────┬──────────┬─────────┤
-│  logrus   |    zap    │  zerolog  │   cblog   │  filter  │ discard │
+│  logrus   │    zap    │  zerolog  │   cblog   │  filter  │ discard │
 └───────────┴───────────┴───────────┴───────────┴──────────┴─────────┘
 ```
+
+All handlers use the `internal.Loglet` type for consistent field chain
+management and immutable logger behavior.
 
 ## Available Handlers
 

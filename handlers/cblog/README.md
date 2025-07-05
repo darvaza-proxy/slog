@@ -54,6 +54,7 @@ logger.Info().WithField("component", "api").Print("Server started")
 - Configurable buffering and non-blocking modes
 - Worker management for concurrent processing
 - Suitable for custom log aggregation or filtering
+- Immutable logger instances ensure thread-safe field management
 
 ## Documentation
 

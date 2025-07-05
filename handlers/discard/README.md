@@ -34,6 +34,13 @@ logger.Fatal().Print("This will exit") // Calls log.Fatal()
 logger.Panic().Print("This will panic") // Calls log.Panic()
 ```
 
+## Features
+
+- Zero overhead for disabled log levels
+- Immutable logger instances for safe concurrent use
+- Always returns a valid logger (never nil)
+- Fatal and Panic levels still trigger appropriate exits
+
 ## Use Cases
 
 - **Testing**: Silence logs during test execution
