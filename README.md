@@ -234,9 +234,9 @@ For custom parsing, use `NewLogWriter()` with a handler function.
            ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │                            Handlers                                │
-├───────────┬───────────┬───────────┬───────────┬──────────┬─────────┤
-│  logrus   │    zap    │  zerolog  │   cblog   │  filter  │ discard │
-└───────────┴───────────┴───────────┴───────────┴──────────┴─────────┘
+├─────────┬─────────┬─────────┬─────────┬─────────┬────────┬─────────┤
+│  logr   │ logrus  │   zap   │ zerolog │  cblog  │ filter │ discard │
+└─────────┴─────────┴─────────┴─────────┴─────────┴────────┴─────────┘
 ```
 
 All handlers use the `internal.Loglet` type for consistent field chain
@@ -254,9 +254,10 @@ These handlers allow conversion in both directions - you can use the external
 logging library as a slog backend, OR use slog as a backend for the external
 library:
 
-- **(Coming soon)** - Bidirectional adapters are planned for future releases.
-  Check [issue tracker](https://github.com/darvaza-proxy/slog/issues) for
-  updates.
+- **[logr](https://pkg.go.dev/darvaza.org/slog/handlers/logr)**:
+  Full bidirectional adapter for go-logr/logr interface.
+  - `logr.Logger` → `slog.Logger` (use logr as slog backend)
+  - `slog.Logger` → `logr.Logger` (use slog as logr backend)
 
 #### Unidirectional Adapters
 
