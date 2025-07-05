@@ -10,6 +10,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 var (
@@ -18,10 +19,9 @@ var (
 
 // Logger is an adaptor for using github.com/rs/zerolog as slog.Logger.
 type Logger struct {
+	internal.Loglet
+
 	logger *zerolog.Logger
-	event  *zerolog.Event
-	action func(string, error)
-	err    error
 }
 
 // Enabled tells if the underlying logger is enabled or not.
@@ -31,7 +31,8 @@ func (zl *Logger) Enabled() bool {
 		return false
 	}
 
-	return zl.event.Enabled()
+	level := mapToZerologLevel(zl.Level())
+	return zl.logger.GetLevel() <= level
 }
 
 // WithEnabled tells if the logger would log or not
@@ -61,9 +62,60 @@ func (zl *Logger) Printf(format string, args ...any) {
 }
 
 func (zl *Logger) msg(msg string) {
-	zl.event.Msg(strings.TrimSpace(msg))
-	if fn := zl.action; fn != nil {
-		fn(msg, zl.err)
+	level := mapToZerologLevel(zl.Level())
+	event := zl.logger.WithLevel(level)
+
+	// Add fields from Loglet chain
+	zl.addFields(event)
+
+	// Add stack trace if present
+	if stack := zl.CallStack(); len(stack) > 0 {
+		event.CallerSkipFrame(1).Stack()
+	}
+
+	event.Msg(strings.TrimSpace(msg))
+
+	// Handle Fatal/Panic
+	zl.handleTerminalLevels(msg)
+}
+
+func (zl *Logger) addFields(event *zerolog.Event) {
+	if zl.FieldsCount() == 0 {
+		return
+	}
+
+	iter := zl.Fields()
+	for iter.Next() {
+		k, v := iter.Field()
+		zl.addField(event, k, v)
+	}
+}
+
+func (*Logger) addField(event *zerolog.Event, k string, v any) {
+	if k == slog.ErrorFieldName {
+		if err, ok := v.(error); ok {
+			event.Err(err)
+			return
+		}
+	}
+	event.Interface(k, v)
+}
+
+func (zl *Logger) handleTerminalLevels(msg string) {
+	switch zl.Level() {
+	case slog.Fatal:
+		// revive:disable:deep-exit
+		os.Exit(1)
+		// revive:enable:deep-exit
+	case slog.Panic:
+		const skip = 2 // whoever called Print
+		var perr error
+		if msg == "" {
+			perr = core.NewPanicError(skip, nil)
+		} else {
+			perr = core.NewPanicError(skip, msg)
+		}
+		panic(perr)
 	}
 }
 
@@ -99,96 +151,47 @@ func (zl *Logger) Panic() slog.Logger {
 
 // WithLevel returns a new Event Context set to add entries to the specified level.
 func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
-	var levels = []zerolog.Level{
-		slog.UndefinedLevel: zerolog.NoLevel,
-		slog.Panic:          zerolog.PanicLevel,
-		slog.Fatal:          zerolog.FatalLevel,
-		slog.Error:          zerolog.ErrorLevel,
-		slog.Warn:           zerolog.WarnLevel,
-		slog.Info:           zerolog.InfoLevel,
-		slog.Debug:          zerolog.DebugLevel,
-	}
-
-	if level <= slog.UndefinedLevel || int(level) >= len(levels) {
+	if level <= slog.UndefinedLevel {
 		// fix your code
 		zl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if zl.Enabled() {
-		var fn func(string, error)
-
-		zlevel := levels[level]
-
-		switch level {
-		case slog.Fatal:
-			fn = zl.triggerExit
-		case slog.Panic:
-			fn = zl.triggerPanic
-		}
-
-		// new event
-		ev := zl.logger.WithLevel(zlevel)
-		return newLogger(zl.logger, ev, fn)
+	} else if level == zl.Level() {
+		return zl
 	}
 
-	// NOP
-	return zl
-}
-
-func (*Logger) triggerExit(string, error) {
-	// revive:disable:deep-exit
-	os.Exit(1)
-	// revive:enable:deep-exit
-}
-
-func (*Logger) triggerPanic(msg string, err error) {
-	const skip = 2 // whoever called Print
-	var perr error
-	if msg == "" {
-		perr = core.NewPanicError(skip, err)
-	} else if err == nil {
-		perr = core.NewPanicError(skip, msg)
-	} else {
-		perr = core.NewPanicWrap(skip, err, msg)
+	return &Logger{
+		Loglet: zl.Loglet.WithLevel(level),
+		logger: zl.logger,
 	}
-	panic(perr)
 }
 
 // WithStack attaches a call stack to the Event Context
 func (zl *Logger) WithStack(skip int) slog.Logger {
-	if zl.Enabled() {
-		zl.event.CallerSkipFrame(skip + 1)
-		zl.event.Stack()
+	return &Logger{
+		Loglet: zl.Loglet.WithStack(skip + 1),
+		logger: zl.logger,
 	}
-	return zl
 }
 
 // WithField adds a field to the Event Context
 func (zl *Logger) WithField(label string, value any) slog.Logger {
-	if zl.Enabled() && label != "" {
-		zl.addField(label, value)
+	if label != "" {
+		return &Logger{
+			Loglet: zl.Loglet.WithField(label, value),
+			logger: zl.logger,
+		}
 	}
 	return zl
 }
 
 // WithFields adds fields to the Event Context
 func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
-	if zl.Enabled() && len(fields) > 0 {
-		// append in order
-		for _, key := range core.SortedKeys(fields) {
-			zl.addField(key, fields[key])
+	if internal.HasFields(fields) {
+		return &Logger{
+			Loglet: zl.Loglet.WithFields(fields),
+			logger: zl.logger,
 		}
 	}
 	return zl
-}
-
-func (zl *Logger) addField(label string, value any) {
-	if label == slog.ErrorFieldName {
-		if err, ok := value.(error); ok {
-			zl.event.Err(err)
-			zl.err = err
-			return
-		}
-	}
-	zl.event.Interface(label, value)
 }
 
 // New creates a slog.Logger adaptor using a zerolog as backend, if
@@ -198,28 +201,27 @@ func New(logger *zerolog.Logger) slog.Logger {
 		return nil
 	}
 
-	return newLogger(logger, nil, nil)
-}
-
-// NewWithCallback creates a new zerolog.Event using a callback to modify it.
-func (zl *Logger) NewWithCallback(fn func(ev *zerolog.Event)) *Logger {
-	// new event
-	ev := zl.logger.Log()
-	if fn != nil {
-		fn(ev)
-	}
-
-	return newLogger(zl.logger, ev, nil)
-}
-
-func newLogger(logger *zerolog.Logger, ev *zerolog.Event, fn func(string, error)) *Logger {
-	if ev == nil {
-		ev = logger.Log()
-	}
-
 	return &Logger{
 		logger: logger,
-		event:  ev,
-		action: fn,
+	}
+}
+
+// mapToZerologLevel maps slog levels to zerolog levels
+func mapToZerologLevel(level slog.LogLevel) zerolog.Level {
+	switch level {
+	case slog.Panic:
+		return zerolog.PanicLevel
+	case slog.Fatal:
+		return zerolog.FatalLevel
+	case slog.Error:
+		return zerolog.ErrorLevel
+	case slog.Warn:
+		return zerolog.WarnLevel
+	case slog.Info:
+		return zerolog.InfoLevel
+	case slog.Debug:
+		return zerolog.DebugLevel
+	default:
+		return zerolog.NoLevel
 	}
 }

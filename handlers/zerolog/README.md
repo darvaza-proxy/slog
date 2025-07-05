@@ -50,6 +50,7 @@ slogLogger.Info().
 - Clean, minimal JSON output
 - Console writer available for development
 - Excellent for high-throughput applications
+- Immutable logger instances ensure thread-safe field management
 
 ## Output Example
 
