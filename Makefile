@@ -26,6 +26,17 @@ REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
 REVIVE_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
 REVIVE ?= $(GO) run $(REVIVE_URL)
 
+PNPX ?= pnpx
+
+ifndef MARKDOWNLINT
+ifeq ($(shell command -v $(PNPX) 2>/dev/null),)
+MARKDOWNLINT = true
+else
+MARKDOWNLINT = $(PNPX) markdownlint-cli
+endif
+endif
+MARKDOWNLINT_FLAGS ?= --fix
+
 V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
@@ -52,6 +63,8 @@ include $(TMPDIR)/gen.mk
 
 fmt: ; $(info $(M) reformatting sources…)
 	$Q find . -name '*.go' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
+	$Q find . -name '*.md' | xargs -r sed -i 's/[ \t]*$$//'
+	$Q find . -name '*.md' | xargs -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
 
 tidy: fmt
 
