@@ -6,7 +6,7 @@ replace darvaza.org/slog => ../../
 
 require (
 	darvaza.org/core v0.17.1 // indirect
-	darvaza.org/slog v0.7.0
+	darvaza.org/slog v0.7.1
 )
 
 require (
