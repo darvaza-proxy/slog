@@ -21,7 +21,7 @@ go get darvaza.org/slog/handlers/filter
 ```go
 import (
     "strings"
-    
+
     "darvaza.org/slog"
     "darvaza.org/slog/handlers/filter"
 )
