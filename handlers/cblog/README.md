@@ -21,7 +21,7 @@ go get darvaza.org/slog/handlers/cblog
 ```go
 import (
     "fmt"
-    
+
     "darvaza.org/slog/handlers/cblog"
 )
 
@@ -33,10 +33,10 @@ logger := cblog.New(ch)
 go func() {
     for entry := range ch {
         // Custom processing logic
-        fmt.Printf("[%s] %s\n", 
+        fmt.Printf("[%s] %s\n",
             entry.Level,
             entry.Message)
-        
+
         // Print fields if any
         for k, v := range entry.Fields {
             fmt.Printf("  %s: %v\n", k, v)
