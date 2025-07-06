@@ -107,6 +107,25 @@ func TestHandlerConcurrency(t *testing.T) {
 }
 ```
 
+### Testing Bidirectional Adapters
+
+```go
+func TestMyBidirectionalAdapter(t *testing.T) {
+    // Factory function that creates adapter using given backend
+    factory := func(backend slog.Logger) slog.Logger {
+        // Create adapter that uses backend
+        externalLogger := mylib.NewLogger()
+        mylib.SetOutput(externalLogger, backend)
+
+        // Return slog adapter wrapping external logger
+        return myadapter.New(externalLogger)
+    }
+
+    // Test adapter that converts between logging libraries
+    slogtest.TestBidirectional(t, "MyAdapter", factory)
+}
+```
+
 ## API Reference
 
 ### Test Logger
@@ -139,6 +158,13 @@ func TestHandlerConcurrency(t *testing.T) {
 - `RunConcurrentTest(t, logger, test)` - Tests concurrent logging
 - `TestConcurrentFields(t, newLogger)` - Tests concurrent field operations
 - `DefaultConcurrencyTest()` - Returns default concurrency test config
+
+### Bidirectional Testing
+
+- `TestBidirectional(t, name, fn)` - Tests bidirectional adapter implementations
+  - `fn` should return a logger that uses the given logger as backend
+  - Tests message preservation, field handling, and level mapping
+  - Verifies round-trip conversion maintains data integrity
 
 ## Design Principles
 
