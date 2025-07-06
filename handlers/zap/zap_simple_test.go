@@ -9,7 +9,10 @@ import (
 
 func TestZapLogletSimple(t *testing.T) {
 	// Create using the default config
-	logger := slogzap.New(nil)
+	logger, err := slogzap.New(nil)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
 	if logger == nil {
 		t.Fatal("New() returned nil")
 	}
@@ -45,7 +48,10 @@ func TestZapLogletSimple(t *testing.T) {
 }
 
 func TestZapWithFieldsSimple(t *testing.T) {
-	logger := slogzap.New(nil)
+	logger, err := slogzap.New(nil)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
 
 	// Test WithField
 	l1 := logger.WithField("key1", "value1")
@@ -83,7 +89,10 @@ func TestZapWithFieldsSimple(t *testing.T) {
 }
 
 func TestZapWithStackSimple(t *testing.T) {
-	logger := slogzap.New(nil)
+	logger, err := slogzap.New(nil)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
 
 	// Test WithStack
 	l := logger.WithStack(1)
@@ -96,7 +105,10 @@ func TestZapWithStackSimple(t *testing.T) {
 }
 
 func TestZapChainingSimple(t *testing.T) {
-	logger := slogzap.New(nil)
+	logger, err := slogzap.New(nil)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
 
 	// Test method chaining preserves immutability
 	base := logger.WithField("base", "value")
@@ -122,7 +134,10 @@ func TestZapLevelValidationSimple(t *testing.T) {
 		}
 	}()
 
-	logger := slogzap.New(nil)
+	logger, err := slogzap.New(nil)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
 	// This should panic
 	logger.WithLevel(slog.UndefinedLevel)
 }

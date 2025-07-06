@@ -10,7 +10,7 @@
 
 [Uber's zap](https://github.com/uber-go/zap) adapter for
 [darvaza.org/slog](https://github.com/darvaza-proxy/slog).
-Wraps a `*zap.SugaredLogger` to implement the slog.Logger interface, enabling
+Uses a `*zap.Config` to create a slog.Logger interface, enabling
 high-performance structured logging with zap as the backend.
 
 ## Installation
@@ -27,16 +27,25 @@ import (
     slogzap "darvaza.org/slog/handlers/zap"
 )
 
-// Create zap logger (production config for performance)
+// Create zap config (production config for performance)
 zapConfig := zap.NewProductionConfig()
-zapLogger, err := zapConfig.Build()
+
+// Create slog adapter
+slogLogger, err := slogzap.New(&zapConfig)
 if err != nil {
     panic(err)
 }
-sugar := zapLogger.Sugar()
 
-// Create slog adapter
-slogLogger := slogzap.New(sugar)
+// Or with zap options (e.g., for testing with a custom core)
+slogLogger, err := slogzap.New(&zapConfig,
+    zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+        // Replace or wrap the core as needed
+        return core
+    }),
+)
+if err != nil {
+    panic(err)
+}
 
 // Use with slog interface
 slogLogger.Info().
@@ -46,13 +55,18 @@ slogLogger.Info().
     Print("Request completed")
 
 // Development-friendly console output
-devLogger, err := zap.NewDevelopment()
+devConfig := zap.NewDevelopmentConfig()
+slogDev, err := slogzap.New(&devConfig)
 if err != nil {
-    log.Fatalf("cannot create dev zap logger: %v", err)
+    log.Fatalf("cannot create dev slog logger: %v", err)
 }
-defer devLogger.Sync()           // flush any buffered logs
-slogDev := slogzap.New(devLogger.Sugar())
 ```
+
+## Breaking Changes
+
+**v0.7.0**: The `New()` function now returns `(slog.Logger, error)` instead of
+just `slog.Logger` to properly handle configuration build errors. Additionally,
+it now accepts variadic `zap.Option` parameters for customizing the logger.
 
 ## Features
 

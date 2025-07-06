@@ -23,6 +23,8 @@ high-performance logging library.
 - Fatal and Panic levels trigger zap's Fatal/Panic behaviour.
 - Fields are converted to zap's field types for efficiency.
 - Defers to zap for all formatting and output handling.
+- Provides `NewWithCallback` method to create derived loggers with hooks.
+- Includes `NewNoop` for creating no-op loggers (useful for testing).
 
 ## Usage Patterns
 
@@ -31,22 +33,44 @@ import (
     "time"
 
     "go.uber.org/zap"
+    "go.uber.org/zap/zapcore"
     slogzap "darvaza.org/slog/handlers/zap"
 )
 
-// Create zap logger
+// Create zap config
 zapConfig := zap.NewProductionConfig()
-zapLogger, _ := zapConfig.Build()
-sugar := zapLogger.Sugar()
 
 // Wrap with slog interface
-slogLogger := slogzap.New(sugar)
+slogLogger, err := slogzap.New(&zapConfig)
+if err != nil {
+    // handle error
+}
+
+// Or with custom zap options
+slogLogger, err := slogzap.New(&zapConfig,
+    zap.Hooks(func(entry zapcore.Entry) error {
+        // Custom hook for processing log entries
+        return nil
+    }),
+    zap.Fields(zap.String("service", "api")), // Global fields
+)
+if err != nil {
+    // handle error
+}
 
 // Use with high-performance logging
 slogLogger.Info().
     WithField("latency", time.Since(start)).
     WithField("status", 200).
     Print("Request completed")
+
+// Create a derived logger with a hook
+zapLogger := slogLogger.(*slogzap.Logger)
+hookedLogger := zapLogger.NewWithCallback(func(entry zapcore.Entry) error {
+    // Process log entries (e.g., send metrics, filter, etc.)
+    fmt.Printf("Log entry: %s at level %s\n", entry.Message, entry.Level)
+    return nil
+})
 ```
 
 ## Level Mapping

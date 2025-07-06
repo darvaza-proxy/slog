@@ -96,6 +96,7 @@
     "Unwrappable",
     "wantok",
     "Wrapf",
+    "zapcore",
     "zapr",
     "zerolog",
     "zlogger"
