@@ -113,6 +113,19 @@ func TestZapSpecific(t *testing.T) {
 		_ = callbackExecuted
 	})
 
+	t.Run("NewWithCallback_NilCallback", func(t *testing.T) {
+		logger, _ := slogzap.New(nil)
+		zapLogger := logger.(*slogzap.Logger)
+
+		// Test with nil callback
+		newLogger := zapLogger.NewWithCallback(nil)
+
+		// Should return the same logger instance when callback is nil
+		if newLogger != zapLogger {
+			t.Error("NewWithCallback with nil callback should return the same logger instance")
+		}
+	})
+
 	t.Run("NewNoop", func(t *testing.T) {
 		logger := slogzap.NewNoop()
 		if logger == nil {
@@ -154,6 +167,40 @@ func TestZapSpecific(t *testing.T) {
 			t.Error("expected error for invalid config")
 		}
 	})
+
+	t.Run("Enabled_NilLogger", func(t *testing.T) {
+		// Test nil logger
+		var nilLogger *slogzap.Logger
+		if nilLogger.Enabled() {
+			t.Error("nil logger should not be enabled")
+		}
+
+		// Test logger with nil internal logger
+		logger := &slogzap.Logger{}
+		if logger.Enabled() {
+			t.Error("logger with nil internal logger should not be enabled")
+		}
+	})
+
+	t.Run("WithLevel_SameLevel", func(t *testing.T) {
+		logger, _ := slogzap.New(nil)
+		zapLogger := logger.(*slogzap.Logger)
+
+		// First set the logger to a valid level
+		infoLogger := zapLogger.WithLevel(slog.Info).(*slogzap.Logger)
+
+		// Get current level
+		currentLevel := infoLogger.Level()
+		if currentLevel != slog.Info {
+			t.Fatalf("expected Info level, got %v", currentLevel)
+		}
+
+		// WithLevel with same level should return same instance
+		sameLogger := infoLogger.WithLevel(currentLevel)
+		if sameLogger != infoLogger {
+			t.Error("WithLevel with same level should return the same logger instance")
+		}
+	})
 }
 
 func TestNewDefaultConfig(t *testing.T) {
@@ -184,5 +231,25 @@ func TestNewDefaultConfig(t *testing.T) {
 
 	if !cfg.DisableCaller {
 		t.Error("expected caller to be disabled")
+	}
+}
+
+func TestMapToZapLevel_InvalidLevel(t *testing.T) {
+	// This tests the default case in mapToZapLevel (lines 249-251)
+	// by creating a logger with an invalid level through reflection
+	// or by testing the Enabled() method with such a logger
+
+	logger, _ := slogzap.New(nil)
+	zapLogger := logger.(*slogzap.Logger)
+
+	// Create a logger with an invalid level (100 is not a valid slog level)
+	invalidLogger := &slogzap.Logger{}
+	// Copy the internal logger but set an invalid level
+	*invalidLogger = *zapLogger
+	invalidLogger.Loglet = zapLogger.Loglet.WithLevel(slog.LogLevel(100))
+
+	// The logger with invalid level should not be enabled
+	if invalidLogger.Enabled() {
+		t.Error("logger with invalid level should not be enabled")
 	}
 }

@@ -128,7 +128,7 @@ Handler implementations should aim for high test coverage:
 
 - Target: 90%+ coverage for production handlers
 - Current handler coverage examples:
-  - zap: 93.2%
+  - zap: 97.4%
   - cblog: 95.8%
   - filter: 96.2%
   - discard: 100%

@@ -216,6 +216,41 @@ func TestSlogCoreWithCaller(t *testing.T) {
 	}
 }
 
+// TestSlogCoreWithStack tests stack trace handling (line 74-76)
+func TestSlogCoreWithStack(t *testing.T) {
+	recorder := slogtest.NewLogger()
+	core := slogzap.NewCore(recorder, zap.DebugLevel)
+
+	// Create an entry with stack trace
+	entry := zapcore.Entry{
+		Level:   zapcore.ErrorLevel,
+		Message: "error with stack",
+		Stack:   "goroutine 1 [running]:\nmain.main()\n\t/tmp/test.go:10 +0x20",
+	}
+
+	err := core.Write(entry, nil)
+	if err != nil {
+		t.Errorf("Write returned error: %v", err)
+	}
+
+	messages := recorder.GetMessages()
+	if len(messages) != 1 {
+		t.Fatalf("Expected 1 log entry, got %d", len(messages))
+	}
+
+	msg := messages[0]
+	if msg.Fields["stacktrace"] == nil {
+		t.Error("Expected stacktrace in fields")
+	}
+	stackStr, ok := msg.Fields["stacktrace"].(string)
+	if !ok {
+		t.Error("Stacktrace should be a string")
+	}
+	if !strings.Contains(stackStr, "goroutine 1") {
+		t.Errorf("Stacktrace should contain goroutine info, got %s", stackStr)
+	}
+}
+
 // TestSlogCoreComplexFields tests various field types
 func TestSlogCoreComplexFields(t *testing.T) {
 	recorder := slogtest.NewLogger()
@@ -370,5 +405,213 @@ func TestSlogCoreConcurrent(t *testing.T) {
 		if counts[i] != msgsPerGoroutine {
 			t.Errorf("Goroutine %d: expected %d messages, got %d", i, msgsPerGoroutine, counts[i])
 		}
+	}
+}
+
+// TestSlogCoreCheckDisabled tests the Check method with disabled level (line 62)
+func TestSlogCoreCheckDisabled(t *testing.T) {
+	recorder := slogtest.NewLogger()
+
+	// Create core with Info level
+	core := slogzap.NewCore(recorder, zap.InfoLevel)
+
+	// Create a debug entry (which should be disabled)
+	entry := zapcore.Entry{
+		Level:   zap.DebugLevel,
+		Message: "debug message",
+	}
+
+	// Check should return nil for disabled level
+	checked := core.Check(entry, nil)
+	if checked != nil {
+		t.Error("Check should return nil for disabled level")
+	}
+
+	// Verify with a CheckedEntry
+	ce := &zapcore.CheckedEntry{}
+	result := core.Check(entry, ce)
+	if result != ce {
+		t.Error("Check should return the same CheckedEntry when level is disabled")
+	}
+}
+
+// TestSlogCoreFatalWrite tests Fatal path in Write() (lines 98-100)
+func TestSlogCoreFatalWrite(t *testing.T) {
+	recorder := slogtest.NewLogger()
+	core := slogzap.NewCore(recorder, zap.DebugLevel)
+
+	// We can't actually test os.Exit, but we can verify the Fatal log is written
+	entry := zapcore.Entry{
+		Level:   zapcore.FatalLevel,
+		Message: "fatal error occurred",
+	}
+
+	// The Write method will call logger.Fatal() which in our test logger
+	// just records a message with Fatal level
+	err := core.Write(entry, nil)
+	if err != nil {
+		t.Errorf("Write returned error: %v", err)
+	}
+
+	// Check that we got the original message
+	messages := recorder.GetMessages()
+	found := false
+	for _, msg := range messages {
+		if msg.Message == "fatal error occurred" && msg.Level == slog.Fatal {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected to find fatal message in recorder")
+	}
+
+	// Also check for the "zap fatal exit" message
+	foundExit := false
+	for _, msg := range messages {
+		if msg.Message == "zap fatal exit" && msg.Level == slog.Fatal {
+			foundExit = true
+			break
+		}
+	}
+	if !foundExit {
+		t.Error("Expected to find 'zap fatal exit' message")
+	}
+}
+
+// TestSlogCorePanicWrite tests Panic path in Write() (lines 101-103)
+func TestSlogCorePanicWrite(t *testing.T) {
+	recorder := slogtest.NewLogger()
+	core := slogzap.NewCore(recorder, zap.DebugLevel)
+
+	// Test PanicLevel
+	t.Run("PanicLevel", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic from PanicLevel")
+			} else {
+				expected := "zap panic: panic message"
+				if r != expected {
+					t.Errorf("Expected panic message %q, got %q", expected, r)
+				}
+			}
+		}()
+
+		entry := zapcore.Entry{
+			Level:   zapcore.PanicLevel,
+			Message: "panic message",
+		}
+
+		_ = core.Write(entry, nil)
+	})
+
+	// Test DPanicLevel
+	t.Run("DPanicLevel", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic from DPanicLevel")
+			} else {
+				expected := "zap panic: development panic"
+				if r != expected {
+					t.Errorf("Expected panic message %q, got %q", expected, r)
+				}
+			}
+		}()
+
+		entry := zapcore.Entry{
+			Level:   zapcore.DPanicLevel,
+			Message: "development panic",
+		}
+
+		_ = core.Write(entry, nil)
+	})
+}
+
+// TestConvertFieldsEmpty tests empty fields in convertFields() (line 117)
+func TestConvertFieldsEmpty(t *testing.T) {
+	recorder := slogtest.NewLogger()
+	core := slogzap.NewCore(recorder, zap.InfoLevel)
+	zapLogger := zap.New(core)
+
+	// Test with no fields
+	zapLogger.Info("no fields")
+
+	messages := recorder.GetMessages()
+	if len(messages) != 1 {
+		t.Fatalf("Expected 1 message, got %d", len(messages))
+	}
+
+	msg := messages[0]
+	if msg.Fields == nil || len(msg.Fields) != 0 {
+		t.Errorf("Expected empty fields map, got %v", msg.Fields)
+	}
+
+	// Test with empty field slice explicitly
+	recorder.Clear()
+	entry := zapcore.Entry{
+		Level:   zapcore.InfoLevel,
+		Message: "empty field slice",
+	}
+	err := core.Write(entry, []zapcore.Field{})
+	if err != nil {
+		t.Errorf("Write returned error: %v", err)
+	}
+
+	messages = recorder.GetMessages()
+	if len(messages) != 1 {
+		t.Fatalf("Expected 1 message, got %d", len(messages))
+	}
+	if messages[0].Fields == nil || len(messages[0].Fields) != 0 {
+		t.Errorf("Expected empty fields map for empty field slice, got %v", messages[0].Fields)
+	}
+}
+
+// TestMapZapToSlogLevel tests DPanic and unknown levels (lines 141, 146-147)
+func TestMapZapToSlogLevel(t *testing.T) {
+	recorder := slogtest.NewLogger()
+
+	tests := []struct {
+		name      string
+		zapLevel  zapcore.Level
+		slogLevel slog.LogLevel
+	}{
+		{"DPanicLevel", zapcore.DPanicLevel, slog.Panic},
+		{"UnknownLevel", zapcore.Level(99), slog.Info},    // Unknown level defaults to Info
+		{"InvalidLevel", zapcore.InvalidLevel, slog.Info}, // InvalidLevel (-1) also defaults to Info
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			core := slogzap.NewCore(recorder, zapcore.DebugLevel)
+
+			// For DPanic, we need to catch the panic
+			if tt.zapLevel == zapcore.DPanicLevel {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Error("Expected panic from DPanicLevel")
+					}
+				}()
+			}
+
+			entry := zapcore.Entry{
+				Level:   tt.zapLevel,
+				Message: fmt.Sprintf("test %s", tt.name),
+			}
+
+			recorder.Clear()
+			_ = core.Write(entry, nil)
+
+			// For unknown levels, check that they were logged at Info level
+			if tt.zapLevel != zapcore.DPanicLevel {
+				messages := recorder.GetMessages()
+				if len(messages) > 0 {
+					msg := messages[0]
+					if msg.Level != tt.slogLevel {
+						t.Errorf("Expected slog level %v for zap level %v, got %v",
+							tt.slogLevel, tt.zapLevel, msg.Level)
+					}
+				}
+			}
+		})
 	}
 }
