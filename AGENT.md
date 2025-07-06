@@ -41,8 +41,11 @@ make all
 # Run tests for all modules including handlers
 make test
 
-# Format code and tidy dependencies (run before committing)
+# Format code, tidy dependencies, and check grammar (run before committing)
 make tidy
+
+# Check grammar only (without formatting)
+make check-grammar
 
 # Clean build artifacts
 make clean
@@ -340,12 +343,31 @@ When creating or editing documentation files:
 
 ### Pre-commit Checklist
 
-1. Run `make tidy` for Go code formatting across all modules.
-2. Check markdown files with LanguageTool and markdownlint.
-3. Verify all tests pass with `make test`.
-4. Ensure no linting violations remain.
-5. Update handler documentation if modifying handler behavior.
-6. Verify handler examples still compile and run correctly.
+1. Run `make tidy` to format code and check grammar across all modules.
+2. Verify all tests pass with `make test`.
+3. Ensure no linting violations remain.
+4. Update handler documentation if modifying handler behavior.
+5. Verify handler examples still compile and run correctly.
+
+### Grammar and Style Checking
+
+The project now includes integrated grammar checking via LanguageTool:
+
+```bash
+# Run both formatting and grammar checks
+make tidy
+
+# Run only grammar checks
+make check-grammar
+```
+
+LanguageTool is automatically installed via npm (using pnpx) when available.
+The following rules are disabled for markdown compatibility:
+
+- COMMA_PARENTHESIS_WHITESPACE (conflicts with markdown links)
+- ARROWS (used in code examples)
+- EN_QUOTES (technical docs use straight quotes)
+- MORFOLOGIK_RULE_EN_GB (flags technical terms)
 
 ## Git Workflow and Pull Requests
 

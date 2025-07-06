@@ -1,4 +1,4 @@
-.PHONY: all clean generate fmt tidy
+.PHONY: all clean generate fmt tidy check-grammar
 .PHONY: FORCE
 
 GO ?= go
@@ -35,11 +35,23 @@ else
 MARKDOWNLINT = true
 endif
 endif
-MARKDOWNLINT_FLAGS ?= --fix
+MARKDOWNLINT_FLAGS ?= --fix --config $(TOOLSDIR)/markdownlint.json
+
+ifndef LANGUAGETOOL
+ifeq ($(shell $(PNPX) @twilio-labs/languagetool-cli --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+LANGUAGETOOL = $(PNPX) @twilio-labs/languagetool-cli
+else
+LANGUAGETOOL = true
+endif
+endif
+LANGUAGETOOL_FLAGS ?= --config $(TOOLSDIR)/languagetool.cfg
 
 V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
+
+# Find all markdown files
+MARKDOWN_FILES = $(shell find . -name '*.md' -not -path './vendor/*' -not -path './.git/*')
 
 GO_BUILD = $(GO) build -v
 GO_BUILD_CMD = $(GO_BUILD) -o "$(OUTDIR)"
@@ -63,10 +75,17 @@ include $(TMPDIR)/gen.mk
 
 fmt: ; $(info $(M) reformatting sources…)
 	$Q find . -name '*.go' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
-	$Q find . -name '*.md' | xargs -r sed -i 's/[ \t]*$$//'
-	$Q find . -name '*.md' | xargs -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
+	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r sed -i 's/[ \t]*$$//'
+ifneq ($(MARKDOWNLINT),true)
+	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
+endif
 
-tidy: fmt
+check-grammar: ; $(info $(M) checking grammar with LanguageTool…)
+ifneq ($(LANGUAGETOOL),true)
+	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
+endif
+
+tidy: fmt check-grammar
 
 generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
