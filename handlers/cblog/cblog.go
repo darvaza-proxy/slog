@@ -3,6 +3,7 @@ package cblog
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	"darvaza.org/core"
@@ -169,11 +170,21 @@ func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 
 // New creates a new Channel Based Logger
 func New(ch chan LogMsg) (*Logger, <-chan LogMsg) {
+	var createdChannel bool
 	if ch == nil {
 		ch = make(chan LogMsg, DefaultOutputBufferSize)
+		createdChannel = true
 	}
 
 	l := newLogger(ch)
+
+	// Set finaliser to close the channel if we created it
+	if createdChannel {
+		runtime.SetFinalizer(l, func(l *cblog) {
+			close(l.ch)
+		})
+	}
+
 	return &l.Logger, ch
 }
 
