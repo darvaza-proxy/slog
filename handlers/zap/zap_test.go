@@ -1,6 +1,7 @@
 package zap_test
 
 import (
+	"fmt"
 	"testing"
 
 	"go.uber.org/zap"
@@ -11,6 +12,25 @@ import (
 	slogtest "darvaza.org/slog/internal/testing"
 )
 
+// newZapLoggerWithRecorder creates a zap-based slog.Logger that writes to the given recorder
+func newZapLoggerWithRecorder(recorder slog.Logger) slog.Logger {
+	// Create a bidirectional adapter chain: slog API → zap → slog recorder
+	// This tests both the SlogCore (slog→zap) and Logger (zap→slog) adapters
+
+	// Create a zap config that uses our recorder-backed core
+	cfg := slogzap.NewDefaultConfig()
+
+	// Use zap's WrapCore option to replace the core with our SlogCore
+	logger, err := slogzap.New(cfg, zap.WrapCore(func(zapcore.Core) zapcore.Core {
+		return slogzap.NewCore(recorder, zap.InfoLevel)
+	}))
+	if err != nil {
+		panic(fmt.Sprintf("failed to create logger: %v", err))
+	}
+
+	return logger
+}
+
 func TestCompliance(t *testing.T) {
 	compliance := slogtest.ComplianceTest{
 		FactoryOptions: slogtest.FactoryOptions{
@@ -18,6 +38,7 @@ func TestCompliance(t *testing.T) {
 				logger, _ := slogzap.New(nil)
 				return logger
 			},
+			NewLoggerWithRecorder: newZapLoggerWithRecorder,
 		},
 	}
 	compliance.Run(t)
@@ -29,6 +50,7 @@ func TestStress(t *testing.T) {
 			logger, _ := slogzap.New(nil)
 			return logger
 		},
+		NewLoggerWithRecorder: newZapLoggerWithRecorder,
 	}
 	suite.Run(t)
 }
@@ -53,21 +75,30 @@ func TestWithStack(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
-	logger, _ := slogzap.New(nil)
+	opts := &slogtest.ConcurrencyTestOptions{
+		FactoryOptions: slogtest.FactoryOptions{
+			NewLoggerWithRecorder: newZapLoggerWithRecorder,
+		},
+	}
 	test := slogtest.DefaultConcurrencyTest()
-	slogtest.RunConcurrentTest(t, logger, test)
+	slogtest.RunConcurrentTestWithOptions(t, nil, test, opts)
 }
 
 func TestLevelValidation(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic for invalid log level")
-		}
+	logger, _ := slogzap.New(nil)
+
+	// Test that WithLevel panics for invalid level
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for invalid log level")
+			}
+		}()
+		// This should panic
+		logger.WithLevel(slog.UndefinedLevel)
 	}()
 
-	logger, _ := slogzap.New(nil)
-	// This should panic
-	logger.WithLevel(slog.UndefinedLevel)
+	// Ensure test continues after the panic test
 }
 
 func TestZapSpecific(t *testing.T) {
