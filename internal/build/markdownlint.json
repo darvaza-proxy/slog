@@ -10,5 +10,14 @@
     "headers": true,
     "strict": false,
     "stern": false
-  }
+  },
+  "MD025": true,
+  "MD041": true,
+  "MD047": true,
+  "MD012": true,
+  "MD032": true,
+  "MD022": true,
+  "MD031": true,
+  "MD033": false,
+  "MD034": false
 }
