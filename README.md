@@ -256,6 +256,20 @@ management and immutable logger behavior.
 - **[discard](https://pkg.go.dev/darvaza.org/slog/handlers/discard)**:
   No-op handler for testing.
 
+## Testing
+
+The package provides comprehensive test utilities for handler implementations in
+`internal/testing`. These utilities help ensure consistent testing patterns and
+reduce code duplication across handlers.
+
+See [internal/testing/README.md](internal/testing/README.md) for detailed
+documentation on using the test utilities, including:
+
+- Test logger for recording and verifying log messages
+- Assertion helpers for message verification
+- Compliance test suite for interface conformance
+- Concurrency testing utilities
+
 ## Development
 
 See [AGENT.md](AGENT.md) for development guidelines and

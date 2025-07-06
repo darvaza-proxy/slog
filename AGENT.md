@@ -114,6 +114,11 @@ Always run `make tidy` before committing to ensure proper formatting.
 - Handler tests should verify proper delegation to the underlying logger.
 - Use table-driven tests for comprehensive coverage.
 - Test disabled logger behavior to ensure no side effects.
+- Use the shared test utilities in `internal/testing` to reduce duplication:
+  - `ComplianceTest` for comprehensive interface testing
+  - Test logger for recording and verifying messages
+  - Assertion helpers for consistent verification
+  - See [internal/testing/README.md](internal/testing/README.md) for details
 
 ## Important Notes
 
