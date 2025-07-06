@@ -279,7 +279,7 @@ done
 
 ### Documentation Standards
 
-When editing markdown files, ensure compliance with:
+When editing Markdown files, ensure compliance with:
 
 - **Line Length**: Maximum 80 characters per line. Break long lines at
   appropriate points (after commas, before operators, at sentence boundaries).
@@ -357,17 +357,24 @@ The project now includes integrated grammar checking via LanguageTool:
 # Run both formatting and grammar checks
 make tidy
 
-# Run only grammar checks
+# Run only grammar checks (Markdown and Go files)
 make check-grammar
 ```
 
 LanguageTool is automatically installed via npm (using pnpx) when available.
-The following rules are disabled for markdown compatibility:
+It checks both Markdown documentation and Go source files (comments and strings).
+The following rules are disabled for technical documentation compatibility:
 
-- COMMA_PARENTHESIS_WHITESPACE (conflicts with markdown links)
+- COMMA_PARENTHESIS_WHITESPACE (conflicts with Markdown links)
 - ARROWS (used in code examples)
 - EN_QUOTES (technical docs use straight quotes)
 - MORFOLOGIK_RULE_EN_GB (flags technical terms)
+- UPPERCASE_SENTENCE_START (conflicts with inline code)
+
+Configuration files are located in `internal/build/`:
+
+- `markdownlint.json` - Markdown formatting rules
+- `languagetool.cfg` - Grammar checking rules for British English
 
 ## Git Workflow and Pull Requests
 

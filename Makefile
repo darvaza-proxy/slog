@@ -51,7 +51,10 @@ Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
 
 # Find all markdown files
-MARKDOWN_FILES = $(shell find . -name '*.md' -not -path './vendor/*' -not -path './.git/*')
+MARKDOWN_FILES = $(shell find . \( -name vendor -o -name .git \) -prune -o -name '*.md' -print)
+
+# Find all go files
+GO_FILES = $(shell find . \( -name vendor -o -name .git \) -prune -o -name '*.go' -print)
 
 GO_BUILD = $(GO) build -v
 GO_BUILD_CMD = $(GO_BUILD) -o "$(OUTDIR)"
@@ -74,7 +77,7 @@ $(TMPDIR)/gen.mk: $(TOOLSDIR)/gen_mk.sh $(TMPDIR)/index Makefile ; $(info $(M) g
 include $(TMPDIR)/gen.mk
 
 fmt: ; $(info $(M) reformatting sources…)
-	$Q find . -name '*.go' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
+	$Q echo "$(GO_FILES)" | tr ' ' '\n' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
 	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r sed -i 's/[ \t]*$$//'
 ifneq ($(MARKDOWNLINT),true)
 	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
@@ -82,7 +85,7 @@ endif
 
 check-grammar: ; $(info $(M) checking grammar with LanguageTool…)
 ifneq ($(LANGUAGETOOL),true)
-	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
+	$Q echo "$(MARKDOWN_FILES) $(GO_FILES)" | tr ' ' '\n' | xargs -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
 endif
 
 tidy: fmt check-grammar
