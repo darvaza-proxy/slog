@@ -8,10 +8,37 @@ import (
 	"darvaza.org/slog"
 )
 
+// BidirectionalTestOptions configures bidirectional adapter tests
+type BidirectionalTestOptions struct {
+	// LevelExceptions maps expected level transformations
+	// For example, if a backend doesn't support Warn level and maps it to Info:
+	// LevelExceptions: map[slog.LogLevel]slog.LogLevel{slog.Warn: slog.Info}
+	LevelExceptions map[slog.LogLevel]slog.LogLevel
+}
+
+// ExpectedLevel returns the expected level after transformation
+func (opts *BidirectionalTestOptions) ExpectedLevel(original slog.LogLevel) slog.LogLevel {
+	if opts == nil || opts.LevelExceptions == nil {
+		return original
+	}
+	if mapped, ok := opts.LevelExceptions[original]; ok {
+		return mapped
+	}
+	return original
+}
+
 // TestBidirectional tests that a bidirectional adapter correctly preserves
 // log messages, fields, and levels when round-tripping through the adapter.
 // The fn parameter should return a logger that uses the given logger as backend.
 func TestBidirectional(t *testing.T, name string, fn func(slog.Logger) slog.Logger) {
+	TestBidirectionalWithOptions(t, name, fn, nil)
+}
+
+// TestBidirectionalWithOptions tests a bidirectional adapter with custom options.
+// This is useful for adapters that have known limitations, such as logr which
+// doesn't have a native Warn level.
+func TestBidirectionalWithOptions(t *testing.T, name string,
+	fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions) {
 	t.Helper()
 
 	t.Run(name, func(t *testing.T) {
@@ -25,7 +52,7 @@ func TestBidirectional(t *testing.T, name string, fn func(slog.Logger) slog.Logg
 		})
 
 		t.Run("AllLevels", func(t *testing.T) {
-			testBidirectionalLevels(t, fn)
+			testBidirectionalLevels(t, fn, opts)
 		})
 
 		t.Run("FieldChaining", func(t *testing.T) {
@@ -114,7 +141,7 @@ func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger) {
 }
 
 // testBidirectionalLevels tests all log levels
-func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger) {
+func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions) {
 	t.Helper()
 
 	testCases := []struct {
@@ -162,7 +189,10 @@ func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger) {
 
 			messages := recorder.GetMessages()
 			AssertMessageCount(t, messages, 1)
-			AssertMessage(t, messages[0], tc.level, msg)
+
+			// Use options to get expected level
+			expectedLevel := opts.ExpectedLevel(tc.level)
+			AssertMessage(t, messages[0], expectedLevel, msg)
 		})
 	}
 }
