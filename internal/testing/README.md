@@ -126,6 +126,27 @@ func TestMyBidirectionalAdapter(t *testing.T) {
 }
 ```
 
+For adapters with known limitations (e.g., missing log levels):
+
+```go
+func TestAdapterWithLimitations(t *testing.T) {
+    factory := func(backend slog.Logger) slog.Logger {
+        // Adapter that doesn't support Warn level
+        return limitedadapter.New(backend)
+    }
+
+    // Define expected level mappings
+    opts := &slogtest.BidirectionalTestOptions{
+        LevelExceptions: map[slog.LogLevel]slog.LogLevel{
+            slog.Warn: slog.Info, // Warn gets mapped to Info
+        },
+    }
+
+    // Test with options to handle known limitations
+    slogtest.TestBidirectionalWithOptions(t, "LimitedAdapter", factory, opts)
+}
+```
+
 ## API Reference
 
 ### Test Logger
@@ -165,6 +186,11 @@ func TestMyBidirectionalAdapter(t *testing.T) {
   - `fn` should return a logger that uses the given logger as backend
   - Tests message preservation, field handling, and level mapping
   - Verifies round-trip conversion maintains data integrity
+
+- `TestBidirectionalWithOptions(t, name, fn, opts)` - Tests with level mapping exceptions
+  - Handles adapters with known limitations (e.g., missing log levels)
+  - `opts.LevelExceptions` maps expected level transformations
+  - Useful for adapters like logr that don't support all slog levels
 
 ## Design Principles
 
