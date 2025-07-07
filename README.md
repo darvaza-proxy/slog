@@ -252,7 +252,8 @@ logging library as a slog backend, OR use slog as a backend for the external
 library:
 
 - **(Coming soon)** - Bidirectional adapters are planned for future releases.
-  Check [issue tracker](https://github.com/darvaza-proxy/slog/issues) for updates.
+  Check [issue tracker](https://github.com/darvaza-proxy/slog/issues) for
+  updates.
 
 #### Unidirectional Adapters
 
@@ -281,7 +282,8 @@ These handlers provide additional functionality without external dependencies:
 
 **Bidirectional adapters** are valuable when:
 
-- Integration with libraries that expect a specific logger interface is required.
+- Integration with libraries that expect a specific logger interface is
+  required.
 - Gradual migration between logging systems is in progress.
 - A common interface is desired across different application components while
   maintaining compatibility with existing code.
