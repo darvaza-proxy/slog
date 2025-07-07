@@ -120,6 +120,29 @@ Always run `make tidy` before committing to ensure proper formatting.
   - Assertion helpers for consistent verification
   - See [internal/testing/README.md](internal/testing/README.md) for details
 
+### Test Coverage
+
+Handler implementations should aim for high test coverage:
+
+- Target: 90%+ coverage for production handlers
+- Current handler coverage examples:
+  - zap: 93.2%
+  - cblog: 95.8%
+  - filter: 96.2%
+  - discard: 100%
+- Run coverage reports:
+  `GOTEST_FLAGS="-coverprofile=coverage.out" make test-<handler>`
+- View detailed coverage:
+  `cd handlers/<name> && go tool cover -func=coverage.out`
+
+Focus testing on:
+
+- All log levels and their behaviour
+- Field handling and immutability
+- Concurrent access patterns
+- Error conditions and edge cases
+- Handler-specific features
+
 ## Important Notes
 
 - The main module and each handler are separate Go modules with their own

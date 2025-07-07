@@ -10,8 +10,7 @@ import (
 // ComplianceTest runs a comprehensive test suite to verify that a logger
 // implementation correctly implements the slog.Logger interface.
 type ComplianceTest struct {
-	AdapterOptions
-	FactoryOptions
+	ConcurrencyTestOptions
 
 	// SkipEnabledTests skips tests that require checking the Enabled state.
 	SkipEnabledTests bool
@@ -210,11 +209,7 @@ func (ct ComplianceTest) testConcurrency(t *testing.T) {
 
 	if ct.NewLoggerWithRecorder != nil {
 		// Use factory pattern for adapters
-		opts := &ConcurrencyTestOptions{
-			AdapterOptions: ct.AdapterOptions,
-			FactoryOptions: ct.FactoryOptions,
-		}
-		RunConcurrentTestWithOptions(t, nil, DefaultConcurrencyTest(), opts)
+		RunConcurrentTestWithOptions(t, nil, DefaultConcurrencyTest(), &ct.ConcurrencyTestOptions)
 	} else {
 		// Use direct logger for simple implementations
 		logger := ct.NewLogger()
