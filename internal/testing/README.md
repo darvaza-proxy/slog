@@ -84,9 +84,11 @@ For comprehensive testing of a handler implementation:
 ```go
 func TestHandlerCompliance(t *testing.T) {
     compliance := slogtest.ComplianceTest{
-        FactoryOptions: slogtest.FactoryOptions{
-            NewLogger: func() slog.Logger {
-                return myhandler.New()
+        ConcurrencyTestOptions: slogtest.ConcurrencyTestOptions{
+            FactoryOptions: slogtest.FactoryOptions{
+                NewLogger: func() slog.Logger {
+                    return myhandler.New()
+                },
             },
         },
         // Skip tests that might not apply
@@ -103,18 +105,20 @@ For bidirectional adapters that can create loggers backed by recorders:
 ```go
 func TestBidirectionalHandlerCompliance(t *testing.T) {
     compliance := slogtest.ComplianceTest{
-        FactoryOptions: slogtest.FactoryOptions{
-            NewLogger: func() slog.Logger {
-                return myhandler.New()
+        ConcurrencyTestOptions: slogtest.ConcurrencyTestOptions{
+            FactoryOptions: slogtest.FactoryOptions{
+                NewLogger: func() slog.Logger {
+                    return myhandler.New()
+                },
+                NewLoggerWithRecorder: func(recorder slog.Logger) slog.Logger {
+                    // Create handler that writes to recorder
+                    return myhandler.NewWithBackend(recorder)
+                },
             },
-            NewLoggerWithRecorder: func(recorder slog.Logger) slog.Logger {
-                // Create handler that writes to recorder
-                return myhandler.NewWithBackend(recorder)
-            },
-        },
-        AdapterOptions: slogtest.AdapterOptions{
-            LevelExceptions: map[slog.LogLevel]slog.LogLevel{
-                slog.Warn: slog.Info, // if handler maps Warn to Info
+            AdapterOptions: slogtest.AdapterOptions{
+                LevelExceptions: map[slog.LogLevel]slog.LogLevel{
+                    slog.Warn: slog.Info, // if handler maps Warn to Info
+                },
             },
         },
     }
@@ -230,8 +234,7 @@ The `ComplianceTest` struct provides comprehensive testing:
 
 ```go
 type ComplianceTest struct {
-    AdapterOptions                    // Level transformation exceptions
-    FactoryOptions                    // Logger creation functions
+    ConcurrencyTestOptions           // Embeds adapter and factory options
     SkipEnabledTests bool            // Skip Enabled() tests
     SkipPanicTests   bool            // Skip Fatal/Panic tests
 }
@@ -325,7 +328,8 @@ Each test type embeds the appropriate base options:
 
 - `BidirectionalTestOptions` - Embeds `AdapterOptions`
 - `ConcurrencyTestOptions` - Embeds both `AdapterOptions` and `FactoryOptions`
-- `ComplianceTest` - Embeds both `AdapterOptions` and `FactoryOptions`
+- `ComplianceTest` - Embeds `ConcurrencyTestOptions` (which includes both base
+  options)
 
 This design allows code reuse while maintaining type safety and clear intent.
 
