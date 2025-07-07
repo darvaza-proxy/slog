@@ -180,6 +180,25 @@ func TestAdapterWithLimitations(t *testing.T) {
 }
 ```
 
+For adapters that apply level-based filtering:
+
+```go
+func TestAdapterWithLevelFiltering(t *testing.T) {
+    factory := func(backend slog.Logger) slog.Logger {
+        // Adapter that filters out Debug messages based on minimum level
+        return filteredadapter.New(backend, slog.Info) // Only Info and above
+    }
+
+    opts := &slogtest.BidirectionalTestOptions{
+        LevelExceptions: map[slog.LogLevel]slog.LogLevel{
+            slog.Debug: slog.UndefinedLevel, // Debug messages are filtered out
+        },
+    }
+
+    slogtest.TestBidirectionalWithOptions(t, "FilteredAdapter", factory, opts)
+}
+```
+
 ## API Reference
 
 ### Test Logger
@@ -258,6 +277,7 @@ type ConcurrencyTestOptions struct {
 ### Helper Utilities
 
 - `TransformMessages(messages, opts) []Message` - Apply level transformations
+  - Messages mapped to `slog.UndefinedLevel` are omitted from the result
 - `CompareMessages(first, second) (onlyFirst, onlySecond, both []Message)` -
   Set-based comparison
 - `RunWithLogger(t, name, logger, fn)` - Run subtest with logger
@@ -278,6 +298,11 @@ type AdapterOptions struct {
     LevelExceptions map[slog.LogLevel]slog.LogLevel
 }
 ```
+
+Level transformations support mapping to `slog.UndefinedLevel` to indicate that
+messages at that level should be filtered out entirely. This is useful for
+adapters that apply level-based filtering where certain levels are discarded
+rather than remapped to a different level.
 
 ### FactoryOptions
 

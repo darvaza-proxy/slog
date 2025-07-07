@@ -169,11 +169,17 @@ func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger, opt
 			tc.logFunc(adapter, msg)
 
 			messages := recorder.GetMessages()
-			AssertMessageCount(t, messages, 1)
 
 			// Use options to get expected level
 			expectedLevel := opts.ExpectedLevel(tc.level)
-			AssertMessage(t, messages[0], expectedLevel, msg)
+
+			// If expected level is UndefinedLevel, message should be skipped
+			if expectedLevel == slog.UndefinedLevel {
+				AssertMessageCount(t, messages, 0)
+			} else {
+				AssertMessageCount(t, messages, 1)
+				AssertMessage(t, messages[0], expectedLevel, msg)
+			}
 		})
 	}
 }
