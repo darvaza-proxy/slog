@@ -29,7 +29,7 @@ func TestBidirectionalWithOptions(t *testing.T, name string,
 		})
 
 		t.Run("WithFields", func(t *testing.T) {
-			testBidirectionalFields(t, fn)
+			testBidirectionalFields(t, fn, opts)
 		})
 
 		t.Run("AllLevels", func(t *testing.T) {
@@ -37,11 +37,11 @@ func TestBidirectionalWithOptions(t *testing.T, name string,
 		})
 
 		t.Run("FieldChaining", func(t *testing.T) {
-			testBidirectionalChaining(t, fn)
+			testBidirectionalChaining(t, fn, opts)
 		})
 
 		t.Run("ComplexFields", func(t *testing.T) {
-			testBidirectionalComplexFields(t, fn)
+			testBidirectionalComplexFields(t, fn, opts)
 		})
 	})
 }
@@ -96,14 +96,15 @@ func assertIntField(t *testing.T, fields map[string]any, key string, expected in
 }
 
 // testBidirectionalFields tests field preservation
-func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger) {
+func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
 	t.Helper()
 
 	recorder := NewLogger()
 	adapter := fn(recorder)
 
 	// Log with various field types
-	adapter.Debug().
+	// Use Info level instead of Debug to ensure message is not filtered
+	adapter.Info().
 		WithField("string", "value").
 		WithField("int", 42).
 		WithField("bool", true).
@@ -114,7 +115,7 @@ func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger) {
 	AssertMessageCount(t, messages, 1)
 
 	msg := messages[0]
-	AssertMessage(t, msg, slog.Debug, "fields test")
+	AssertMessage(t, msg, slog.Info, "fields test")
 	AssertField(t, msg, "string", "value")
 	assertIntField(t, msg.Fields, "int", 42)
 	AssertField(t, msg, "bool", true)
@@ -185,7 +186,7 @@ func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger, opt
 }
 
 // testBidirectionalChaining tests field chaining behaviour
-func testBidirectionalChaining(t *testing.T, fn func(slog.Logger) slog.Logger) {
+func testBidirectionalChaining(t *testing.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
 	t.Helper()
 
 	recorder := NewLogger()
@@ -222,7 +223,7 @@ func testBidirectionalChaining(t *testing.T, fn func(slog.Logger) slog.Logger) {
 }
 
 // testBidirectionalComplexFields tests complex field types
-func testBidirectionalComplexFields(t *testing.T, fn func(slog.Logger) slog.Logger) {
+func testBidirectionalComplexFields(t *testing.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
 	t.Helper()
 
 	recorder := NewLogger()

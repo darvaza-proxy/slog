@@ -48,6 +48,7 @@
     "LogMsg",
     "logr",
     "logrus",
+    "subbranch",
     "LogWriter",
     "LogWriterFunc",
     "Lstd",
