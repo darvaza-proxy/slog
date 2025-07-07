@@ -60,6 +60,7 @@ func RunWithLogger(t *testing.T, name string, logger slog.Logger, fn func(*testi
 
 // TransformMessages applies transformations to a slice of messages based on options.
 // Returns a new slice with transformed messages.
+// Messages that transform to slog.UndefinedLevel are omitted.
 func TransformMessages(messages []Message, opts *AdapterOptions) []Message {
 	if opts == nil || len(opts.LevelExceptions) == 0 {
 		// No transformations needed, just copy the slice
@@ -67,8 +68,13 @@ func TransformMessages(messages []Message, opts *AdapterOptions) []Message {
 	}
 
 	return core.SliceAsFn(func(msg Message) (Message, bool) {
+		expected := opts.ExpectedLevel(msg.Level)
+		if expected == slog.UndefinedLevel {
+			return msg, false
+		}
+
 		out := msg
-		out.Level = opts.ExpectedLevel(msg.Level)
+		out.Level = expected
 		return out, true
 	}, messages)
 }

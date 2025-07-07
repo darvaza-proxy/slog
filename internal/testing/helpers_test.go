@@ -130,6 +130,10 @@ func TestTransformMessages(t *testing.T) {
 		testTransformMessagesWithExceptions(t, messages)
 	})
 
+	t.Run("with undefined level mapping", func(t *testing.T) {
+		testTransformMessagesWithUndefinedLevel(t, messages)
+	})
+
 	t.Run("comparison with transformation", func(t *testing.T) {
 		testTransformMessagesComparison(t)
 	})
@@ -163,6 +167,45 @@ func testTransformMessagesWithExceptions(t *testing.T, messages []Message) {
 
 	result := TransformMessages(messages, &opts)
 	verifyTransformations(t, messages, result, &opts)
+}
+
+// testTransformMessagesWithUndefinedLevel tests transformation with UndefinedLevel mapping
+func testTransformMessagesWithUndefinedLevel(t *testing.T, messages []Message) {
+	t.Helper()
+
+	opts := AdapterOptions{
+		LevelExceptions: map[slog.LogLevel]slog.LogLevel{
+			slog.Warn:  slog.UndefinedLevel, // Skip Warn messages
+			slog.Debug: slog.UndefinedLevel, // Skip Debug messages
+		},
+	}
+
+	result := TransformMessages(messages, &opts)
+
+	// We should only have Info and Error messages left
+	if len(result) != 2 {
+		t.Errorf("expected 2 messages after filtering, got %d", len(result))
+		for i, msg := range result {
+			t.Logf("  [%d] level=%v, message=%q", i, msg.Level, msg.Message)
+		}
+	}
+
+	// Verify only Info and Error messages remain
+	expectedMessages := map[string]bool{
+		"info":  false,
+		"error": false,
+	}
+
+	for _, msg := range result {
+		expectedMessages[msg.Message] = true
+	}
+
+	if !expectedMessages["info"] {
+		t.Error("expected Info message to be present")
+	}
+	if !expectedMessages["error"] {
+		t.Error("expected Error message to be present")
+	}
 }
 
 // verifyTransformations verifies that transformations were applied correctly
