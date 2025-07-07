@@ -10,9 +10,8 @@ import (
 // ComplianceTest runs a comprehensive test suite to verify that a logger
 // implementation correctly implements the slog.Logger interface.
 type ComplianceTest struct {
-	// NewLogger creates a new logger instance for testing.
-	// If the logger writes to a test recorder, it should be a fresh instance.
-	NewLogger func() slog.Logger
+	AdapterOptions
+	FactoryOptions
 
 	// SkipEnabledTests skips tests that require checking the Enabled state.
 	SkipEnabledTests bool
@@ -208,10 +207,19 @@ func (ct ComplianceTest) testImmutability(t *testing.T) {
 
 func (ct ComplianceTest) testConcurrency(t *testing.T) {
 	t.Helper()
-	logger := ct.NewLogger()
 
-	// Run concurrent operations
-	RunConcurrentTest(t, logger, DefaultConcurrencyTest())
+	if ct.NewLoggerWithRecorder != nil {
+		// Use factory pattern for adapters
+		opts := &ConcurrencyTestOptions{
+			AdapterOptions: ct.AdapterOptions,
+			FactoryOptions: ct.FactoryOptions,
+		}
+		RunConcurrentTestWithOptions(t, nil, DefaultConcurrencyTest(), opts)
+	} else {
+		// Use direct logger for simple implementations
+		logger := ct.NewLogger()
+		RunConcurrentTest(t, logger, DefaultConcurrencyTest())
+	}
 
 	// Test concurrent field operations
 	TestConcurrentFields(t, ct.NewLogger)

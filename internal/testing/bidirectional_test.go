@@ -23,6 +23,7 @@ func testNilOptions(t *testing.T) {
 	}
 
 	for _, level := range levels {
+		// Test nil handling - should return original level
 		if got := opts.ExpectedLevel(level); got != level {
 			t.Errorf("ExpectedLevel(%v) = %v, want %v", level, got, level)
 		}
@@ -32,9 +33,11 @@ func testNilOptions(t *testing.T) {
 func testWithExceptions(t *testing.T) {
 	t.Helper()
 	opts := &BidirectionalTestOptions{
-		LevelExceptions: map[slog.LogLevel]slog.LogLevel{
-			slog.Warn:  slog.Info, // adapter limitation mapping
-			slog.Debug: slog.Info, // no debug support
+		AdapterOptions: AdapterOptions{
+			LevelExceptions: map[slog.LogLevel]slog.LogLevel{
+				slog.Warn:  slog.Info, // adapter limitation mapping
+				slog.Debug: slog.Info, // no debug support
+			},
 		},
 	}
 
@@ -58,7 +61,9 @@ func testWithExceptions(t *testing.T) {
 func testEmptyExceptions(t *testing.T) {
 	t.Helper()
 	opts := &BidirectionalTestOptions{
-		LevelExceptions: map[slog.LogLevel]slog.LogLevel{},
+		AdapterOptions: AdapterOptions{
+			LevelExceptions: map[slog.LogLevel]slog.LogLevel{},
+		},
 	}
 
 	// All levels should map to themselves with empty map
@@ -81,8 +86,10 @@ func TestBidirectionalWithOptionsIntegration(t *testing.T) {
 
 	// This should pass with the correct options
 	opts := &BidirectionalTestOptions{
-		LevelExceptions: map[slog.LogLevel]slog.LogLevel{
-			slog.Warn: slog.Info,
+		AdapterOptions: AdapterOptions{
+			LevelExceptions: map[slog.LogLevel]slog.LogLevel{
+				slog.Warn: slog.Info,
+			},
 		},
 	}
 
