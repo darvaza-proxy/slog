@@ -35,9 +35,11 @@ func TestRecorderExample(t *testing.T) {
 func TestComplianceExample(t *testing.T) {
 	// Define how to create your logger
 	compliance := slogtest.ComplianceTest{
-		NewLogger: func() slog.Logger {
-			// For a real handler, return a new instance
-			return slogtest.NewLogger()
+		FactoryOptions: slogtest.FactoryOptions{
+			NewLogger: func() slog.Logger {
+				// For a real handler, return a new instance
+				return slogtest.NewLogger()
+			},
 		},
 		// Skip tests that might not apply
 		SkipPanicTests: true, // if your logger exits on panic

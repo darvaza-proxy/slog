@@ -15,6 +15,10 @@ The testing package includes:
 - **Compliance Test Suite** - Comprehensive tests for slog.Logger
   implementations
 - **Concurrency Utilities** - Tools for testing thread safety
+- **Bidirectional Testing** - Support for adapters that convert between
+  logging libraries
+- **Options Architecture** - Flexible configuration for different handler
+  capabilities
 
 ## Usage
 
@@ -80,12 +84,39 @@ For comprehensive testing of a handler implementation:
 ```go
 func TestHandlerCompliance(t *testing.T) {
     compliance := slogtest.ComplianceTest{
-        NewLogger: func() slog.Logger {
-            return myhandler.New()
+        FactoryOptions: slogtest.FactoryOptions{
+            NewLogger: func() slog.Logger {
+                return myhandler.New()
+            },
         },
         // Skip tests that might not apply
         SkipPanicTests:   true, // if handler exits on panic
         SkipEnabledTests: false, // if handler supports Enabled()
+    }
+
+    compliance.Run(t)
+}
+```
+
+For bidirectional adapters that can create loggers backed by recorders:
+
+```go
+func TestBidirectionalHandlerCompliance(t *testing.T) {
+    compliance := slogtest.ComplianceTest{
+        FactoryOptions: slogtest.FactoryOptions{
+            NewLogger: func() slog.Logger {
+                return myhandler.New()
+            },
+            NewLoggerWithRecorder: func(recorder slog.Logger) slog.Logger {
+                // Create handler that writes to recorder
+                return myhandler.NewWithBackend(recorder)
+            },
+        },
+        AdapterOptions: slogtest.AdapterOptions{
+            LevelExceptions: map[slog.LogLevel]slog.LogLevel{
+                slog.Warn: slog.Info, // if handler maps Warn to Info
+            },
+        },
     }
 
     compliance.Run(t)
@@ -156,6 +187,7 @@ func TestAdapterWithLimitations(t *testing.T) {
 - `NewLogger() *Logger` - Creates a new test logger
 - `GetMessages() []Message` - Returns all recorded messages
 - `Clear()` - Clears all recorded messages
+- `Message.String() string` - Returns formatted string representation
 
 ### Assertions
 
@@ -175,13 +207,40 @@ func TestAdapterWithLimitations(t *testing.T) {
 
 ### Compliance Testing
 
+The `ComplianceTest` struct provides comprehensive testing:
+
+```go
+type ComplianceTest struct {
+    AdapterOptions                    // Level transformation exceptions
+    FactoryOptions                    // Logger creation functions
+    SkipEnabledTests bool            // Skip Enabled() tests
+    SkipPanicTests   bool            // Skip Fatal/Panic tests
+}
+```
+
 - `ComplianceTest.Run(t)` - Runs full compliance test suite
+- Supports both simple loggers and bidirectional adapters
+- Automatically uses `NewLoggerWithRecorder` for concurrency tests when
+  available
 
 ### Concurrency Testing
 
 - `RunConcurrentTest(t, logger, test)` - Tests concurrent logging
+- `RunConcurrentTestWithOptions(t, logger, test, opts)` - Advanced concurrent
+  testing
 - `TestConcurrentFields(t, newLogger)` - Tests concurrent field operations
-- `DefaultConcurrencyTest()` - Returns default concurrency test config
+- `DefaultConcurrencyTest()` - Returns default test config (10 goroutines,
+  100 ops)
+
+Options for advanced testing:
+
+```go
+type ConcurrencyTestOptions struct {
+    AdapterOptions                    // Level transformation exceptions
+    FactoryOptions                    // Logger creation functions
+    GetMessages func() []Message      // Alternative message getter
+}
+```
 
 ### Bidirectional Testing
 
@@ -195,6 +254,55 @@ func TestAdapterWithLimitations(t *testing.T) {
   - Handles adapters with known limitations (e.g., missing log levels)
   - `opts.LevelExceptions` maps expected level transformations
   - Useful for adapters like logr that don't support all slog levels
+
+### Helper Utilities
+
+- `TransformMessages(messages, opts) []Message` - Apply level transformations
+- `CompareMessages(first, second) (onlyFirst, onlySecond, both []Message)` -
+  Set-based comparison
+- `RunWithLogger(t, name, logger, fn)` - Run subtest with logger
+- `RunWithLoggerFactory(t, name, newLogger, fn)` - Run subtest with fresh
+  logger
+
+## Options Architecture
+
+The testing package uses an embedded options pattern to provide flexible
+configuration:
+
+### AdapterOptions
+
+Base options for testing adapters with level transformation support:
+
+```go
+type AdapterOptions struct {
+    LevelExceptions map[slog.LogLevel]slog.LogLevel
+}
+```
+
+### FactoryOptions
+
+Factory functions for creating loggers:
+
+```go
+type FactoryOptions struct {
+    NewLogger             func() slog.Logger
+    NewLoggerWithRecorder func(slog.Logger) slog.Logger
+}
+```
+
+- `NewLogger` - Creates a fresh logger instance
+- `NewLoggerWithRecorder` - Creates a logger backed by the provided recorder
+  (for bidirectional adapters)
+
+### Test-Specific Options
+
+Each test type embeds the appropriate base options:
+
+- `BidirectionalTestOptions` - Embeds `AdapterOptions`
+- `ConcurrencyTestOptions` - Embeds both `AdapterOptions` and `FactoryOptions`
+- `ComplianceTest` - Embeds both `AdapterOptions` and `FactoryOptions`
+
+This design allows code reuse while maintaining type safety and clear intent.
 
 ## Design Principles
 
