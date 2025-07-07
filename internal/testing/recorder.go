@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -14,6 +15,24 @@ type Message struct {
 	Level   slog.LogLevel
 	Fields  map[string]any
 	Stack   bool
+}
+
+// String returns a string representation of the message with sorted fields.
+func (m Message) String() string {
+	result := fmt.Sprintf("[%v] %q", m.Level, m.Message)
+
+	if len(m.Fields) > 0 {
+		keys := core.SortedKeys(m.Fields)
+		for _, k := range keys {
+			result += fmt.Sprintf(" %s=%v", k, m.Fields[k])
+		}
+	}
+
+	if m.Stack {
+		result += " [stack]"
+	}
+
+	return result
 }
 
 // Recorder provides thread-safe recording of log messages for testing.
