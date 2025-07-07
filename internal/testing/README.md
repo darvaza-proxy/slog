@@ -8,10 +8,12 @@ patterns across all handlers.
 
 The testing package includes:
 
-- **Test Logger** - A logger implementation that records messages for verification
+- **Test Logger** - A logger implementation that records messages for
+  verification
 - **Assertion Helpers** - Functions to verify message properties and fields
 - **Standalone Test Functions** - Reusable tests for common interface methods
-- **Compliance Test Suite** - Comprehensive tests for slog.Logger implementations
+- **Compliance Test Suite** - Comprehensive tests for slog.Logger
+  implementations
 - **Concurrency Utilities** - Tools for testing thread safety
 
 ## Usage
@@ -158,7 +160,8 @@ func TestAdapterWithLimitations(t *testing.T) {
 ### Assertions
 
 - `AssertMessage(t, msg, level, text)` - Verifies message level and text
-- `AssertField(t, msg, key, value)` - Verifies a field exists with expected value
+- `AssertField(t, msg, key, value)` - Verifies a field exists with expected
+  value
 - `AssertNoField(t, msg, key)` - Verifies a field does not exist
 - `AssertMessageCount(t, messages, count)` - Verifies the number of messages
 
@@ -187,7 +190,8 @@ func TestAdapterWithLimitations(t *testing.T) {
   - Tests message preservation, field handling, and level mapping
   - Verifies round-trip conversion maintains data integrity
 
-- `TestBidirectionalWithOptions(t, name, fn, opts)` - Tests with level mapping exceptions
+- `TestBidirectionalWithOptions(t, name, fn, opts)` - Tests with level mapping
+  exceptions
   - Handles adapters with known limitations (e.g., missing log levels)
   - `opts.LevelExceptions` maps expected level transformations
   - Useful for adapters like logr that don't support all slog levels

@@ -144,8 +144,11 @@ userLogger := baseLogger.WithField("handler", "user")
 adminLogger := baseLogger.WithField("handler", "admin")
 
 // Each logger maintains its own field chain
-userLogger.Info().Print("Processing user request")   // has service=api, handler=user
-adminLogger.Info().Print("Processing admin request") // has service=api, handler=admin
+userLogger.Info().Print("Processing user request")
+// Output includes: service=api, handler=user
+
+adminLogger.Info().Print("Processing admin request")
+// Output includes: service=api, handler=admin
 
 // Original logger is unchanged
 baseLogger.Info().Print("Base logger message") // only has service=api
