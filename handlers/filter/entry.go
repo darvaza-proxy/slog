@@ -150,24 +150,24 @@ func (l *LogEntry) WithField(label string, value any) slog.Logger {
 		}
 
 		if l.Enabled() && l.entry != nil {
-			out.addField(label, value)
+			out.entry = l.addFieldToEntry(l.entry, label, value)
 		}
 		return out
 	}
 	return l
 }
 
-func (l *LogEntry) addField(label string, value any) {
+func (l *LogEntry) addFieldToEntry(entry slog.Logger, label string, value any) slog.Logger {
 	if fn := l.logger.FieldOverride; fn != nil {
 		// intercepted
-		fn(l.entry, label, value)
-		return
+		fn(entry, label, value)
+		return entry
 	}
 
 	if fn := l.logger.FieldsOverride; fn != nil {
 		// intercepted
-		fn(l.entry, slog.Fields{label: value})
-		return
+		fn(entry, slog.Fields{label: value})
+		return entry
 	}
 
 	if fn := l.logger.FieldFilter; fn != nil {
@@ -176,11 +176,11 @@ func (l *LogEntry) addField(label string, value any) {
 		label, value, ok = fn(label, value)
 
 		if !ok {
-			return
+			return entry
 		}
 	}
 
-	l.entry = l.entry.WithField(label, value)
+	return entry.WithField(label, value)
 }
 
 // WithFields would, if conditions are met, attach fields to the log entry.
@@ -194,26 +194,26 @@ func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
 		}
 
 		if l.Enabled() && l.entry != nil {
-			out.addFields(fields)
+			out.entry = l.addFieldsToEntry(l.entry, fields)
 		}
 		return out
 	}
 	return l
 }
 
-func (l *LogEntry) addFields(fields map[string]any) {
+func (l *LogEntry) addFieldsToEntry(entry slog.Logger, fields map[string]any) slog.Logger {
 	if fn := l.logger.FieldsOverride; fn != nil {
 		// intercepted
-		fn(l.entry, fields)
-		return
+		fn(entry, fields)
+		return entry
 	}
 
 	if fn := l.logger.FieldOverride; fn != nil {
 		// intercepted
 		for _, key := range core.SortedKeys(fields) {
-			fn(l.entry, key, fields[key])
+			fn(entry, key, fields[key])
 		}
-		return
+		return entry
 	}
 
 	if fn := l.logger.FieldFilter; fn != nil {
@@ -221,7 +221,7 @@ func (l *LogEntry) addFields(fields map[string]any) {
 		fields = modifyFields(fields, fn)
 	}
 
-	l.entry = l.entry.WithFields(fields)
+	return entry.WithFields(fields)
 }
 
 func modifyFields(fields map[string]any, fn func(string, any) (string, any, bool)) map[string]any {
