@@ -144,8 +144,11 @@ userLogger := baseLogger.WithField("handler", "user")
 adminLogger := baseLogger.WithField("handler", "admin")
 
 // Each logger maintains its own field chain
-userLogger.Info().Print("Processing user request")   // has service=api, handler=user
-adminLogger.Info().Print("Processing admin request") // has service=api, handler=admin
+userLogger.Info().Print("Processing user request")
+// Output includes: service=api, handler=user
+
+adminLogger.Info().Print("Processing admin request")
+// Output includes: service=api, handler=admin
 
 // Original logger is unchanged
 baseLogger.Info().Print("Base logger message") // only has service=api
@@ -238,23 +241,56 @@ management and immutable logger behavior.
 
 ## Available Handlers
 
-### Backend Adapters
+### Adapter Types
+
+Handlers fall into two categories based on their integration capabilities:
+
+#### Bidirectional Adapters
+
+These handlers allow conversion in both directions - you can use the external
+logging library as a slog backend, OR use slog as a backend for the external
+library:
+
+- **(Coming soon)** - Bidirectional adapters are planned for future releases.
+  Check [issue tracker](https://github.com/darvaza-proxy/slog/issues) for updates.
+
+#### Unidirectional Adapters
+
+These handlers only allow using the external logging library as a backend for
+slog. They wrap existing loggers but don't provide the reverse conversion:
 
 - **[logrus](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)**:
-  Integration with Sirupsen/logrus.
+  Wraps Sirupsen/logrus as a slog backend.
 - **[zap](https://pkg.go.dev/darvaza.org/slog/handlers/zap)**:
-  Integration with Uber's zap logger.
+  Wraps Uber's zap logger as a slog backend.
 - **[zerolog](https://pkg.go.dev/darvaza.org/slog/handlers/zerolog)**:
-  Integration with rs/zerolog.
+  Wraps rs/zerolog as a slog backend.
 
 ### Utility Handlers
 
+These handlers provide additional functionality without external dependencies:
+
 - **[cblog](https://pkg.go.dev/darvaza.org/slog/handlers/cblog)**:
-  Channel-based handler for custom processing.
+  Channel-based handler for custom log processing.
 - **[filter](https://pkg.go.dev/darvaza.org/slog/handlers/filter)**:
-  Filter and transform log entries.
+  Middleware to filter and transform log entries.
 - **[discard](https://pkg.go.dev/darvaza.org/slog/handlers/discard)**:
-  No-op handler for testing.
+  No-op handler for testing and optional logging.
+
+### Adapter Differences
+
+**Bidirectional adapters** are valuable when:
+
+- Integration with libraries that expect a specific logger interface is required.
+- Gradual migration between logging systems is in progress.
+- A common interface is desired across different application components while
+  maintaining compatibility with existing code.
+
+**Unidirectional adapters** are simpler and suitable when:
+
+- An existing logger serves as the slog backend without reverse integration.
+- New applications can adopt slog as the primary logging interface.
+- Libraries expecting the backend's specific interface are not a concern.
 
 ## Testing
 

@@ -8,7 +8,7 @@
     "tables": false,
     "headings": true,
     "headers": true,
-    "strict": false,
+    "strict": true,
     "stern": false
   },
   "MD025": true,
