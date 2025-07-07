@@ -3,6 +3,7 @@ package testing
 import (
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -55,6 +56,63 @@ func RunWithLogger(t *testing.T, name string, logger slog.Logger, fn func(*testi
 		t.Helper()
 		fn(t, logger)
 	})
+}
+
+// TransformMessages applies transformations to a slice of messages based on options.
+// Returns a new slice with transformed messages.
+// Messages that transform to slog.UndefinedLevel are omitted.
+func TransformMessages(messages []Message, opts *AdapterOptions) []Message {
+	if opts == nil || len(opts.LevelExceptions) == 0 {
+		// No transformations needed, just copy the slice
+		return core.SliceCopy(messages)
+	}
+
+	return core.SliceAsFn(func(msg Message) (Message, bool) {
+		expected := opts.ExpectedLevel(msg.Level)
+		if expected == slog.UndefinedLevel {
+			return msg, false
+		}
+
+		out := msg
+		out.Level = expected
+		return out, true
+	}, messages)
+}
+
+// CompareMessages compares two message arrays as sets.
+// Returns three slices:
+// - onlyInFirst: messages that appear only in the first array
+// - onlyInSecond: messages that appear only in the second array
+// - inBoth: messages that appear in both arrays
+func CompareMessages(first, second []Message) (onlyInFirst, onlyInSecond, inBoth []Message) {
+	// Use custom equality function based on String() representation
+	eq := func(a, b Message) bool {
+		return a.String() == b.String()
+	}
+
+	// Get unique messages from each set
+	firstUnique := core.SliceUniqueFn(first, eq)
+	secondUnique := core.SliceUniqueFn(second, eq)
+
+	// Get differences using core utilities
+	onlyInFirst = core.SliceMinusFn(firstUnique, secondUnique, eq)
+	onlyInSecond = core.SliceMinusFn(secondUnique, firstUnique, eq)
+
+	// Get intersection - need to implement this ourselves
+	inBoth = sliceIntersectFn(firstUnique, secondUnique, eq)
+
+	return onlyInFirst, onlyInSecond, inBoth
+}
+
+// sliceIntersectFn returns elements that appear in both slices
+func sliceIntersectFn[T any](a, b []T, eq func(T, T) bool) []T {
+	var result []T
+	for _, va := range a {
+		if core.SliceContainsFn(b, va, eq) {
+			result = append(result, va)
+		}
+	}
+	return result
 }
 
 // RunWithLoggerFactory is a helper that runs a test function with a fresh logger instance.
