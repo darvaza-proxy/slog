@@ -1,4 +1,4 @@
-.PHONY: all clean generate fmt tidy check-grammar
+.PHONY: all clean generate fmt tidy check-grammar check-spelling
 .PHONY: FORCE
 
 GO ?= go
@@ -69,6 +69,15 @@ endif
 endif
 LANGUAGETOOL_FLAGS ?= --config $(TOOLSDIR)/languagetool.cfg
 
+ifndef CSPELL
+ifeq ($(shell $(PNPX) cspell --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+CSPELL = $(PNPX) cspell
+else
+CSPELL = true
+endif
+endif
+CSPELL_FLAGS ?= --no-progress --dot --config $(TOOLSDIR)/cspell.json
+
 V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
@@ -106,7 +115,16 @@ ifneq ($(LANGUAGETOOL),true)
 	$Q find . $(FIND_FILES_MARKDOWN_ARGS) -o $(FIND_FILES_GO_ARGS) -print0 | xargs -0 -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
 endif
 
-tidy: fmt check-grammar
+ifneq ($(CSPELL),true)
+TIDY_SPELLING = check-spelling
+check-spelling: FORCE ; $(info $(M) checking spelling…)
+	$Q $(CSPELL) $(CSPELL_FLAGS) "**/*.{go,md}"
+else
+TIDY_SPELLING =
+check-spelling: FORCE ; $(info $(M) spell checking disabled)
+endif
+
+tidy: fmt check-grammar $(TIDY_SPELLING)
 
 generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)

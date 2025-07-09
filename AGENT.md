@@ -84,6 +84,17 @@ The build system includes automatic Markdown linting:
 - Selective HTML allowlist (comments, br, kbd, etc.).
 - Runs automatically with `make fmt` when available.
 
+### CSpell Integration
+
+Spell checking for both Markdown and Go source files:
+
+- Detects cspell via pnpx.
+- British English configuration in `internal/build/cspell.json`.
+- New `check-spelling` target.
+- Integrated into `make tidy`.
+- Custom word list for project-specific terminology.
+- Checks both documentation and code comments.
+
 ## Code Architecture
 
 ### Key Design Principles
