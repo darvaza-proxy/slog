@@ -42,7 +42,7 @@ The repository contains:
   - `darvaza.org/slog/handlers/discard`: No-op logger
   - `darvaza.org/slog/handlers/filter`: Filtering middleware
   - `darvaza.org/slog/handlers/logrus`: Logrus adapter
-  - `darvaza.org/slog/handlers/zap`: Zap adapter
+  - `darvaza.org/slog/handlers/zap`: `zap` adapter
   - `darvaza.org/slog/handlers/zerolog`: Zerolog adapter
 
 ## Release Process
@@ -59,7 +59,7 @@ Before starting the release process:
 - [ ] Follow [documentation standards](AGENT.md#documentation-standards) when
   writing release notes
 - [ ] Review and update CHANGELOG.md if present
-- [ ] Ensure documentation is up to date
+- [ ] Ensure documentation is up-to-date.
 - [ ] Check current versions: `git tag --list | sort -V`
 - [ ] Verify no uncommitted changes: `git status`
 
@@ -151,7 +151,7 @@ Before starting the release process:
    # Example for zap handler
    git tag -a handlers/zap/v0.6.0 -m "darvaza.org/slog/handlers/zap v0.6.0
 
-   Zap handler for slog interface
+   `zap` handler for slog interface
 
    Changes since vX.Y.Z:
    - Update to slog v0.7.0

@@ -20,7 +20,7 @@ high-performance logging library.
 ## Implementation Notes
 
 - Uses `*zap.SugaredLogger` internally for easier field handling.
-- Fatal and Panic levels trigger zap's Fatal/Panic behavior.
+- Fatal and Panic levels trigger zap's Fatal/Panic behaviour.
 - Fields are converted to zap's field types for efficiency.
 - Defers to zap for all formatting and output handling.
 

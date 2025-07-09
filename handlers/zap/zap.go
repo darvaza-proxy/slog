@@ -173,7 +173,7 @@ func (zpl *Logger) WithFields(fields map[string]any) slog.Logger {
 }
 
 // New creates a slog.Logger adaptor using a zap as backend. If
-// none was passed it will create an opiniated new one.
+// none was passed it will create an opinionated new one.
 func New(cfg *zap.Config) slog.Logger {
 	return newLogger(cfg)
 }

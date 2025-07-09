@@ -11,10 +11,10 @@ repository. For developers and general project information, please refer to
 All code changes must go through pull requests. When working with this
 repository:
 
-1. Always create a feature branch for changes
-2. Never use `git push origin main`
-3. Always create a pull request for review
-4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section
+1. Always create a feature branch for changes.
+2. Never use `git push origin main`.
+3. Always create a pull request for review.
+4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section.
 
 ## Repository Overview
 
@@ -88,12 +88,12 @@ make build-zap     # Build zap handler
 
 Each handler is a separate Go module in the `handlers/` directory:
 
-- **cblog**: Channel-based logger for receiving log entries through channels.
-- **discard**: No-op logger for testing and optional logging scenarios.
-- **filter**: Middleware logger for filtering and transforming log entries.
-- **logrus**: Adapter for the popular logrus logging library.
-- **zap**: Adapter for Uber's zap high-performance logger.
-- **zerolog**: Adapter for the zerolog JSON logger.
+- **`cblog`**: Channel-based logger for receiving log entries through channels.
+- **`discard`**: No-op logger for testing and optional logging scenarios.
+- **`filter`**: Middleware logger for filtering and transforming log entries.
+- **`logrus`**: Adapter for the popular logrus logging library.
+- **`zap`**: Adapter for Uber's zap high-performance logger.
+- **`zerolog`**: Adapter for the zerolog JSON logger.
 
 ### Code Quality Standards
 
@@ -113,7 +113,7 @@ Always run `make tidy` before committing to ensure proper formatting.
   details.
 - Handler tests should verify proper delegation to the underlying logger.
 - Use table-driven tests for comprehensive coverage.
-- Test disabled logger behavior to ensure no side effects.
+- Test disabled logger behaviour to ensure no side effects.
 - Use the shared test utilities in `internal/testing` to reduce duplication:
   - `ComplianceTest` for comprehensive interface testing
   - Test logger for recording and verifying messages
@@ -204,7 +204,7 @@ When developing or modifying handlers:
 
 1. Each handler must implement the full `slog.Logger` interface.
 2. All handlers should embed `internal.Loglet` for consistent field chain
-   management and immutable logger behavior.
+   management and immutable logger behaviour.
 3. Handlers should properly delegate to their underlying logging library.
 4. Level mapping between slog and the backend should be clearly documented.
 5. Handlers should handle nil or invalid inputs gracefully.
@@ -238,7 +238,7 @@ for handler in cblog discard filter logrus zap zerolog; do
   go -C handlers/$handler get darvaza.org/slog@v0.7.0
 done
 
-# The replace directives remain intact - this is correct behavior
+# The replace directives remain intact - this is correct behaviour
 ```
 
 To update all dependencies in handlers:
@@ -351,7 +351,7 @@ When creating or editing documentation files:
 1. Run `make tidy` to format code and check grammar across all modules.
 2. Verify all tests pass with `make test`.
 3. Ensure no linting violations remain.
-4. Update handler documentation if modifying handler behavior.
+4. Update handler documentation if modifying handler behaviour.
 5. Verify handler examples still compile and run correctly.
 
 ### Grammar and Style Checking
