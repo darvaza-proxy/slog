@@ -119,6 +119,18 @@ Shell script analysis for all `.sh` files:
   (`local` usage).
 - Checks for common shell scripting issues and best practices.
 
+### Test Coverage Collection
+
+Automated coverage reporting across all modules:
+
+- New `coverage` target runs tests with coverage profiling.
+- Uses `internal/build/make_coverage.sh` to orchestrate testing.
+- Tests each module independently via generated `test-*` targets.
+- Merges coverage profiles automatically (supports gocovmerge).
+- Stores results in `.coverage/` directory.
+- Displays coverage summary after test runs.
+- Optional HTML report generation with `COVERAGE_HTML=true`.
+
 ## Code Architecture
 
 ### Key Design Principles
