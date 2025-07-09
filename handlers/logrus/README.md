@@ -44,17 +44,17 @@ slogLogger.Info().
 
 ## Features
 
-- Full compatibility with logrus features (hooks, formatters, outputs)
-- Preserves structured fields through the adapter
-- Stack trace support via `WithStack()`
-- Correct level mapping between slog and logrus
-- Immutable logger instances ensure thread-safe field management
+- Full compatibility with logrus features (hooks, formatters, outputs).
+- Preserves structured fields through the adapter.
+- Stack trace support via `WithStack()`.
+- Correct level mapping between slog and logrus.
+- Immutable logger instances ensure thread-safe field management.
 
 ## Important Notes
 
-- Disable `SetReportCaller()` to avoid duplicate method fields
-- `WithStack()` adds both method info and full call stack
-- Fatal and Panic levels maintain logrus behavior (exit/panic)
+- Disable `SetReportCaller()` to avoid duplicate method fields.
+- `WithStack()` adds both method info and full call stack.
+- Fatal and Panic levels maintain logrus behaviour (exit/panic).
 
 ## Documentation
 

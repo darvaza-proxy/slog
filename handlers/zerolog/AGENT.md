@@ -21,7 +21,7 @@ the backend JSON logging library.
 
 - Uses `zerolog.Context` for maintaining fields between calls.
 - Converts slog levels to zerolog levels.
-- Fatal level calls `os.Exit(1)` after logging (zerolog behavior).
+- Fatal level calls `os.Exit(1)` after logging (zerolog behaviour).
 - Panic level triggers a panic after logging.
 - Maintains zerolog's performance characteristics.
 
@@ -71,7 +71,7 @@ slogLogger.Info().
 
 - Use bytes.Buffer as output for testing.
 - Parse JSON output to verify fields.
-- Test level filtering behavior.
+- Test level filtering behaviour.
 - Verify Fatal doesn't exit in tests (use subprocess).
 
 ## Development Notes

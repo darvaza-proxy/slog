@@ -1,4 +1,4 @@
-# zap
+# `zap`
 
 [![Go Reference][godoc-badge]][godoc]
 

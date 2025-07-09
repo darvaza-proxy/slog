@@ -264,7 +264,7 @@ func verifyComparisonResult(t *testing.T, expected, actual []Message) {
 func TestMessageString(t *testing.T) {
 	// Note: This test is currently expected to fail because LogLevel
 	// doesn't have a String() method, so it prints as a number.
-	// This documents the current behavior.
+	// This documents the current behaviour.
 	tests := []struct {
 		name string
 		msg  Message

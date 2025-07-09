@@ -19,7 +19,7 @@ var (
 
 const (
 	// CallerFieldName is the field name to be used by WithStack()
-	// attempting to mimick the effect of logrus' own SetReportCaller()
+	// attempting to mimic the effect of logrus' own SetReportCaller()
 	CallerFieldName = "method"
 
 	// StackFieldName is the field name used to store the formatted callstack

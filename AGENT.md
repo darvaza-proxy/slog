@@ -11,10 +11,10 @@ repository. For developers and general project information, please refer to
 All code changes must go through pull requests. When working with this
 repository:
 
-1. Always create a feature branch for changes
-2. Never use `git push origin main`
-3. Always create a pull request for review
-4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section
+1. Always create a feature branch for changes.
+2. Never use `git push origin main`.
+3. Always create a pull request for review.
+4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section.
 
 ## Repository Overview
 
@@ -88,12 +88,12 @@ make build-zap     # Build zap handler
 
 Each handler is a separate Go module in the `handlers/` directory:
 
-- **cblog**: Channel-based logger for receiving log entries through channels.
-- **discard**: No-op logger for testing and optional logging scenarios.
-- **filter**: Middleware logger for filtering and transforming log entries.
-- **logrus**: Adapter for the popular logrus logging library.
-- **zap**: Adapter for Uber's zap high-performance logger.
-- **zerolog**: Adapter for the zerolog JSON logger.
+- **`cblog`**: Channel-based logger for receiving log entries through channels.
+- **`discard`**: No-op logger for testing and optional logging scenarios.
+- **`filter`**: Middleware logger for filtering and transforming log entries.
+- **`logrus`**: Adapter for the popular logrus logging library.
+- **`zap`**: Adapter for Uber's zap high-performance logger.
+- **`zerolog`**: Adapter for the zerolog JSON logger.
 
 ### Code Quality Standards
 
@@ -113,12 +113,12 @@ Always run `make tidy` before committing to ensure proper formatting.
   details.
 - Handler tests should verify proper delegation to the underlying logger.
 - Use table-driven tests for comprehensive coverage.
-- Test disabled logger behavior to ensure no side effects.
+- Test disabled logger behaviour to ensure no side effects.
 - Use the shared test utilities in `internal/testing` to reduce duplication:
-  - `ComplianceTest` for comprehensive interface testing
-  - Test logger for recording and verifying messages
-  - Assertion helpers for consistent verification
-  - See [internal/testing/README.md](internal/testing/README.md) for details
+  - `ComplianceTest` for comprehensive interface testing.
+  - Test logger for recording and verifying messages.
+  - Assertion helpers for consistent verification.
+  - See [internal/testing/README.md](internal/testing/README.md) for details.
 
 ## Important Notes
 
@@ -148,8 +148,8 @@ versions of tools like golangci-lint for different Go versions.
 
 The script:
 
-1. Detects the current Go version from `go version`
-2. Compares it with the base Go version (first argument)
+1. Detects the current Go version from `go version`.
+2. Compares it with the base Go version (first argument).
 3. If current Go >= base version, it selects versions from the list:
    - For Go == base version: uses the first version (v1.63.4)
    - For Go > base version: increments through the list
@@ -157,9 +157,9 @@ The script:
 
 This allows the Makefile to use appropriate tool versions:
 
-- Go 1.22: would use v1.63.4 (if base is 1.23)
-- Go 1.23: uses v1.63.4 (first version after base)
-- Go 1.24+: uses v1.64 (second version)
+- Go 1.22: would use v1.63.4 (if base is 1.23).
+- Go 1.23: uses v1.63.4 (first version after base).
+- Go 1.24+: uses v1.64 (second version).
 
 ### Testing Tool Compatibility
 
@@ -204,7 +204,7 @@ When developing or modifying handlers:
 
 1. Each handler must implement the full `slog.Logger` interface.
 2. All handlers should embed `internal.Loglet` for consistent field chain
-   management and immutable logger behavior.
+   management and immutable logger behaviour.
 3. Handlers should properly delegate to their underlying logging library.
 4. Level mapping between slog and the backend should be clearly documented.
 5. Handlers should handle nil or invalid inputs gracefully.
@@ -223,10 +223,10 @@ replace darvaza.org/slog => ../..
 **IMPORTANT**: These replace directives are essential for development:
 
 - They allow handlers to use the local slog module instead of the published
-  version
-- They must **remain in the repository** - do not remove them
-- Go automatically ignores them when the module is imported externally
-- They enable testing changes to the slog interface without publishing
+  version.
+- They must **remain in the repository** - do not remove them.
+- Go automatically ignores them when the module is imported externally.
+- They enable testing changes to the slog interface without publishing.
 
 ### Updating Handler Dependencies
 
@@ -238,7 +238,7 @@ for handler in cblog discard filter logrus zap zerolog; do
   go -C handlers/$handler get darvaza.org/slog@v0.7.0
 done
 
-# The replace directives remain intact - this is correct behavior
+# The replace directives remain intact - this is correct behaviour
 ```
 
 To update all dependencies in handlers:
@@ -274,11 +274,11 @@ done
 
 ### Common Mistakes to Avoid
 
-1. **Do not remove replace directives** - they are needed for development
+1. **Do not remove replace directives** - they are needed for development.
 2. **Do not run `go get -u` without considering impact** - it updates all
-   dependencies which may include breaking changes
-3. **Always verify replace directives exist** after dependency updates
-4. **Remember to test all handlers** after interface changes
+   dependencies which may include breaking changes.
+3. **Always verify replace directives exist** after dependency updates.
+4. **Remember to test all handlers** after interface changes.
 
 ## Linting and Code Quality
 
@@ -291,10 +291,10 @@ When editing Markdown files, ensure compliance with:
 - **LanguageTool**: Check for missing articles ("a", "an", "the"), punctuation,
   and proper hyphenation of compound modifiers.
 - **Markdownlint**: Follow standard Markdown formatting rules, including:
-  - Consistent heading style
-  - Proper list formatting
-  - Trailing newline at end of file
-  - No multiple consecutive blank lines
+  - Consistent heading style.
+  - Proper list formatting.
+  - Trailing newline at end of file.
+  - No multiple consecutive blank lines.
 
 ### Common Documentation Issues to Check
 
@@ -351,8 +351,11 @@ When creating or editing documentation files:
 1. Run `make tidy` to format code and check grammar across all modules.
 2. Verify all tests pass with `make test`.
 3. Ensure no linting violations remain.
-4. Update handler documentation if modifying handler behavior.
-5. Verify handler examples still compile and run correctly.
+4. Update `AGENT.md` to reflect any changes in development workflow or
+   standards.
+5. Update `README.md` to reflect significant changes in functionality or API.
+6. Update handler documentation if modifying handler behaviour.
+7. Verify handler examples still compile and run correctly.
 
 ### Grammar and Style Checking
 
@@ -371,16 +374,16 @@ It checks both Markdown documentation and Go source files (comments and
 strings). The following rules are disabled for technical documentation
 compatibility:
 
-- COMMA_PARENTHESIS_WHITESPACE (conflicts with Markdown links)
-- ARROWS (used in code examples)
-- EN_QUOTES (technical docs use straight quotes)
-- MORFOLOGIK_RULE_EN_GB (flags technical terms)
-- UPPERCASE_SENTENCE_START (conflicts with inline code)
+- COMMA_PARENTHESIS_WHITESPACE (conflicts with Markdown links).
+- ARROWS (used in code examples).
+- EN_QUOTES (technical docs use straight quotes).
+- MORFOLOGIK_RULE_EN_GB (flags technical terms).
+- UPPERCASE_SENTENCE_START (conflicts with inline code).
 
 Configuration files are located in `internal/build/`:
 
-- `markdownlint.json` - Markdown formatting rules
-- `languagetool.cfg` - Grammar checking rules for British English
+- `markdownlint.json` - Markdown formatting rules.
+- `languagetool.cfg` - Grammar checking rules for British English.
 
 ## Git Workflow and Pull Requests
 
@@ -459,36 +462,36 @@ through pull requests.
    **PR Title Format**:
    - For handlers: `feat(logr):`, `fix(zap):`, etc.
    - For core: `feat:`, `fix:`, `docs:`, etc.
-   - Keep titles under 72 characters
+   - Keep titles under 72 characters.
 
 ### Branch Naming Conventions
 
-- `feature/` - New features or enhancements
-- `fix/` - Bug fixes
-- `docs/` - Documentation only changes
-- `chore/` - Maintenance tasks (deps, build, etc.)
-- `test/` - Test-only changes
+- `feature/` - New features or enhancements.
+- `fix/` - Bug fixes.
+- `docs/` - Documentation only changes.
+- `chore/` - Maintenance tasks (deps, build, etc.).
+- `test/` - Test-only changes.
 
 ### Git Workflow Mistakes to Avoid
 
-1. **NEVER run `git push origin main`** - This bypasses PR review
-2. **Always verify current branch** before pushing: `git branch --show-current`
-3. **Create PR branch before making changes** - Don't work on main
-4. **Never force push to main** - This can break the repository
+1. **NEVER run `git push origin main`** - This bypasses PR review.
+2. **Always verify current branch** before pushing: `git branch --show-current`.
+3. **Create PR branch before making changes** - Don't work on main.
+4. **Never force push to main** - This can break the repository.
 
 ### Bash Command Restrictions
 
 When working with AI agents, follow these restrictions:
 
 1. **No directory changes**: Never use `cd` commands - use absolute paths
-   instead
+   instead.
 2. **No bulk operations**: Avoid `-a` flag in git commands - enumerate files
-   explicitly
+   explicitly.
 3. **No shell escaping issues**: Use Write tool for creating files with complex
-   content
-4. **No heredocs**: Avoid `<<EOF` syntax in commands
+   content.
+4. **No heredocs**: Avoid `<<EOF` syntax in commands.
 5. **No AI attribution**: Never include "Generated by", "AI", or similar
-   attributions
+   attributions.
 
 ## Release Process
 
