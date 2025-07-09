@@ -1,5 +1,6 @@
 {
   "default": true,
+  "MD012": true,
   "MD013": {
     "line_length": 80,
     "heading_line_length": 80,
@@ -11,13 +12,17 @@
     "strict": true,
     "stern": false
   },
-  "MD025": true,
-  "MD041": true,
-  "MD047": true,
-  "MD012": true,
-  "MD032": true,
   "MD022": true,
+  "MD024": true,
+  "MD025": true,
   "MD031": true,
-  "MD033": false,
-  "MD034": false
+  "MD032": true,
+  "MD033": {
+    "allowed_elements": ["!--", "br", "details", "kbd", "sub", "summary", "sup"]
+  },
+  "MD034": true,
+  "MD041": true,
+  "MD046": true,
+  "MD047": true,
+  "MD007": { "indent": 2 }
 }

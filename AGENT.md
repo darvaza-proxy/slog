@@ -74,6 +74,16 @@ The `internal/build/fix_whitespace.sh` script automatically:
 - Integrates with `make fmt` for non-Go files.
 - Supports both directory scanning and explicit file arguments.
 
+### Markdownlint Integration
+
+The build system includes automatic Markdown linting:
+
+- Detects markdownlint-cli via pnpx.
+- Configuration in `internal/build/markdownlint.json`.
+- 80-character line limits and strict formatting rules.
+- Selective HTML allowlist (comments, br, kbd, etc.).
+- Runs automatically with `make fmt` when available.
+
 ## Code Architecture
 
 ### Key Design Principles
