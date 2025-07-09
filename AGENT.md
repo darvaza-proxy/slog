@@ -131,6 +131,18 @@ Automated coverage reporting across all modules:
 - Displays coverage summary after test runs.
 - Optional HTML report generation with `COVERAGE_HTML=true`.
 
+### CI/CD Workflow Separation
+
+GitHub Actions workflows split for better performance:
+
+- **Build workflow** (`.github/workflows/build.yml`): Focuses on compilation only.
+- **Test workflow** (`.github/workflows/test.yml`): Dedicated testing pipeline.
+  - Race condition detection job with Go 1.23.
+  - Multi-version testing matrix (Go 1.23 and 1.24).
+  - Conditional execution to avoid duplicate runs on PRs.
+- Workflows skip branches ending in `-wip`.
+- Improves parallelism and reduces redundant work.
+
 ## Code Architecture
 
 ### Key Design Principles
