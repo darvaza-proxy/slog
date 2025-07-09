@@ -26,6 +26,24 @@ REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
 REVIVE_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
 REVIVE ?= $(GO) run $(REVIVE_URL)
 
+FIX_WHITESPACE ?= $(TOOLSDIR)/fix_whitespace.sh
+# Exclude Go files (handled separately by gofmt)
+FIX_WHITESPACE_EXCLUDE_GO ?= -name '*.go'
+# Exclude binary and image files
+FIX_WHITESPACE_EXCLUDE_BINARY_EXTS ?= exe dll so dylib a o test
+FIX_WHITESPACE_EXCLUDE_IMAGE_EXTS ?= png jpg jpeg gif ico pdf
+FIX_WHITESPACE_EXCLUDE_ARCHIVE_EXTS ?= zip tar gz bz2 xz 7z
+FIX_WHITESPACE_EXCLUDE_OTHER_EXTS ?= bin dat
+# Combine all exclusions
+FIX_WHITESPACE_EXCLUDE_EXTS ?= \
+	$(FIX_WHITESPACE_EXCLUDE_ARCHIVE_EXTS) \
+	$(FIX_WHITESPACE_EXCLUDE_BINARY_EXTS) \
+	$(FIX_WHITESPACE_EXCLUDE_IMAGE_EXTS) \
+	$(FIX_WHITESPACE_EXCLUDE_OTHER_EXTS)
+FIX_WHITESPACE_EXCLUDE_PATTERNS ?= $(patsubst %,-o -name '*.%',$(FIX_WHITESPACE_EXCLUDE_EXTS))
+FIX_WHITESPACE_EXCLUDE ?= $(FIX_WHITESPACE_EXCLUDE_GO) $(FIX_WHITESPACE_EXCLUDE_PATTERNS)
+FIX_WHITESPACE_ARGS ?= . \! \( $(FIX_WHITESPACE_EXCLUDE) \)
+
 PNPX ?= pnpx
 
 ifndef MARKDOWNLINT
@@ -78,7 +96,7 @@ include $(TMPDIR)/gen.mk
 
 fmt: ; $(info $(M) reformatting sources…)
 	$Q echo "$(GO_FILES)" | tr ' ' '\n' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
-	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r sed -i 's/[ \t]*$$//'
+	$Q $(FIX_WHITESPACE) $(FIX_WHITESPACE_ARGS)
 ifneq ($(MARKDOWNLINT),true)
 	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
 endif

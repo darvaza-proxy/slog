@@ -62,6 +62,18 @@ make test-filter   # Test filter handler
 make build-zap     # Build zap handler
 ```
 
+## Build System Features
+
+### Whitespace and EOF Handling
+
+The `internal/build/fix_whitespace.sh` script automatically:
+
+- Removes trailing whitespace from all text files.
+- Ensures files end with a newline.
+- Excludes binary files and version control directories.
+- Integrates with `make fmt` for non-Go files.
+- Supports both directory scanning and explicit file arguments.
+
 ## Code Architecture
 
 ### Key Design Principles
