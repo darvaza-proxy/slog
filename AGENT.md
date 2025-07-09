@@ -143,6 +143,19 @@ GitHub Actions workflows split for better performance:
 - Workflows skip branches ending in `-wip`.
 - Improves parallelism and reduces redundant work.
 
+### Codecov Integration
+
+Automated coverage reporting with monorepo support:
+
+- **Codecov workflow** (`.github/workflows/codecov.yml`): Coverage collection and upload.
+- Enhanced `make_coverage.sh` generates:
+  - `codecov.yml`: Dynamic configuration with per-module flags.
+  - Module-specific coverage targets (80% default).
+  - Path mappings for accurate coverage attribution.
+  - `codecov.sh`: Upload script for bulk submission.
+- Supports both GitHub Actions and local coverage uploads.
+- PR comments show coverage changes per module.
+
 ## Code Architecture
 
 ### Key Design Principles
