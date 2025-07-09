@@ -1,1 +1,7 @@
+# Coverage files (legacy location - now in .tmp/coverage/)
+coverage.out
+coverage.html
+# Test files
+*.test
+# Build and temporary files
 .tmp
