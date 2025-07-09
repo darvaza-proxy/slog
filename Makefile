@@ -46,6 +46,11 @@ FIX_WHITESPACE_ARGS ?= . \! \( $(FIX_WHITESPACE_EXCLUDE) \)
 
 PNPX ?= pnpx
 
+FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules
+FIND_FILES_PRUNE_ARGS ?= \( $(FIND_FILES_PRUNE_RULES) \) -prune
+FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
+FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'
+
 ifndef MARKDOWNLINT
 ifeq ($(shell $(PNPX) markdownlint-cli --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
 MARKDOWNLINT = $(PNPX) markdownlint-cli
@@ -68,11 +73,6 @@ V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
 
-# Find all markdown files
-MARKDOWN_FILES = $(shell find . \( -name vendor -o -name .git \) -prune -o -name '*.md' -print)
-
-# Find all go files
-GO_FILES = $(shell find . \( -name vendor -o -name .git \) -prune -o -name '*.go' -print)
 
 GO_BUILD = $(GO) build -v
 GO_BUILD_CMD = $(GO_BUILD) -o "$(OUTDIR)"
@@ -95,15 +95,15 @@ $(TMPDIR)/gen.mk: $(TOOLSDIR)/gen_mk.sh $(TMPDIR)/index Makefile ; $(info $(M) g
 include $(TMPDIR)/gen.mk
 
 fmt: ; $(info $(M) reformatting sources…)
-	$Q echo "$(GO_FILES)" | tr ' ' '\n' | xargs -r $(GOFMT) $(GOFMT_FLAGS)
+	$Q find . $(FIND_FILES_GO_ARGS) -print0 | xargs -0 -r $(GOFMT) $(GOFMT_FLAGS)
 	$Q $(FIX_WHITESPACE) $(FIX_WHITESPACE_ARGS)
 ifneq ($(MARKDOWNLINT),true)
-	$Q echo "$(MARKDOWN_FILES)" | tr ' ' '\n' | xargs -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
+	$Q find . $(FIND_FILES_MARKDOWN_ARGS) -print0 | xargs -0 -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
 endif
 
 check-grammar: ; $(info $(M) checking grammar with LanguageTool…)
 ifneq ($(LANGUAGETOOL),true)
-	$Q echo "$(MARKDOWN_FILES) $(GO_FILES)" | tr ' ' '\n' | xargs -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
+	$Q find . $(FIND_FILES_MARKDOWN_ARGS) -o $(FIND_FILES_GO_ARGS) -print0 | xargs -0 -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
 endif
 
 tidy: fmt check-grammar
