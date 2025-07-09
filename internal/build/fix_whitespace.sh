@@ -58,7 +58,7 @@ run_find() {
 			;;
 		*)
 			# Add path with proper escaping for spaces and special chars
-			quoted=$(printf '%s' "$1" | sed -e "s/'/'\\\\''/g" -e "s/^/'/'" -e "s/$/'/")
+			quoted=$(printf '%s' "$1" | sed -e "s/'/'\\\\''/g" -e "s/^/'/" -e "s/$/'/")
 			paths="${paths:+$paths }$quoted"
 			shift
 			;;

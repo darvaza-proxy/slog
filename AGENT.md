@@ -41,7 +41,7 @@ make all
 # Run tests for all modules including handlers
 make test
 
-# Format code, tidy dependencies, and check grammar (run before committing)
+# Format code, tidy dependencies, and run checks (run before committing)
 make tidy
 
 # Check grammar only (without formatting)
@@ -94,6 +94,15 @@ Spell checking for both Markdown and Go source files:
 - Integrated into `make tidy`.
 - Custom word list for project-specific terminology.
 - Checks both documentation and code comments.
+
+### LanguageTool Integration
+
+Grammar and style checking for Markdown files:
+
+- Detects LanguageTool via pnpx.
+- British English configuration in `internal/build/languagetool.cfg`.
+- New `check-grammar` target.
+- Checks for missing articles, punctuation, and proper hyphenation.
 
 ## Code Architecture
 
