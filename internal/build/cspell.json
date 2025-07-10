@@ -6,9 +6,11 @@
   "words": [
     "addrs",
     "addrport",
+    "benchmem",
     "cblog",
     "Colors",
     "compounderror",
+    "covermode",
     "coverprofile",
     "COVERPROFILE",
     "CSPELL",

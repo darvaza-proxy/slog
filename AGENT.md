@@ -225,6 +225,66 @@ Always run `make tidy` before committing to ensure proper formatting.
 - Field keys must be non-empty strings; values can be any type.
 - The build system automatically discovers and builds all handler modules.
 
+## Testing with GOTEST_FLAGS
+
+The `GOTEST_FLAGS` environment variable allows flexible test execution by
+passing additional flags to `go test`. This variable is defined in the
+Makefile with an empty default value and is used when running tests through
+the generated rules.
+
+### Common Usage Examples
+
+```bash
+# Run tests with race detection
+make test GOTEST_FLAGS="-race"
+
+# Run specific tests by pattern
+make test GOTEST_FLAGS="-run TestSpecific"
+
+# Generate coverage profile (alternative to 'make coverage')
+make test GOTEST_FLAGS="-coverprofile=coverage.out"
+
+# Run tests with timeout
+make test GOTEST_FLAGS="-timeout 30s"
+
+# Combine multiple flags
+make test GOTEST_FLAGS="-v -race -coverprofile=coverage.out"
+
+# Run benchmarks
+make test GOTEST_FLAGS="-bench=. -benchmem"
+
+# Skip long-running tests
+make test GOTEST_FLAGS="-short"
+
+# Test with specific CPU count
+make test GOTEST_FLAGS="-cpu=1,2,4"
+```
+
+### Integration with Coverage
+
+While `make coverage` provides automated coverage collection across all
+modules, you can use `GOTEST_FLAGS` for more targeted coverage analysis:
+
+```bash
+# Coverage for specific package with detailed output
+make test GOTEST_FLAGS="-v -coverprofile=coverage.out -covermode=atomic"
+
+# Coverage with HTML output
+make test GOTEST_FLAGS="-coverprofile=coverage.out"
+go tool cover -html=coverage.out
+```
+
+### How It Works
+
+1. The Makefile defines `GOTEST_FLAGS ?=` (empty by default).
+2. The generated rules use it in the test target:
+   `$(GO) test $(GOTEST_FLAGS) ./...`.
+3. Any flags passed via `GOTEST_FLAGS` are forwarded directly to `go test`.
+
+This provides a clean interface for passing arbitrary test flags without
+modifying the Makefile, making it easy to run tests with different
+configurations for debugging, coverage analysis, or CI/CD pipelines.
+
 ## CI and Testing
 
 ### Version Selection System
