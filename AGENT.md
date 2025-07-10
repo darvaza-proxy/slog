@@ -62,6 +62,59 @@ make test-filter   # Test filter handler
 make build-zap     # Build zap handler
 ```
 
+## Build System Features
+
+### Whitespace and EOF Handling
+
+The `internal/build/fix_whitespace.sh` script automatically:
+
+- Removes trailing whitespace from all text files
+- Ensures files end with a newline
+- Excludes binary files and version control directories
+- Integrates with `make fmt` for non-Go files
+- Supports both directory scanning and explicit file arguments
+
+### Markdownlint Integration
+
+The build system includes automatic Markdown linting:
+
+- Detects markdownlint-cli via pnpx
+- Configuration in `internal/build/markdownlint.json`
+- 80-character line limits and strict formatting rules
+- Selective HTML allowlist (comments, br, kbd, etc.)
+- Runs automatically with `make fmt` when available
+
+### LanguageTool Integration
+
+Grammar and style checking for Markdown files:
+
+- Detects LanguageTool via pnpx
+- British English configuration in `internal/build/languagetool.cfg`
+- New `check-grammar` target
+- Integrated into `make tidy`
+- Checks for missing articles, punctuation, and proper hyphenation
+
+### CSpell Integration
+
+Spell checking for both Markdown and Go source files:
+
+- Detects cspell via pnpx
+- British English configuration in `internal/build/cspell.json`
+- New `check-spelling` target
+- Integrated into `make tidy`
+- Custom word list for project-specific terminology
+- Checks both documentation and code comments
+
+### Coverage Collection
+
+The build system includes automated coverage report generation:
+
+- `make coverage` target runs tests with coverage flags
+- `internal/build/make_coverage.sh` handles test execution
+- Generates coverage reports in multiple formats (text, HTML)
+- Coverage artifacts stored in `.tmp/coverage/` directory
+- Integrated with CI/CD workflows for automated reporting
+
 ## Code Architecture
 
 ### Key Design Principles
@@ -414,8 +467,11 @@ When creating or editing documentation files:
    - If `make tidy` fails, fix the issues and run it again until it passes
 2. Verify all tests pass with `make test`.
 3. Ensure no linting violations remain.
-4. Update handler documentation if modifying handler behaviour.
-5. Verify handler examples still compile and run correctly.
+4. Update `AGENT.md` to reflect any changes in development workflow or
+   standards.
+5. Update `README.md` to reflect significant changes in functionality or API.
+6. Update handler documentation if modifying handler behaviour.
+7. Verify handler examples still compile and run correctly.
 
 ### Grammar and Style Checking
 
