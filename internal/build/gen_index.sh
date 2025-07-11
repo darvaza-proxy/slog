@@ -1,8 +1,9 @@
 #!/bin/sh
+# shellcheck disable=SC1007,SC3043 # empty assignments and local usage
 
 set -eu
 
-: ${GO:=go}
+: "${GO:=go}"
 
 MODULES=$(find * -name go.mod -exec dirname '{}' \;)
 GROUPS="handlers"

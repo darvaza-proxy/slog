@@ -47,6 +47,9 @@ make tidy
 # Check grammar only (without formatting)
 make check-grammar
 
+# Check shell scripts
+make check-shell
+
 # Clean build artifacts
 make clean
 
@@ -104,6 +107,16 @@ Spell checking for both Markdown and Go source files:
 - Integrated into `make tidy`
 - Custom word list for project-specific terminology
 - Checks both documentation and code comments
+
+### ShellCheck Integration
+
+Shell script analysis for all `.sh` files:
+
+- Detects shellcheck via pnpx
+- New `check-shell` target
+- Integrated into `make tidy`
+- Uses inline disable directives for SC1007 (empty assignments) and SC3043 (`local` usage)
+- Checks for common shell scripting issues and best practices
 
 ### Coverage Collection
 
@@ -464,6 +477,7 @@ When creating or editing documentation files:
 1. **ALWAYS run `make tidy` first** - Fix ALL issues before committing:
    - Go code formatting and whitespace clean-up
    - Markdown files checked with CSpell, LanguageTool and markdownlint
+   - Shell scripts checked with ShellCheck
    - If `make tidy` fails, fix the issues and run it again until it passes
 2. Verify all tests pass with `make test`.
 3. Ensure no linting violations remain.

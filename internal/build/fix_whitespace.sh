@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1007,SC3043 # empty assignments and local usage
 # fix_whitespace.sh - Find files and fix trailing whitespace and EOF newlines
 #
 # Usage: fix_whitespace.sh [find arguments]
