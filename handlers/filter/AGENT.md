@@ -63,9 +63,9 @@ Custom filter functions can:
 
 ## Design Principles
 
-1. **Composability**: Filters can be chained for complex behaviors.
+1. **Composability**: Filters can be chained for complex behaviours.
 2. **Efficiency**: Minimize overhead for filtered-out entries.
-3. **Transparency**: Preserve original logger behavior when not filtering.
+3. **Transparency**: Preserve original logger behaviour when not filtering.
 4. **Flexibility**: Support both simple level filtering and complex
    transformations.
 

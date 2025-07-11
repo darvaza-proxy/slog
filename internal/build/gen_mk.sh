@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1007,SC3043 # empty assignments and local usage
 
 set -eu
 

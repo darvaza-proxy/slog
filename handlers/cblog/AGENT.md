@@ -78,7 +78,7 @@ When testing with cblog:
 - The handler should never panic due to closed channels.
 - All methods must be safe for concurrent use.
 - Consider performance implications of channel operations.
-- Document any blocking behavior clearly.
+- Document any blocking behaviour clearly.
 
 For general development guidelines, see the main
 [slog AGENT.md](../../AGENT.md).

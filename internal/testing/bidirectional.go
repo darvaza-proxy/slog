@@ -184,7 +184,7 @@ func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger, opt
 	}
 }
 
-// testBidirectionalChaining tests field chaining behavior
+// testBidirectionalChaining tests field chaining behaviour
 func testBidirectionalChaining(t *testing.T, fn func(slog.Logger) slog.Logger) {
 	t.Helper()
 

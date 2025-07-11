@@ -1,4 +1,4 @@
-# slog Testing Utilities
+# `slog` Testing Utilities
 
 This package provides shared test utilities for testing slog handler
 implementations. It helps reduce code duplication and ensures consistent testing
@@ -220,9 +220,9 @@ func TestAdapterWithLevelFiltering(t *testing.T) {
 
 - `TestLevelMethods(t, newLogger)` - Tests all level methods (Debug, Info, etc.)
 - `TestFieldMethods(t, newLogger)` - Tests WithField and WithFields
-- `TestWithField(t, logger)` - Tests WithField behavior
-- `TestWithFields(t, logger)` - Tests WithFields behavior
-- `TestWithStack(t, logger)` - Tests WithStack behavior
+- `TestWithField(t, logger)` - Tests WithField behaviour.
+- `TestWithFields(t, logger)` - Tests WithFields behaviour.
+- `TestWithStack(t, logger)` - Tests WithStack behaviour.
 
 ### Compliance Testing
 

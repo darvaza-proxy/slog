@@ -11,10 +11,10 @@ repository. For developers and general project information, please refer to
 All code changes must go through pull requests. When working with this
 repository:
 
-1. Always create a feature branch for changes
-2. Never use `git push origin main`
-3. Always create a pull request for review
-4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section
+1. Always create a feature branch for changes.
+2. Never use `git push origin main`.
+3. Always create a pull request for review.
+4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section.
 
 ## Repository Overview
 
@@ -47,6 +47,9 @@ make tidy
 # Check grammar only (without formatting)
 make check-grammar
 
+# Check shell scripts
+make check-shell
+
 # Clean build artifacts
 make clean
 
@@ -61,6 +64,69 @@ make tidy-cblog    # Tidy cblog handler
 make test-filter   # Test filter handler
 make build-zap     # Build zap handler
 ```
+
+## Build System Features
+
+### Whitespace and EOF Handling
+
+The `internal/build/fix_whitespace.sh` script automatically:
+
+- Removes trailing whitespace from all text files
+- Ensures files end with a newline
+- Excludes binary files and version control directories
+- Integrates with `make fmt` for non-Go files
+- Supports both directory scanning and explicit file arguments
+
+### Markdownlint Integration
+
+The build system includes automatic Markdown linting:
+
+- Detects markdownlint-cli via pnpx
+- Configuration in `internal/build/markdownlint.json`
+- 80-character line limits and strict formatting rules
+- Selective HTML allowlist (comments, br, kbd, etc.)
+- Runs automatically with `make fmt` when available
+
+### LanguageTool Integration
+
+Grammar and style checking for Markdown files:
+
+- Detects LanguageTool via pnpx
+- British English configuration in `internal/build/languagetool.cfg`
+- New `check-grammar` target
+- Integrated into `make tidy`
+- Checks for missing articles, punctuation, and proper hyphenation
+
+### CSpell Integration
+
+Spell checking for both Markdown and Go source files:
+
+- Detects cspell via pnpx
+- British English configuration in `internal/build/cspell.json`
+- New `check-spelling` target
+- Integrated into `make tidy`
+- Custom word list for project-specific terminology
+- Checks both documentation and code comments
+
+### ShellCheck Integration
+
+Shell script analysis for all `.sh` files:
+
+- Detects shellcheck via pnpx
+- New `check-shell` target
+- Integrated into `make tidy`
+- Uses inline disable directives for SC1007 (empty assignments) and SC3043 (`local` usage)
+- Checks for common shell scripting issues and best practices
+
+### Coverage Collection
+
+The build system includes automated coverage report generation:
+
+- `make coverage` target runs tests with coverage flags
+- `internal/build/make_coverage.sh` handles test execution
+- Generates coverage reports in multiple formats (text, HTML)
+- Coverage artifacts stored in `.tmp/coverage/` directory
+- Integrated with CI/CD workflows for automated reporting
 
 ## Code Architecture
 
@@ -88,12 +154,12 @@ make build-zap     # Build zap handler
 
 Each handler is a separate Go module in the `handlers/` directory:
 
-- **cblog**: Channel-based logger for receiving log entries through channels.
-- **discard**: No-op logger for testing and optional logging scenarios.
-- **filter**: Middleware logger for filtering and transforming log entries.
-- **logrus**: Adapter for the popular logrus logging library.
-- **zap**: Adapter for Uber's zap high-performance logger.
-- **zerolog**: Adapter for the zerolog JSON logger.
+- **`cblog`**: Channel-based logger for receiving log entries through channels.
+- **`discard`**: No-op logger for testing and optional logging scenarios.
+- **`filter`**: Middleware logger for filtering and transforming log entries.
+- **`logrus`**: Adapter for the popular logrus logging library.
+- **`zap`**: Adapter for Uber's zap high-performance logger.
+- **`zerolog`**: Adapter for the zerolog JSON logger.
 
 ### Code Quality Standards
 
@@ -113,7 +179,7 @@ Always run `make tidy` before committing to ensure proper formatting.
   details.
 - Handler tests should verify proper delegation to the underlying logger.
 - Use table-driven tests for comprehensive coverage.
-- Test disabled logger behavior to ensure no side effects.
+- Test disabled logger behaviour to ensure no side effects.
 - Use the shared test utilities in `internal/testing` to reduce duplication:
   - `ComplianceTest` for comprehensive interface testing
   - Test logger for recording and verifying messages
@@ -130,6 +196,66 @@ Always run `make tidy` before committing to ensure proper formatting.
   state.
 - Field keys must be non-empty strings; values can be any type.
 - The build system automatically discovers and builds all handler modules.
+
+## Testing with GOTEST_FLAGS
+
+The `GOTEST_FLAGS` environment variable allows flexible test execution by
+passing additional flags to `go test`. This variable is defined in the
+Makefile with an empty default value and is used when running tests through
+the generated rules.
+
+### Common Usage Examples
+
+```bash
+# Run tests with race detection
+make test GOTEST_FLAGS="-race"
+
+# Run specific tests by pattern
+make test GOTEST_FLAGS="-run TestSpecific"
+
+# Generate coverage profile (alternative to 'make coverage')
+make test GOTEST_FLAGS="-coverprofile=coverage.out"
+
+# Run tests with timeout
+make test GOTEST_FLAGS="-timeout 30s"
+
+# Combine multiple flags
+make test GOTEST_FLAGS="-v -race -coverprofile=coverage.out"
+
+# Run benchmarks
+make test GOTEST_FLAGS="-bench=. -benchmem"
+
+# Skip long-running tests
+make test GOTEST_FLAGS="-short"
+
+# Test with specific CPU count
+make test GOTEST_FLAGS="-cpu=1,2,4"
+```
+
+### Integration with Coverage
+
+While `make coverage` provides automated coverage collection across all
+modules, you can use `GOTEST_FLAGS` for more targeted coverage analysis:
+
+```bash
+# Coverage for specific package with detailed output
+make test GOTEST_FLAGS="-v -coverprofile=coverage.out -covermode=atomic"
+
+# Coverage with HTML output
+make test GOTEST_FLAGS="-coverprofile=coverage.out"
+go tool cover -html=coverage.out
+```
+
+### How It Works
+
+1. The Makefile defines `GOTEST_FLAGS ?=` (empty by default).
+2. The generated rules use it in the test target:
+   `$(GO) test $(GOTEST_FLAGS) ./...`.
+3. Any flags passed via `GOTEST_FLAGS` are forwarded directly to `go test`.
+
+This provides a clean interface for passing arbitrary test flags without
+modifying the Makefile, making it easy to run tests with different
+configurations for debugging, coverage analysis, or CI/CD pipelines.
 
 ## CI and Testing
 
@@ -204,7 +330,7 @@ When developing or modifying handlers:
 
 1. Each handler must implement the full `slog.Logger` interface.
 2. All handlers should embed `internal.Loglet` for consistent field chain
-   management and immutable logger behavior.
+   management and immutable logger behaviour.
 3. Handlers should properly delegate to their underlying logging library.
 4. Level mapping between slog and the backend should be clearly documented.
 5. Handlers should handle nil or invalid inputs gracefully.
@@ -238,7 +364,7 @@ for handler in cblog discard filter logrus zap zerolog; do
   go -C handlers/$handler get darvaza.org/slog@v0.7.0
 done
 
-# The replace directives remain intact - this is correct behavior
+# The replace directives remain intact - this is correct behaviour
 ```
 
 To update all dependencies in handlers:
@@ -348,11 +474,18 @@ When creating or editing documentation files:
 
 ### Pre-commit Checklist
 
-1. Run `make tidy` to format code and check grammar across all modules.
+1. **ALWAYS run `make tidy` first** - Fix ALL issues before committing:
+   - Go code formatting and whitespace clean-up
+   - Markdown files checked with CSpell, LanguageTool and markdownlint
+   - Shell scripts checked with ShellCheck
+   - If `make tidy` fails, fix the issues and run it again until it passes
 2. Verify all tests pass with `make test`.
 3. Ensure no linting violations remain.
-4. Update handler documentation if modifying handler behavior.
-5. Verify handler examples still compile and run correctly.
+4. Update `AGENT.md` to reflect any changes in development workflow or
+   standards.
+5. Update `README.md` to reflect significant changes in functionality or API.
+6. Update handler documentation if modifying handler behaviour.
+7. Verify handler examples still compile and run correctly.
 
 ### Grammar and Style Checking
 
@@ -489,6 +622,64 @@ When working with AI agents, follow these restrictions:
 4. **No heredocs**: Avoid `<<EOF` syntax in commands
 5. **No AI attribution**: Never include "Generated by", "AI", or similar
    attributions
+
+## CI/CD and Code Analysis
+
+### DeepSource Configuration
+
+The project uses DeepSource for static code analysis. Configuration is in the
+`.deepsource.toml` file:
+
+- Shell analyser is configured for POSIX sh dialect.
+- To ignore specific issues for certain files, use `[[issues]]` blocks with
+  `paths` (not `exclude_patterns`).
+- Common shell issues:
+  - SH-1091: "local is undefined in POSIX sh" - excluded for all .sh files.
+  - SH-2013: "Use while read for reading lines" - disable with
+    ShellCheck directive comment.
+
+### GitHub Actions
+
+- **Codecov workflow**: Automatically runs on push/PR to generate coverage
+  reports.
+- **Test workflow**: Tests across multiple Go versions.
+- **Build workflow**: Validates build process independently.
+- All CI checks must pass before merging PRs.
+
+### Working with Build Tools
+
+When LanguageTool reports issues:
+
+- Custom dictionary is auto-generated from CSpell words in
+  `.tmp/languagetool-dict.txt`.
+- Technical terms should be added to `internal/build/cspell.json`.
+- False positives for code-related punctuation are disabled in
+  `languagetool.cfg`.
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+1. **LanguageTool false positives**:
+   - Add technical terms to `internal/build/cspell.json`.
+   - Dictionary will auto-regenerate on next `make check-grammar`.
+   - For persistent issues, consider adding rules to `languagetool.cfg`.
+
+2. **DeepSource shell issues**:
+   - Use ShellCheck disable comments for specific lines.
+   - Update `.deepsource.toml` with issue-specific `paths` configurations.
+   - Remember: DeepSource uses `paths`, not `exclude_patterns` in
+     `[[issues]]` blocks.
+
+3. **Coverage collection failures**:
+   - Ensure `.tmp/index` exists by running `make .tmp/index`.
+   - Check that all modules have test files.
+   - Use `GOTEST_FLAGS` to pass additional flags to tests.
+
+4. **Linting tool detection**:
+   - Tools are auto-detected via `pnpx`.
+   - If tools aren't found, they're replaced with `true` (no-op).
+   - Install tools globally with `pnpm install -g <tool>` if needed.
 
 ## Release Process
 

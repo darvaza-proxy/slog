@@ -8,7 +8,7 @@ const (
 	// UndefinedLevel is a placeholder for the zero-value when no level has been set
 	UndefinedLevel LogLevel = iota
 
-	// Panic represents a log entry for a fatal problem that could be stoped by defer/recover
+	// Panic represents a log entry for a fatal problem that could be stopped by defer/recover
 	Panic
 	// Fatal represents a log entry for a problem we can't recover
 	Fatal

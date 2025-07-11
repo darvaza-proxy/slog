@@ -1,4 +1,4 @@
-# filter
+# `filter`
 
 [![Go Reference][godoc-badge]][godoc]
 
