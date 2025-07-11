@@ -14,7 +14,8 @@ repository:
 1. Always create a feature branch for changes.
 2. Never use `git push origin main`.
 3. Always create a pull request for review.
-4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests) section.
+4. See [Git Workflow and Pull Requests](#git-workflow-and-pull-requests)
+   section.
 
 ## Repository Overview
 
@@ -46,6 +47,9 @@ make tidy
 
 # Check grammar only (without formatting)
 make check-grammar
+
+# Check shell scripts
+make check-shell
 
 # Clean build artifacts
 make clean
@@ -103,6 +107,17 @@ Grammar and style checking for Markdown files:
 - British English configuration in `internal/build/languagetool.cfg`.
 - New `check-grammar` target.
 - Checks for missing articles, punctuation, and proper hyphenation.
+
+### ShellCheck Integration
+
+Shell script analysis for all `.sh` files:
+
+- Detects shellcheck via pnpx.
+- New `check-shell` target.
+- Integrated into `make tidy`.
+- Uses inline disable directives for SC1007 (empty assignments) and SC3043
+  (`local` usage).
+- Checks for common shell scripting issues and best practices.
 
 ## Code Architecture
 
@@ -404,7 +419,7 @@ When creating or editing documentation files:
 The project now includes integrated grammar checking via LanguageTool:
 
 ```bash
-# Run both formatting and grammar checks
+# Run formatting and spell/shell checks
 make tidy
 
 # Run only grammar checks (Markdown and Go files)

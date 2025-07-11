@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1007,SC3043 # empty assignments and local usage
 
 set -eu
 
@@ -57,7 +58,7 @@ gen_revive_exclude() {
 	fi
 
 	for d in $dirs; do
-		printf -- "-exclude ./$d/... "
+		printf -- "-exclude ./%s/... " "$d"
 	done
 }
 
@@ -82,13 +83,14 @@ GO_FILES = \$(shell find * \\
 
 EOT
 
-	while IFS=: read name dir mod deps; do
+	# shellcheck disable=2094 # false positive - INDEX is only read.
+	while IFS=: read -r name dir mod deps; do
 		files=GO_FILES_$(gen_var_name "$name")
 		filter="-e '/^\.$/d;'"
-		[ "x$dir" = "x." ] || filter="$filter -e '/^$(escape_dir "$dir")$/d;'"
+		[ "$dir" = "." ] || filter="$filter -e '/^$(escape_dir "$dir")$/d;'"
 		out_pat="$(cut -d: -f2 "$INDEX" | eval "sed $filter -e 's|$|/%|'" | tr '\n' ' ' | sed -e 's| \+$||')"
 
-		if [ "x$dir" = "x." ]; then
+		if [ "$dir" = "." ]; then
 			# root
 			files_cmd="\$(GO_FILES)"
 			files_cmd="\$(filter-out $out_pat, $files_cmd)"
@@ -185,6 +187,7 @@ gen_make_targets() {
 	fi
 
 	files=GO_FILES_$(gen_var_name "$name")
+	# shellcheck disable=SC2086 # word splitting of deps intended
 	cat <<EOT
 
 $cmd-$name:${deps:+ $(prefixed "$cmd" $deps)}${depsx:+ | $depsx} ; \$(info \$(M) $cmd: $name)
@@ -203,7 +206,9 @@ EOT
 
 gen_files_lists
 
+# shellcheck disable=SC2086 # word splitting intentional
 for cmd in $COMMANDS; do
+	# shellcheck disable=SC2086 # word splitting intentional
 	all="$(prefixed "$cmd" $PROJECTS)"
 	depsx=
 
@@ -213,7 +218,7 @@ for cmd in $COMMANDS; do
 $cmd: $all
 EOT
 
-	while IFS=: read name dir mod deps; do
+	while IFS=: read -r name dir mod deps; do
 		deps=$(echo "$deps" | tr ',' ' ')
 
 		gen_make_targets "$cmd" "$name" "$dir" "$mod" "$deps"

@@ -1,4 +1,4 @@
-.PHONY: all clean generate fmt tidy check-grammar check-spelling check-jq
+.PHONY: all clean generate fmt tidy check-grammar check-spelling check-shell check-jq
 .PHONY: FORCE
 
 GO ?= go
@@ -79,6 +79,15 @@ endif
 endif
 CSPELL_FLAGS ?= --no-progress --dot --config $(TOOLSDIR)/cspell.json
 
+ifndef SHELLCHECK
+ifeq ($(shell $(PNPX) shellcheck --version 2>&1 | grep -q '^ShellCheck' && echo yes),yes)
+SHELLCHECK = $(PNPX) shellcheck
+else
+SHELLCHECK = true
+endif
+endif
+SHELLCHECK_FLAGS ?=
+
 V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell if [ "$$(tput colors 2> /dev/null || echo 0)" -ge 8 ]; then printf "\033[34;1m▶\033[0m"; else printf "▶"; fi)
@@ -131,7 +140,16 @@ TIDY_SPELLING =
 check-spelling: FORCE ; $(info $(M) spell checking disabled)
 endif
 
-tidy: fmt $(TIDY_SPELLING)
+ifneq ($(SHELLCHECK),true)
+TIDY_SHELL = check-shell
+check-shell: FORCE ; $(info $(M) checking shell scripts…)
+	$Q find . $(FIND_FILES_PRUNE_ARGS) -o -name '*.sh' -print0 | xargs -0 -r $(SHELLCHECK) $(SHELLCHECK_FLAGS)
+else
+TIDY_SHELL =
+check-shell: FORCE ; $(info $(M) shell checks disabled)
+endif
+
+tidy: fmt $(TIDY_SPELLING) $(TIDY_SHELL)
 
 generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
