@@ -65,7 +65,7 @@ func TestCustomHandlerExample(t *testing.T) {
 	concurrentLogger := slogtest.NewLogger()
 	slogtest.RunConcurrentTest(t, concurrentLogger, slogtest.DefaultConcurrencyTest())
 
-	// Verify specific behavior with a separate logger
+	// Verify specific behaviour with a separate logger
 	testLogger := slogtest.NewLogger()
 	testLogger.Info().WithField("test", "value").Print("message")
 

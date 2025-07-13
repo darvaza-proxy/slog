@@ -70,7 +70,7 @@ slogLogger.Info().
 
 - Maintain compatibility with logrus API changes.
 - Preserve logrus-specific features where possible.
-- Document any behavioral differences from native logrus.
+- Document any behavioural differences from native logrus.
 - Keep the adapter layer as thin as possible.
 
 For general development guidelines, see the main

@@ -1,4 +1,4 @@
-# discard
+# `discard`
 
 [![Go Reference][godoc-badge]][godoc]
 

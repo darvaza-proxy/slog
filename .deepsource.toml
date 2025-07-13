@@ -1,0 +1,26 @@
+version = 1
+
+# Exclude specific issues globally
+exclude_patterns = [
+  "**/*.test",
+  ".tmp/**",
+]
+
+# Skip specific DeepSource issues
+[[issues]]
+# Skip "local is undefined in POSIX sh"
+id = "SH-1091"
+paths = ["**/*.sh"]
+
+[[analyzers]]
+name = "shell"
+
+  [analyzers.meta]
+  # Use sh dialect but DeepSource should be smart enough to handle common extensions
+  dialect = "sh"
+
+[[analyzers]]
+name = "go"
+
+  [analyzers.meta]
+  import_root = "github.com/darvaza-proxy/slog"
