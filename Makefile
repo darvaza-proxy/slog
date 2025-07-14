@@ -1,4 +1,5 @@
-.PHONY: all clean generate fmt tidy check-grammar check-spelling check-shell check-jq coverage
+.PHONY: all clean generate fmt tidy check-grammar check-spelling check-shell check-jq
+.PHONY: coverage codecov
 .PHONY: FORCE
 
 GO ?= go
@@ -154,8 +155,17 @@ tidy: fmt $(TIDY_SPELLING) $(TIDY_SHELL)
 generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
+# Run tests with coverage for all modules
+# This target runs 'go test -coverprofile' for each module and merges
+# the results into a single coverage file
 coverage: $(TMPDIR)/index ; $(info $(M) running coverage tests…)
 	$Q $(TOOLSDIR)/make_coverage.sh $(TMPDIR)/index $(COVERAGE_DIR)
+
+# Generate Codecov configuration files
+# This target prepares codecov.yml and codecov.txt files needed for
+# uploading coverage data to Codecov with proper module flags
+codecov: coverage ; $(info $(M) preparing codecov data)
+	$Q $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index $(COVERAGE_DIR)
 
 check-jq: FORCE
 	$Q $(JQ) --version >/dev/null 2>&1 || { \
