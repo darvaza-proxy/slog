@@ -9,6 +9,10 @@ running tests with coverage for each module separately and then merging the
 results. It also generates configuration for Codecov to properly track coverage
 for each module using flags.
 
+The system follows Codecov's best practices for monorepo coverage tracking by
+uploading separate coverage reports for each module with its corresponding flag.
+This ensures accurate per-module coverage attribution.
+
 ## Key Components
 
 ### 1. Module Index (`.tmp/index`)
@@ -58,6 +62,10 @@ Shell script that:
 - Uses relative paths from the script directory.
 - Cleans up after execution.
 
+**Important**: The script makes separate upload calls for each module to ensure
+proper flag attribution. Codecov warns against uploading a single report with
+multiple flags as it can result in erroneous coverage.
+
 ## Usage
 
 ### Local Development
@@ -92,6 +100,29 @@ This setup provides:
   coverage
 - **Carryforward support**: Missing coverage data doesn't fail the build
 
+## Design Decisions
+
+### Why Separate Upload Calls?
+
+The system makes individual upload calls for each module rather than combining
+them into a single call. This is intentional because:
+
+1. **Correct Flag Attribution**: Each coverage file must be uploaded with its
+   specific flag to maintain module boundaries
+2. **Avoids Flag Confusion**: Uploading multiple files with multiple flags in
+   one command would apply all flags to all files
+3. **Module Isolation**: Each module's coverage changes are tracked
+   independently
+
+### Performance Considerations
+
+While separate uploads add ~20 seconds to CI time, this ensures accurate
+coverage tracking. Future optimizations could include:
+
+- Parallel uploads to reduce total time
+- Skipping modules with no coverage changes
+- Using GitHub Action matrix for concurrent uploads
+
 ## Troubleshooting
 
 ### No coverage files found
@@ -114,3 +145,20 @@ go -C <module_dir> test -v
 
 The coverage files are merged using simple concatenation. If you need more
 advanced merging, consider using external tools.
+
+### Slow uploads
+
+If uploads are taking too long:
+
+1. Check network connectivity
+2. Verify Codecov service status
+3. Consider implementing parallel uploads (see Performance Considerations)
+
+### Flag attribution problems
+
+If coverage is not being attributed to the correct module:
+
+1. Verify each upload specifies only one flag
+2. Check the codecov.yml flag configuration
+3. Ensure coverage files are not being merged before upload
+
