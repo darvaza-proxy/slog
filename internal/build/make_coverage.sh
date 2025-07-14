@@ -34,6 +34,8 @@ fi
 # Create coverage directory
 rm -rf "$COVERAGE_DIR"
 mkdir -p "$COVERAGE_DIR"
+# and make it absolute, because of `go -C`
+COVERAGE_DIR=$(cd "$COVERAGE_DIR" && pwd)
 
 # Count total modules
 total=$(grep -c '^[^:]*:[^:]*' "$INDEX" || true)
@@ -51,9 +53,11 @@ while IFS=: read -r name dir _rest; do
 	COVERPROFILE="$COVERAGE_DIR/coverage_${n}_${name}.prof"
 	COVEROUTPUT="$COVERAGE_DIR/test_${n}_${name}.out"
 
-	# Run tests quietly, capturing output to file
 	# shellcheck disable=SC2086 # GOTEST_FLAGS splitting intended
-	if ${GO:-go} -C "$dir" test ${GOTEST_FLAGS:-} "-coverprofile=$COVERPROFILE" > "$COVEROUTPUT" 2>&1; then
+	set -- ${GOTEST_FLAGS:-} "-coverprofile=$COVERPROFILE" "-coverpkg=./..." ./...
+
+	# Run tests quietly, capturing output to file
+	if ${GO:-go} -C "$dir" test "$@" > "$COVEROUTPUT" 2>&1; then
 		# Extract coverage percentage from output
 		coverage=$(grep -aE 'coverage: [0-9.]+% of statements' "$COVEROUTPUT" | tail -1 | sed 's/.*coverage: //')
 		printf "✓ %-20s %s\n" "($dir)" "${coverage:-no coverage}"
