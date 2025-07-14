@@ -566,7 +566,7 @@ through pull requests.
 2. **Make commits on the feature branch**:
 
    ```bash
-   # Add files individually
+   # Add files individually - NEVER use -u, -a, or .
    git add file1.go file2.go
 
    # Create commit message file using Write tool to avoid shell escaping
@@ -584,11 +584,12 @@ through pull requests.
    ```
 
    **Commit Guidelines**:
-   - Always use `-s` flag for sign-off
-   - Enumerate files explicitly in commit command (avoid `-a`)
-   - No AI attribution or generated-by messages
-   - No heredocs in commit messages
-   - Keep commit messages concise and factual
+   - Always use `-s` flag for sign-off.
+   - Enumerate files explicitly in commit command (avoid `-a`, never use `-u`).
+   - Never use `git add -u`, `git add -a`, or `git add .`.
+   - No AI attribution or generated-by messages.
+   - No heredocs in commit messages.
+   - Keep commit messages concise and factual.
 
 3. **Push the feature branch** (never main):
 
@@ -646,8 +647,8 @@ When working with AI agents, follow these restrictions:
 
 1. **No directory changes**: Never use `cd` commands - use absolute paths
    instead.
-2. **No bulk operations**: Avoid `-a` flag in git commands - enumerate files
-   explicitly.
+2. **No bulk operations**: Avoid `-a` and `-u` flags in git commands - enumerate
+   files explicitly. Never use `git add .`, `git add -u`, or `git add -a`.
 3. **No shell escaping issues**: Use Write tool for creating files with complex
    content.
 4. **No heredocs**: Avoid `<<EOF` syntax in commands.
