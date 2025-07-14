@@ -152,15 +152,14 @@ EOF
 
 echo "::group::Upload coverage for $name"
 if [ -s "$file" ]; then
-	"\$CODECOV_BIN" upload-process \\
+	"\$CODECOV_BIN" --codecov-yml-path "\${SCRIPT_DIR}/codecov.yml" upload-process \\
 		--disable-search \\
+		--fail-on-error \\
 		--file "$file" \\
-		--flag "$name" \\
-		--codecov-yml-path "\${SCRIPT_DIR}/codecov.yml" || {
-		echo "Warning: Failed to upload coverage for $name"
-	}
+		--flag "$name"
 else
-	echo "Warning: Coverage file not found for $name"
+	echo "Error: Coverage file not found for $name" >&2
+	exit 1
 fi
 echo "::endgroup::"
 EOF
