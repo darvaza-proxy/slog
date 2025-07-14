@@ -1,9 +1,12 @@
 # `zap`
 
 [![Go Reference][godoc-badge]][godoc]
+[![codecov][codecov-badge]][codecov]
 
 [godoc]: https://pkg.go.dev/darvaza.org/slog/handlers/zap
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/slog/handlers/zap.svg
+[codecov]: https://codecov.io/gh/darvaza-proxy/slog
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/slog/graph/badge.svg?flag=zap
 
 [Uber's zap](https://github.com/uber-go/zap) adapter for
 [darvaza.org/slog](https://github.com/darvaza-proxy/slog).

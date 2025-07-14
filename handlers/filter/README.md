@@ -1,9 +1,12 @@
 # `filter`
 
 [![Go Reference][godoc-badge]][godoc]
+[![codecov][codecov-badge]][codecov]
 
 [godoc]: https://pkg.go.dev/darvaza.org/slog/handlers/filter
 [godoc-badge]: https://pkg.go.dev/badge/darvaza.org/slog/handlers/filter.svg
+[codecov]: https://codecov.io/gh/darvaza-proxy/slog
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/slog/graph/badge.svg?flag=filter
 
 Filtering and transformation handler for
 [darvaza.org/slog](https://github.com/darvaza-proxy/slog).

@@ -135,8 +135,10 @@ Automated coverage reporting across all modules:
 
 GitHub Actions workflows split for better performance:
 
-- **Build workflow** (`.github/workflows/build.yml`): Focuses on compilation only.
-- **Test workflow** (`.github/workflows/test.yml`): Dedicated testing pipeline.
+- **Build workflow** (`.github/workflows/build.yml`): Focuses on compilation
+  only.
+- **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
+  pipeline.
   - Race condition detection job with Go 1.23.
   - Multi-version testing matrix (Go 1.23 and 1.24).
   - Conditional execution to avoid duplicate runs on PRs.
@@ -147,7 +149,8 @@ GitHub Actions workflows split for better performance:
 
 Automated coverage reporting with monorepo support:
 
-- **Codecov workflow** (`.github/workflows/codecov.yml`): Coverage collection and upload.
+- **Codecov workflow** (`.github/workflows/codecov.yml`): Coverage collection
+  and upload.
 - Enhanced `make_coverage.sh` generates:
   - `codecov.yml`: Dynamic configuration with per-module flags.
   - Module-specific coverage targets (80% default).
