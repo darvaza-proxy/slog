@@ -28,17 +28,19 @@ module_name:directory:go_module_path
 
 This script:
 
-- Reads the module index
-- Runs `go test -coverprofile` for each module using `go -C` to change directory
-- Shows progress with module name and directory
-- Merges all coverage files into a single `coverage.out`
-- Optionally generates an HTML report
+- Reads the module index.
+- Runs `go test -coverprofile -coverpkg=./... ./...` for each module using
+  `go -C` to change directory. This tests all packages recursively and
+  instruments all packages for coverage, not just those with test files.
+- Shows progress with module name and directory.
+- Merges all coverage files into a single `coverage.out`.
+- Optionally generates an HTML report.
 
 Environment variables:
 
-- `GO`: Go command to use (default: `go`)
-- `GOTEST_FLAGS`: Additional flags for `go test`
-- `COVERAGE_HTML`: Set to `true` to generate HTML report
+- `GO`: Go command to use (default: `go`).
+- `GOTEST_FLAGS`: Additional flags for `go test`.
+- `COVERAGE_HTML`: Set to `true` to generate HTML report.
 
 ### 3. Codecov Script (`make_codecov.sh`)
 
@@ -86,19 +88,19 @@ COVERAGE_HTML=true make coverage
 
 The GitHub workflow:
 
-1. Runs `make codecov` which runs coverage and generates Codecov files
-2. Executes `.tmp/coverage/codecov.sh` to upload coverage files
-3. Each module's coverage is uploaded with its specific flag
+1. Runs `make codecov` which runs coverage and generates Codecov files.
+2. Executes `.tmp/coverage/codecov.sh` to upload coverage files.
+3. Each module's coverage is uploaded with its specific flag.
 
 ## Monorepo Benefits
 
 This setup provides:
 
-- **Module isolation**: Each module's coverage is tracked separately
-- **Flag management**: Codecov flags allow filtering coverage by module
+- **Module isolation**: Each module's coverage is tracked separately.
+- **Flag management**: Codecov flags allow filtering coverage by module.
 - **Proper attribution**: Code changes affect only the relevant module's
-  coverage
-- **Carryforward support**: Missing coverage data doesn't fail the build
+  coverage.
+- **carryforward support**: Missing coverage data doesn't fail the build.
 
 ## Design Decisions
 
@@ -108,20 +110,20 @@ The system makes individual upload calls for each module rather than combining
 them into a single call. This is intentional because:
 
 1. **Correct Flag Attribution**: Each coverage file must be uploaded with its
-   specific flag to maintain module boundaries
+   specific flag to maintain module boundaries.
 2. **Avoids Flag Confusion**: Uploading multiple files with multiple flags in
-   one command would apply all flags to all files
+   one command would apply all flags to all files.
 3. **Module Isolation**: Each module's coverage changes are tracked
-   independently
+   independently.
 
 ### Performance Considerations
 
 While separate uploads add ~20 seconds to CI time, this ensures accurate
 coverage tracking. Future optimizations could include:
 
-- Parallel uploads to reduce total time
-- Skipping modules with no coverage changes
-- Using GitHub Action matrix for concurrent uploads
+- Parallel uploads to reduce total time.
+- Skipping modules with no coverage changes.
+- Using GitHub Action matrix for concurrent uploads.
 
 ## Troubleshooting
 
@@ -150,15 +152,14 @@ advanced merging, consider using external tools.
 
 If uploads are taking too long:
 
-1. Check network connectivity
-2. Verify Codecov service status
-3. Consider implementing parallel uploads (see Performance Considerations)
+1. Check network connectivity.
+2. Verify Codecov service status.
+3. Consider implementing parallel uploads (see Performance Considerations).
 
 ### Flag attribution problems
 
 If coverage is not being attributed to the correct module:
 
-1. Verify each upload specifies only one flag
-2. Check the codecov.yml flag configuration
-3. Ensure coverage files are not being merged before upload
-
+1. Verify each upload specifies only one flag.
+2. Check the codecov.yml flag configuration.
+3. Ensure coverage files are not being merged before upload.
