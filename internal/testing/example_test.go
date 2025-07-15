@@ -40,6 +40,16 @@ func TestComplianceExample(t *testing.T) {
 				// For a real handler, return a new instance
 				return slogtest.NewLogger()
 			},
+			// Provide NewLoggerWithRecorder to enable field isolation tests
+			// This should create your handler using the provided recorder as backend
+			NewLoggerWithRecorder: func(recorder slog.Logger) slog.Logger {
+				// For a real handler, this would create the handler with recorder as output
+				// Example for a hypothetical handler:
+				// return myhandler.NewWithOutput(recorder)
+
+				// For this example, we just return the recorder itself
+				return recorder
+			},
 		},
 		// Skip tests that might not apply
 		SkipPanicTests: true, // if your logger exits on panic

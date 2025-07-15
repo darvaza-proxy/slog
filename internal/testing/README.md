@@ -13,8 +13,9 @@ The testing package includes:
 - **Assertion Helpers** - Functions to verify message properties and fields
 - **Standalone Test Functions** - Reusable tests for common interface methods
 - **Compliance Test Suite** - Comprehensive tests for slog.Logger
-  implementations
-- **Concurrency Utilities** - Tools for testing thread safety
+  implementations including basic concurrency safety
+- **Stress Test Suite** - High-volume concurrent testing for performance and
+  stability
 - **Bidirectional Testing** - Support for adapters that convert between
   logging libraries
 - **Options Architecture** - Flexible configuration for different handler
@@ -107,6 +108,8 @@ func TestBidirectionalHandlerCompliance(t *testing.T) {
             NewLogger: func() slog.Logger {
                 return myhandler.New()
             },
+            // NewLoggerWithRecorder enables field isolation tests
+            // Without this, testFieldChainIsolation subtests will be skipped
             NewLoggerWithRecorder: func(recorder slog.Logger) slog.Logger {
                 // Create handler that writes to recorder
                 return myhandler.NewWithBackend(recorder)
@@ -123,20 +126,41 @@ func TestBidirectionalHandlerCompliance(t *testing.T) {
 }
 ```
 
-### Testing Concurrency
+### Running Stress Tests
+
+For performance and stability testing:
 
 ```go
-func TestHandlerConcurrency(t *testing.T) {
+func TestHandlerStress(t *testing.T) {
+    suite := slogtest.StressTestSuite{
+        NewLogger: func() slog.Logger {
+            return myhandler.New()
+        },
+        // Optional: for handlers that can write to a recorder
+        NewLoggerWithRecorder: func(recorder slog.Logger) slog.Logger {
+            return myhandler.NewWithBackend(recorder)
+        },
+    }
+
+    suite.Run(t)
+}
+```
+
+For custom stress scenarios:
+
+```go
+func TestCustomStress(t *testing.T) {
     logger := myhandler.New()
 
-    // Run concurrent logging test
-    test := slogtest.DefaultConcurrencyTest() // 10 goroutines, 100 ops each
-    slogtest.RunConcurrentTest(t, logger, test)
+    // High-volume stress test
+    slogtest.RunStressTest(t, logger, slogtest.HighVolumeStressTest())
 
-    // Test concurrent field operations
-    slogtest.TestConcurrentFields(t, func() slog.Logger {
-        return myhandler.New()
-    })
+    // Memory pressure test
+    slogtest.RunStressTest(t, logger, slogtest.MemoryPressureStressTest())
+
+    // Duration-based test
+    stress := slogtest.DurationBasedStressTest(time.Second)
+    slogtest.RunStressTest(t, logger, stress)
 }
 ```
 
@@ -237,29 +261,39 @@ type ComplianceTest struct {
 }
 ```
 
-- `ComplianceTest.Run(t)` - Runs full compliance test suite
-- Supports both simple loggers and bidirectional adapters
-- Automatically uses `NewLoggerWithRecorder` for concurrency tests when
-  available
+- `ComplianceTest.Run(t)` - Runs full compliance test suite including:
+  - Interface implementation verification
+  - Level method testing
+  - Field method testing and immutability
+  - Print method testing
+  - Enabled method testing (if applicable)
+  - WithStack functionality
+  - Logger branching and immutability
+  - Basic concurrency safety
 
-### Concurrency Testing
+### Stress Testing
 
-- `RunConcurrentTest(t, logger, test)` - Tests concurrent logging
-- `RunConcurrentTestWithOptions(t, logger, test, opts)` - Advanced concurrent
-  testing
-- `TestConcurrentFields(t, newLogger)` - Tests concurrent field operations
-- `DefaultConcurrencyTest()` - Returns default test config (10 goroutines,
-  100 ops)
-
-Options for advanced testing:
+The `StressTestSuite` provides comprehensive performance testing:
 
 ```go
-type ConcurrencyTestOptions struct {
-    AdapterOptions                    // Level transformation exceptions
-    FactoryOptions                    // Logger creation functions
-    GetMessages func() []Message      // Alternative message getter
+type StressTestSuite struct {
+    NewLogger func() slog.Logger
+    NewLoggerWithRecorder func(slog.Logger) slog.Logger
+
+    // Skip specific stress tests
+    SkipHighVolume      bool
+    SkipMemoryPressure  bool
+    SkipDurationBased   bool
+    SkipConcurrentField bool
 }
 ```
+
+- `DefaultStressTest()` - Basic stress test (10 goroutines, 100 ops)
+- `HighVolumeStressTest()` - High-volume test (50 goroutines, 1000 ops)
+- `MemoryPressureStressTest()` - Tests with large messages and many fields
+- `DurationBasedStressTest(duration)` - Runs for specified duration
+- `RunStressTest(t, logger, test)` - Run a specific stress test
+- `RunStressTestWithOptions(t, logger, test, opts)` - Advanced stress testing
 
 ### Bidirectional Testing
 
@@ -324,8 +358,9 @@ type FactoryOptions struct {
 Each test type embeds the appropriate base options:
 
 - `BidirectionalTestOptions` - Embeds `AdapterOptions`
-- `ConcurrencyTestOptions` - Embeds both `AdapterOptions` and `FactoryOptions`
 - `ComplianceTest` - Embeds both `AdapterOptions` and `FactoryOptions`
+- `StressTestOptions` - Configuration for stress testing
+- `ConcurrencyTestOptions` - Configuration for concurrency testing utilities
 
 This design allows code reuse while maintaining type safety and clear intent.
 
