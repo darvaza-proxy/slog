@@ -5,6 +5,7 @@ import (
 
 	"darvaza.org/slog"
 	"darvaza.org/slog/handlers/filter"
+	slogtest "darvaza.org/slog/internal/testing"
 )
 
 // mockLogger is a simple logger for testing
@@ -72,44 +73,20 @@ func TestFilterWithFields(t *testing.T) {
 	base := &mockLogger{enabled: true}
 	logger := filter.New(base, slog.Info)
 
-	// Test WithField on root logger (should store in Loglet)
-	l1 := logger.WithField("root", "value")
-	if l1 == nil {
-		t.Fatal("WithField returned nil")
-	}
+	t.Run("WithField", func(t *testing.T) {
+		slogtest.TestWithField(t, logger)
+	})
 
-	// Test WithField on enabled logger
-	l2 := logger.Info().WithField("key1", "value1")
-	if l2 == nil {
-		t.Fatal("WithField on enabled logger returned nil")
-	}
-
-	// Test WithFields
-	fields := map[string]any{
-		"key2": "value2",
-		"key3": 123,
-	}
-	l3 := logger.Info().WithFields(fields)
-	if l3 == nil {
-		t.Fatal("WithFields returned nil")
-	}
+	t.Run("WithFields", func(t *testing.T) {
+		slogtest.TestWithFields(t, logger)
+	})
 }
 
 func TestFilterWithStack(t *testing.T) {
 	base := &mockLogger{enabled: true}
 	logger := filter.New(base, slog.Info)
 
-	// Test WithStack on root logger
-	l1 := logger.WithStack(1)
-	if l1 == nil {
-		t.Fatal("WithStack on root returned nil")
-	}
-
-	// Test WithStack on enabled logger
-	l2 := logger.Info().WithStack(1)
-	if l2 == nil {
-		t.Fatal("WithStack on enabled logger returned nil")
-	}
+	slogtest.TestWithStack(t, logger)
 }
 
 func TestFilterChaining(t *testing.T) {
