@@ -210,7 +210,7 @@ For adapters that apply level-based filtering:
 func TestAdapterWithLevelFiltering(t *testing.T) {
     factory := func(backend slog.Logger) slog.Logger {
         // Adapter that filters out Debug messages based on minimum level
-        return filteredadapter.New(backend, slog.Info) // Only Info and above
+        return filter.New(backend, slog.Info) // Only Info and above
     }
 
     opts := &slogtest.BidirectionalTestOptions{
