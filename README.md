@@ -258,14 +258,16 @@ library:
   Full bidirectional adapter for go-logr/logr interface.
   - `logr.Logger` → `slog.Logger` (use logr as slog backend)
   - `slog.Logger` → `logr.Logger` (use slog as logr backend)
+- **[`logrus`](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)**:
+  Bidirectional adapter for Sirupsen/logrus.
+  - `logrus.Logger` → `slog.Logger` (use logrus as slog backend)
+  - `slog.Logger` → `logrus.Logger` (use slog as logrus backend)
 
 #### Unidirectional Adapters
 
 These handlers only allow using the external logging library as a backend for
 slog. They wrap existing loggers but don't provide the reverse conversion:
 
-- **[`logrus`](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)**:
-  Wraps Sirupsen/logrus as a slog backend.
 - **[`zap`](https://pkg.go.dev/darvaza.org/slog/handlers/zap)**:
   Wraps Uber's zap logger as a slog backend.
 - **[`zerolog`](https://pkg.go.dev/darvaza.org/slog/handlers/zerolog)**:
