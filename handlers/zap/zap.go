@@ -12,6 +12,11 @@ import (
 	"darvaza.org/slog/internal"
 )
 
+const (
+	// DefaultLogLevel is the default log level for new loggers
+	DefaultLogLevel = slog.Info
+)
+
 var (
 	_ slog.Logger = (*Logger)(nil)
 )
@@ -226,24 +231,4 @@ func NewDefaultConfig() *zap.Config {
 	cfg.DisableStacktrace = true
 	cfg.DisableCaller = true
 	return &cfg
-}
-
-// mapToZapLevel maps slog levels to zap levels
-func mapToZapLevel(level slog.LogLevel) zapcore.Level {
-	switch level {
-	case slog.Panic:
-		return zapcore.PanicLevel
-	case slog.Fatal:
-		return zapcore.FatalLevel
-	case slog.Error:
-		return zapcore.ErrorLevel
-	case slog.Warn:
-		return zapcore.WarnLevel
-	case slog.Info:
-		return zapcore.InfoLevel
-	case slog.Debug:
-		return zapcore.DebugLevel
-	default:
-		return zapcore.InvalidLevel
-	}
 }
