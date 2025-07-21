@@ -12,6 +12,11 @@ import (
 	"darvaza.org/slog/internal"
 )
 
+const (
+	// DefaultLogLevel is the default log level for new loggers
+	DefaultLogLevel = slog.Info
+)
+
 var (
 	_ slog.Logger = (*Logger)(nil)
 )
@@ -37,7 +42,7 @@ func (zpl *Logger) Enabled() bool {
 
 	level := mapToZapLevel(zpl.Level())
 	if level == zapcore.InvalidLevel {
-		return false
+		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.Level())
 	}
 
 	return zpl.logger.Core().Enabled(level)
@@ -51,28 +56,30 @@ func (zpl *Logger) WithEnabled() (slog.Logger, bool) {
 // Print adds a log entry with arguments handled in the manner of fmt.Print
 func (zpl *Logger) Print(args ...any) {
 	if zpl.Enabled() {
-		zpl.print(fmt.Sprint(args...))
+		zpl.logMessage(fmt.Sprint(args...))
 	}
 }
 
 // Println adds a log entry with arguments handled in the manner of fmt.Println
 func (zpl *Logger) Println(args ...any) {
 	if zpl.Enabled() {
-		zpl.print(fmt.Sprintln(args...))
+		zpl.logMessage(fmt.Sprintln(args...))
 	}
 }
 
 // Printf adds a log entry with arguments handled in the manner of fmt.Printf
 func (zpl *Logger) Printf(format string, args ...any) {
 	if zpl.Enabled() {
-		zpl.print(fmt.Sprintf(format, args...))
+		zpl.logMessage(fmt.Sprintf(format, args...))
 	}
 }
 
-// revive:disable:confusing-naming
-func (zpl *Logger) print(msg string) {
+func (zpl *Logger) logMessage(msg string) {
 	msg = strings.TrimSpace(msg)
 	level := mapToZapLevel(zpl.Level())
+	if level == zapcore.InvalidLevel {
+		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.Level())
+	}
 
 	// Check if we can log at this level
 	if ce := zpl.logger.Check(level, msg); ce != nil {
@@ -90,8 +97,6 @@ func (zpl *Logger) print(msg string) {
 		}
 	}
 }
-
-// revive:enable:confusing-naming
 
 // Debug returns a new logger set to add entries as level Debug
 func (zpl *Logger) Debug() slog.Logger {
@@ -174,8 +179,8 @@ func (zpl *Logger) WithFields(fields map[string]any) slog.Logger {
 
 // New creates a slog.Logger adaptor using a zap as backend. If
 // none was passed it will create an opinionated new one.
-func New(cfg *zap.Config) slog.Logger {
-	return newLogger(cfg)
+func New(cfg *zap.Config, zapOptions ...zap.Option) (slog.Logger, error) {
+	return newLogger(cfg, zapOptions...)
 }
 
 // NewWithCallback creates a new zap logger using a callback to modify it.
@@ -200,20 +205,22 @@ func NewNoop() *Logger {
 	}
 }
 
-func newLogger(cfg *zap.Config) *Logger {
+func newLogger(cfg *zap.Config, zapOptions ...zap.Option) (*Logger, error) {
 	if cfg == nil {
 		cfg = NewDefaultConfig()
 	}
 
-	lg, err := cfg.Build()
+	lg, err := cfg.Build(zapOptions...)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
+	loglet := &internal.Loglet{}
 	return &Logger{
+		Loglet: loglet.WithLevel(getConfigLevel(cfg)),
 		logger: lg,
 		config: cfg,
-	}
+	}, nil
 }
 
 // NewDefaultConfig creates a new [zap.Config] logging to the
@@ -229,24 +236,4 @@ func NewDefaultConfig() *zap.Config {
 	cfg.DisableStacktrace = true
 	cfg.DisableCaller = true
 	return &cfg
-}
-
-// mapToZapLevel maps slog levels to zap levels
-func mapToZapLevel(level slog.LogLevel) zapcore.Level {
-	switch level {
-	case slog.Panic:
-		return zapcore.PanicLevel
-	case slog.Fatal:
-		return zapcore.FatalLevel
-	case slog.Error:
-		return zapcore.ErrorLevel
-	case slog.Warn:
-		return zapcore.WarnLevel
-	case slog.Info:
-		return zapcore.InfoLevel
-	case slog.Debug:
-		return zapcore.DebugLevel
-	default:
-		return zapcore.InvalidLevel
-	}
 }
