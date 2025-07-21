@@ -51,26 +51,25 @@ func (zpl *Logger) WithEnabled() (slog.Logger, bool) {
 // Print adds a log entry with arguments handled in the manner of fmt.Print
 func (zpl *Logger) Print(args ...any) {
 	if zpl.Enabled() {
-		zpl.print(fmt.Sprint(args...))
+		zpl.logMessage(fmt.Sprint(args...))
 	}
 }
 
 // Println adds a log entry with arguments handled in the manner of fmt.Println
 func (zpl *Logger) Println(args ...any) {
 	if zpl.Enabled() {
-		zpl.print(fmt.Sprintln(args...))
+		zpl.logMessage(fmt.Sprintln(args...))
 	}
 }
 
 // Printf adds a log entry with arguments handled in the manner of fmt.Printf
 func (zpl *Logger) Printf(format string, args ...any) {
 	if zpl.Enabled() {
-		zpl.print(fmt.Sprintf(format, args...))
+		zpl.logMessage(fmt.Sprintf(format, args...))
 	}
 }
 
-// revive:disable-next-line:confusing-naming
-func (zpl *Logger) print(msg string) {
+func (zpl *Logger) logMessage(msg string) {
 	msg = strings.TrimSpace(msg)
 	level := mapToZapLevel(zpl.Level())
 
