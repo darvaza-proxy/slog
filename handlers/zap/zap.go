@@ -42,7 +42,7 @@ func (zpl *Logger) Enabled() bool {
 
 	level := mapToZapLevel(zpl.Level())
 	if level == zapcore.InvalidLevel {
-		return false
+		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.Level())
 	}
 
 	return zpl.logger.Core().Enabled(level)
@@ -77,6 +77,9 @@ func (zpl *Logger) Printf(format string, args ...any) {
 func (zpl *Logger) logMessage(msg string) {
 	msg = strings.TrimSpace(msg)
 	level := mapToZapLevel(zpl.Level())
+	if level == zapcore.InvalidLevel {
+		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.Level())
+	}
 
 	// Check if we can log at this level
 	if ce := zpl.logger.Check(level, msg); ce != nil {
@@ -212,7 +215,9 @@ func newLogger(cfg *zap.Config, zapOptions ...zap.Option) (*Logger, error) {
 		return nil, err
 	}
 
+	loglet := &internal.Loglet{}
 	return &Logger{
+		Loglet: loglet.WithLevel(getConfigLevel(cfg)),
 		logger: lg,
 		config: cfg,
 	}, nil
