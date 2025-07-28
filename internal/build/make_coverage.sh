@@ -1,107 +1,76 @@
 #!/bin/sh
-# shellcheck disable=SC1007,SC3043 # empty assignments, -o and local usage
+# shellcheck disable=SC1007,SC3043 # empty assignments and local usage
 #
-# make_coverage.sh - Execute coverage tests for all modules in a monorepo
+# make_coverage.sh - Execute coverage tests for a single module
 #
-# This script reads module information from an index file and runs Go tests
-# with coverage for each module. It then merges all coverage files into a
-# single coverage report.
+# This script runs Go tests with coverage for a single module and generates
+# coverage profile (.prof), function coverage (.funcs), and HTML report (.html).
 #
-# Usage: make_coverage.sh [index_file] [coverage_dir]
+# Usage: make_coverage.sh <module_name> <module_dir> <coverage_dir>
 #
 # Arguments:
-#   index_file   - Path to the index file containing module information
-#                  (default: .tmp/index)
+#   module_name  - Name of the module (e.g., "root", "cmp", "config")
+#   module_dir   - Directory containing the module (e.g., ".", "cmp", "config")
 #   coverage_dir - Directory to store coverage files
-#                  (default: .coverage)
 #
 # Environment variables:
 #   GO           - Go command (default: go)
 #   GOTEST_FLAGS - Additional flags for 'go test'
-#   COVERAGE_HTML - Set to "true" to generate HTML coverage report
 
 set -eu
 
-INDEX="${1:-.tmp/index}"
-COVERAGE_DIR="${2:-.coverage}"
+MODULE_NAME="${1:?Module name required}"
+MODULE_DIR="${2:?Module directory required}"
+COVERAGE_DIR="${3:?Coverage directory required}"
 
-if [ ! -s "$INDEX" ]; then
-	echo "Error: Index file not found: $INDEX" >&2
-	echo "Run 'make .tmp/index' first" >&2
-	exit 1
-fi
+# Helper function to format coverage output
+format_coverage_output() {
+	local stdout_file="$1"
+	local module_name="$2"
+	
+	if [ -s "$stdout_file" ]; then
+		# Extract coverage percentage and format with module name
+		grep -E 'coverage: [0-9.]+%' "$stdout_file" | tail -1 | \
+			sed "s|coverage: \([0-9.]\+%\) of statements in \./\.\.\.|Coverage: \1 of statements in $module_name|" || \
+			echo "Coverage: no coverage data"
+	else
+		echo "Coverage: no test output"
+	fi
+}
 
-# Create coverage directory
-rm -rf "$COVERAGE_DIR"
-mkdir -p "$COVERAGE_DIR"
-# and make it absolute, because of `go -C`
+# Use absolute path for coverage directory
 COVERAGE_DIR=$(cd "$COVERAGE_DIR" && pwd)
 
-# Count total modules
-total=$(grep -c '^[^:]*:[^:]*' "$INDEX" || true)
+# Output files
+COVERPROFILE="$COVERAGE_DIR/coverage_${MODULE_NAME}.prof"
+COVERFUNCS="$COVERAGE_DIR/coverage_${MODULE_NAME}.funcs"
+COVERHTML="$COVERAGE_DIR/coverage_${MODULE_NAME}.html"
+COVERSTDOUT="$COVERAGE_DIR/coverage_${MODULE_NAME}.stdout"
 
-# Run tests for each module
-echo "Running coverage tests..."
-n=1
-failed=0
-while IFS=: read -r name dir _rest; do
-	[ -n "$name" ] || continue
+# shellcheck disable=SC2086 # GOTEST_FLAGS splitting intended
+set -- ${GOTEST_FLAGS:-} \
+	"-covermode=atomic" \
+	"-coverprofile=$COVERPROFILE" \
+	"-coverpkg=./..." \
+	./...
 
-	# Show progress
-	printf "[$n/$total] Testing module: %-12s " "$name"
+# Run tests with coverage
+# Note: The makefile already cd's into the module directory before calling this script
+if ${GO:-go} test "$@" > "$COVERSTDOUT" 2>&1; then
+	# Generate function coverage report
+	${GO:-go} -C "$MODULE_DIR" tool cover -func="$COVERPROFILE" > "$COVERFUNCS" 2>/dev/null || true
 
-	COVERPROFILE="$COVERAGE_DIR/coverage_${n}_${name}.prof"
-	COVEROUTPUT="$COVERAGE_DIR/test_${n}_${name}.out"
+	# Generate HTML coverage report
+	${GO:-go} -C "$MODULE_DIR" tool cover -html="$COVERPROFILE" -o "$COVERHTML" 2>/dev/null || true
 
-	# shellcheck disable=SC2086 # GOTEST_FLAGS splitting intended
-	set -- ${GOTEST_FLAGS:-} "-coverprofile=$COVERPROFILE" "-coverpkg=./..." ./...
-
-	# Run tests quietly, capturing output to file
-	if ${GO:-go} -C "$dir" test "$@" > "$COVEROUTPUT" 2>&1; then
-		# Extract coverage percentage from output
-		coverage=$(grep -aE 'coverage: [0-9.]+% of statements' "$COVEROUTPUT" | tail -1 | sed 's/.*coverage: //')
-		printf "✓ %-20s %s\n" "($dir)" "${coverage:-no coverage}"
-
-		# Generate HTML report for individual module if requested
-		if [ "${COVERAGE_HTML:-}" = "true" ]; then
-			${GO:-go} -C "$dir" tool cover "-html=$COVERPROFILE" -o "$COVERPROFILE.html" 2>/dev/null || true
-		fi
-	else
-		printf "✗ FAILED\n"
-		echo "⚠️  ${name} tests failed:" >&2
-		grep -aE '(FAIL|Error:|panic:|^---)|^\s+' "$COVEROUTPUT" | tail -20 >&2
-		failed=1
+	# Display formatted coverage output
+	format_coverage_output "$COVERSTDOUT" "$MODULE_NAME"
+else
+	exit_code=$?
+	echo "Tests failed for $MODULE_NAME" >&2
+	# Show failed test output
+	if [ -s "$COVERSTDOUT" ]; then
+		grep -E '(FAIL|Error:|panic:|^---)|^\s+' "$COVERSTDOUT" | tail -20 >&2
 	fi
-
-	n=$((n + 1))
-done < "$INDEX"
-
-# Merge coverage files
-echo
-echo "Generating coverage.out..."
-set -- "$COVERAGE_DIR"/coverage_*.prof
-
-if [ ! -f "${1:-}" ]; then
-	echo "No coverage files found" >&2
-	exit 1
-fi
-
-# Simple merge: header from first file, then all data lines
-head -1 "$1" > "$COVERAGE_DIR/coverage.out"
-for f; do
-	tail -n +2 "$f" >> "$COVERAGE_DIR/coverage.out"
-done
-
-# Optional: generate HTML report
-if [ "${COVERAGE_HTML:-}" = "true" ]; then
-	echo
-	echo "Generating HTML coverage report..."
-	${GO:-go} tool cover -html="$COVERAGE_DIR/coverage.out" -o "$COVERAGE_DIR/coverage.html"
-	echo "HTML report saved to $COVERAGE_DIR/coverage.html"
-fi
-
-# Exit with failure if any tests failed
-if [ "$failed" -ne 0 ]; then
-	echo "Some tests failed" >&2
-	exit 1
+	exit $exit_code
 fi
