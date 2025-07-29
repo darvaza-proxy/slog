@@ -9,7 +9,7 @@ consistent and coordinated releases.
 ### Release Order
 
 1. **Main module**: slog (core interface)
-2. **Handler modules**: cblog, discard, filter, logrus, zap, zerolog
+2. **Handler modules**: cblog, discard, filter, logr, logrus, zap, zerolog
 
 ### Essential Commands
 
@@ -41,6 +41,7 @@ The repository contains:
   - `darvaza.org/slog/handlers/cblog`: Channel-based logger
   - `darvaza.org/slog/handlers/discard`: No-op logger
   - `darvaza.org/slog/handlers/filter`: Filtering middleware
+  - `darvaza.org/slog/handlers/logr`: logr adapter
   - `darvaza.org/slog/handlers/logrus`: Logrus adapter
   - `darvaza.org/slog/handlers/zap`: `zap` adapter
   - `darvaza.org/slog/handlers/zerolog`: Zerolog adapter
@@ -85,7 +86,7 @@ Before starting the release process:
    - Breaking changes (if any)
 
    Dependencies:
-   - darvaza.org/core v0.17.1
+   - darvaza.org/core v0.17.4
    - Go 1.23 or later"
    ```
 
@@ -103,7 +104,7 @@ Before starting the release process:
 
    ```bash
    # Update handlers to use the new slog version
-   for handler in cblog discard filter logrus zap zerolog; do
+   for handler in cblog discard filter logr logrus zap zerolog; do
      go -C handlers/$handler get darvaza.org/slog@v0.7.0
      go -C handlers/$handler mod tidy
    done
@@ -357,15 +358,16 @@ For future automation:
 
 As of July 2025:
 
-- **slog**: v0.7.0 (Go 1.23 required)
-- **handlers/cblog**: v0.7.0
-- **handlers/discard**: v0.6.0
-- **handlers/filter**: v0.6.0
-- **handlers/logrus**: v0.7.0
-- **handlers/zap**: v0.6.0
-- **handlers/zerolog**: v0.6.0
+- **slog**: v0.7.4 (Go 1.23 required)
+- **handlers/cblog**: v0.8.0
+- **handlers/discard**: v0.6.1
+- **handlers/filter**: v0.6.1
+- **handlers/logr**: v0.7.1
+- **handlers/logrus**: v0.7.1
+- **handlers/zap**: v0.7.0
+- **handlers/zerolog**: v0.6.1
 
-All modules require Go 1.23 or later and use darvaza.org/core v0.17.1.
+All modules require Go 1.23 or later and use darvaza.org/core v0.17.4.
 
 ## See Also
 
