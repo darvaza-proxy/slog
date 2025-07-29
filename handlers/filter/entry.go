@@ -63,8 +63,8 @@ func (l *LogEntry) Printf(format string, args ...any) {
 	}
 }
 
-// msg applies MessageFilter before sending the message to
-// the parent Logger
+// msg applies MessageFilter and FieldFilter before sending the message to
+// the parent Logger. This is where all field filtering happens with complete context.
 func (l *LogEntry) msg(msg string) {
 	if fn := l.logger.MessageFilter; fn != nil {
 		var ok bool
@@ -87,7 +87,76 @@ func (l *LogEntry) msg(msg string) {
 		os.Exit(1)
 	}
 
-	l.entry.Print(msg)
+	// Apply field filtering with complete context at print time
+	entry := l.applyFieldFiltersAtPrintTime(l.entry)
+	entry.Print(msg)
+}
+
+// applyFieldFiltersAtPrintTime collects all fields from the logger chain
+// and applies field filters with complete context before forwarding to parent
+func (l *LogEntry) applyFieldFiltersAtPrintTime(entry slog.Logger) slog.Logger {
+	allFields := l.collectAllFields()
+	if len(allFields) == 0 {
+		return entry
+	}
+
+	return l.processFields(entry, allFields)
+}
+
+// collectAllFields gathers all fields from the complete logger chain
+func (l *LogEntry) collectAllFields() map[string]any {
+	count := l.FieldsCount()
+	if count == 0 {
+		return nil
+	}
+
+	fields := make(map[string]any, count)
+	iter := l.Loglet.Fields()
+	for iter.Next() {
+		k, v := iter.Field()
+		if k != "" {
+			fields[k] = v
+		}
+	}
+	return fields
+}
+
+// processFields applies field filters/overrides and forwards to parent
+func (l *LogEntry) processFields(entry slog.Logger, allFields map[string]any) slog.Logger {
+	// FieldsOverride intercepts all fields at once
+	if fn := l.logger.FieldsOverride; fn != nil {
+		fn(entry, allFields)
+		return entry
+	}
+
+	// FieldOverride processes each field individually
+	if fn := l.logger.FieldOverride; fn != nil {
+		for _, key := range core.SortedKeys(allFields) {
+			fn(entry, key, allFields[key])
+		}
+		return entry
+	}
+
+	// FieldFilter modifies fields before forwarding
+	if fn := l.logger.FieldFilter; fn != nil {
+		allFields = applyFieldFilter(allFields, fn)
+	}
+
+	return entry.WithFields(allFields)
+}
+
+// applyFieldFilter applies the FieldFilter function to all fields
+func applyFieldFilter(
+	fields map[string]any,
+	filter func(string, any) (string, any, bool),
+) map[string]any {
+	filtered := make(map[string]any, len(fields))
+	for key, value := range fields {
+		if newKey, newValue, ok := filter(key, value); ok && newKey != "" {
+			filtered[newKey] = newValue
+		}
+	}
+	return filtered
 }
 
 // Debug creates a new filtered logger on level slog.Debug
@@ -150,37 +219,11 @@ func (l *LogEntry) WithField(label string, value any) slog.Logger {
 		}
 
 		if l.Enabled() && l.entry != nil {
-			out.addField(label, value)
+			out.entry = l.entry
 		}
 		return out
 	}
 	return l
-}
-
-func (l *LogEntry) addField(label string, value any) {
-	if fn := l.logger.FieldOverride; fn != nil {
-		// intercepted
-		fn(l.entry, label, value)
-		return
-	}
-
-	if fn := l.logger.FieldsOverride; fn != nil {
-		// intercepted
-		fn(l.entry, slog.Fields{label: value})
-		return
-	}
-
-	if fn := l.logger.FieldFilter; fn != nil {
-		// modified
-		var ok bool
-		label, value, ok = fn(label, value)
-
-		if !ok {
-			return
-		}
-	}
-
-	l.entry = l.entry.WithField(label, value)
 }
 
 // WithFields would, if conditions are met, attach fields to the log entry.
@@ -194,44 +237,9 @@ func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
 		}
 
 		if l.Enabled() && l.entry != nil {
-			out.addFields(fields)
+			out.entry = l.entry
 		}
 		return out
 	}
 	return l
-}
-
-func (l *LogEntry) addFields(fields map[string]any) {
-	if fn := l.logger.FieldsOverride; fn != nil {
-		// intercepted
-		fn(l.entry, fields)
-		return
-	}
-
-	if fn := l.logger.FieldOverride; fn != nil {
-		// intercepted
-		for _, key := range core.SortedKeys(fields) {
-			fn(l.entry, key, fields[key])
-		}
-		return
-	}
-
-	if fn := l.logger.FieldFilter; fn != nil {
-		// modified
-		fields = modifyFields(fields, fn)
-	}
-
-	l.entry = l.entry.WithFields(fields)
-}
-
-func modifyFields(fields map[string]any, fn func(string, any) (string, any, bool)) map[string]any {
-	m := make(map[string]any, len(fields))
-
-	for k, v := range fields {
-		if k, v, ok := fn(k, v); ok {
-			m[k] = v
-		}
-	}
-
-	return m
 }
