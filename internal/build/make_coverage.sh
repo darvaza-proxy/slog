@@ -27,7 +27,7 @@ COVERAGE_DIR="${3:?Coverage directory required}"
 format_coverage_output() {
 	local stdout_file="$1"
 	local module_name="$2"
-	
+
 	if [ -s "$stdout_file" ]; then
 		# Extract coverage percentage and format with module name
 		grep -E 'coverage: [0-9.]+%' "$stdout_file" | tail -1 | \
@@ -70,7 +70,7 @@ else
 	echo "Tests failed for $MODULE_NAME" >&2
 	# Show failed test output
 	if [ -s "$COVERSTDOUT" ]; then
-		grep -E '(FAIL|Error:|panic:|^---)|^\s+' "$COVERSTDOUT" | tail -20 >&2
+		grep -aE '(FAIL|Error:|panic:|^---)|^[[:space:]]+' "$COVERSTDOUT" | tail -20 >&2
 	fi
 	exit $exit_code
 fi

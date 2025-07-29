@@ -248,14 +248,6 @@ clean-coverage: ; $(info $(M) cleaning coverage data…)
 
 # Merge all coverage profiles into a single file
 $(COVERAGE_DIR)/coverage.out: | coverage ; $(info $(M) merging coverage profiles…)
-	$Q if ls $(COVERAGE_DIR)/coverage_*.prof >/dev/null 2>&1; then \
-		head -1 $(COVERAGE_DIR)/coverage_*.prof | head -1 > $@~; \
-		for f in $(COVERAGE_DIR)/coverage_*.prof; do \
-			tail -n +2 "$$f" >> $@~; \
-		done; \
-		mv $@~ $@; \
-	else \
-		echo "No coverage profiles found" >&2; \
-		exit 1; \
-	fi
+	$Q $(TOOLSDIR)/merge_coverage.sh $(COVERAGE_DIR)/coverage_*.prof > $@~
+	$Q mv $@~ $@
 EOT
