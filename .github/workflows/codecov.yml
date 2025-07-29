@@ -1,4 +1,4 @@
-name: Test and Coverage
+name: Codecov
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
         cache: true
 
     - name: Run tests with coverage
-      run: make codecov GOTEST_FLAGS="-covermode=atomic"
+      run: make clean-coverage codecov
 
     - name: Upload coverage to Codecov
       run: |

@@ -6,7 +6,7 @@ set -eu
 INDEX="$1"
 
 PROJECTS="$(cut -d':' -f1 "$INDEX")"
-COMMANDS="tidy get build test up"
+COMMANDS="tidy get build test coverage up"
 
 TAB=$(printf "\t")
 
@@ -136,13 +136,17 @@ gen_make_targets() {
 	test)
 		call="\$(GO) $cmd \$(GOTEST_FLAGS) ./..."
 		;;
+	coverage)
+		call="\$(TOOLSDIR)/make_coverage.sh \"$name\" \".\" \"\$(COVERAGE_DIR)\""
+		depsx="\$(COVERAGE_DIR)"
+		;;
 	*)
 		call="\$(GO) $cmd -v ./..."
 		;;
 	esac
 
 	case "$cmd" in
-	build|test)
+	build|test|coverage)
 		sequential=true ;;
 	*)
 		sequential=false ;;
@@ -231,3 +235,19 @@ for x in $PROJECTS; do
 $x: $(suffixed "$x" get build tidy)
 EOT
 done
+
+# Add coverage-related rules
+cat <<'EOT'
+
+$(COVERAGE_DIR):
+	$Q mkdir -p $@
+
+.PHONY: clean-coverage
+clean-coverage: ; $(info $(M) cleaning coverage data…)
+	$Q rm -rf $(COVERAGE_DIR)
+
+# Merge all coverage profiles into a single file
+$(COVERAGE_DIR)/coverage.out: | coverage ; $(info $(M) merging coverage profiles…)
+	$Q $(TOOLSDIR)/merge_coverage.sh $(COVERAGE_DIR)/coverage_*.prof > $@~
+	$Q mv $@~ $@
+EOT
