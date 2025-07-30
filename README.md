@@ -279,7 +279,35 @@ These handlers provide additional functionality without external dependencies:
 - **[`cblog`](https://pkg.go.dev/darvaza.org/slog/handlers/cblog)**:
   Channel-based handler for custom log processing.
 - **[`filter`](https://pkg.go.dev/darvaza.org/slog/handlers/filter)**:
-  Middleware to filter and transform log entries.
+  Powerful middleware for level-based filtering, field transformation, and
+  conditional log entry processing. Wraps any slog.Logger to provide complete
+  control over log output with access to full field context at print time.
+
+  ```go
+  import (
+      "strings"
+
+      "darvaza.org/slog/handlers/filter"
+  )
+
+  // Basic level filtering
+  filtered := filter.New(baseLogger, slog.Info)
+
+  // Advanced filtering with field transformation
+  filterLogger := &filter.Logger{
+      Parent:    baseLogger,
+      Threshold: slog.Debug,
+      FieldFilter: func(key string, val any) (string, any, bool) {
+          // Transform field keys with prefix
+          return "app_" + key, val, true
+      },
+      MessageFilter: func(msg string) (string, bool) {
+          // Conditionally suppress entries
+          return msg, !strings.Contains(msg, "/health")
+      },
+  }
+  ```
+
 - **[`mock`](https://pkg.go.dev/darvaza.org/slog/handlers/mock)**:
   Mock logger implementation that records messages for testing and verification.
   Provides a fully functional slog.Logger that captures all log entries with
