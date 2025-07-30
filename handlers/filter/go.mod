@@ -5,7 +5,7 @@ go 1.23.0
 replace darvaza.org/slog => ../../
 
 require (
-	darvaza.org/core v0.17.4
+	darvaza.org/core v0.17.5
 	darvaza.org/slog v0.7.5
 )
 
