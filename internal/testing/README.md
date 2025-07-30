@@ -4,12 +4,17 @@ This package provides shared test utilities for testing slog handler
 implementations. It helps reduce code duplication and ensures consistent testing
 patterns across all handlers.
 
+> **Note**: The `Logger` and `Recorder` types are now available as a public API
+> in [`darvaza.org/slog/handlers/mock`](../../../handlers/mock/README.md).
+> While this package maintains backward compatibility aliases, new code should
+> import the public package directly.
+
 ## Overview
 
 The testing package includes:
 
 - **Test Logger** - A logger implementation that records messages for
-  verification
+  verification (now available publicly in `handlers/mock`)
 - **Assertion Helpers** - Functions to verify message properties and fields
 - **Standalone Test Functions** - Reusable tests for common interface methods
 - **Compliance Test Suite** - Comprehensive tests for slog.Logger
@@ -25,6 +30,38 @@ The testing package includes:
 
 ### Basic Testing with Test Logger
 
+**Preferred approach using public API:**
+
+```go
+import (
+    "testing"
+    "darvaza.org/slog"
+    "darvaza.org/slog/handlers/mock"
+    slogtest "darvaza.org/slog/internal/testing"
+)
+
+func TestMyHandler(t *testing.T) {
+    // Create a test logger that records messages
+    recorder := mock.NewLogger()
+
+    // Use it with your handler
+    handler := myhandler.New(recorder)
+
+    // Perform logging operations
+    handler.Info().
+        WithField("user", "john").
+        Print("User action")
+
+    // Verify the results
+    msgs := recorder.GetMessages()
+    slogtest.AssertMessageCount(t, msgs, 1)
+    slogtest.AssertMessage(t, msgs[0], slog.Info, "User action")
+    slogtest.AssertField(t, msgs[0], "user", "john")
+}
+```
+
+**Backward-compatible approach:**
+
 ```go
 import (
     "testing"
@@ -33,7 +70,7 @@ import (
 )
 
 func TestMyHandler(t *testing.T) {
-    // Create a test logger that records messages
+    // Create a test logger that records messages (using deprecated alias)
     recorder := slogtest.NewLogger()
 
     // Use it with your handler
@@ -227,10 +264,25 @@ func TestAdapterWithLevelFiltering(t *testing.T) {
 
 ### Test Logger
 
-- `NewLogger() *Logger` - Creates a new test logger
-- `GetMessages() []Message` - Returns all recorded messages
-- `Clear()` - Clears all recorded messages
+> **Migration Note**: These types and functions are now available in the public
+> [`handlers/mock`](../../../handlers/mock/) package. The aliases below are
+> maintained for backward compatibility:
+
+- `NewLogger() *Logger` - Creates a new test logger (alias for `mock.NewLogger`)
+- `NewRecorder() *Recorder` - Creates a new message recorder (alias for
+  `mock.NewRecorder`)
+- `Message` - Alias for `mock.Message`
+- `Recorder` - Alias for `mock.Recorder`
+- `Logger` - Alias for `mock.Logger`
+
+**Available methods on Logger and Recorder:**
+
+- `Logger.GetMessages() []Message` - Returns all recorded messages
+- `Logger.Clear()` - Clears all recorded messages
 - `Message.String() string` - Returns formatted string representation
+- `Recorder.Record(msg Message)` - Stores a message
+- `Recorder.GetMessages() []Message` - Returns all recorded messages
+- `Recorder.Clear()` - Removes all stored messages
 
 ### Assertions
 
@@ -381,3 +433,39 @@ This design allows code reuse while maintaining type safety and clear intent.
 
 See `example_test.go` for complete examples of using these utilities in your
 handler tests.
+
+## Migration to Public API
+
+The `Logger`, `Recorder`, and `Message` types are now available as a public API
+in `darvaza.org/slog/handlers/mock`. To migrate your code:
+
+1. **Update imports**: Replace `slogtest.NewLogger()` with `mock.NewLogger()`:
+
+   ```go
+   // Old
+   import slogtest "darvaza.org/slog/internal/testing"
+   logger := slogtest.NewLogger()
+
+   // New
+   import "darvaza.org/slog/handlers/mock"
+   logger := mock.NewLogger()
+   ```
+
+2. **Type references**: Update type assertions and variable declarations:
+
+   ```go
+   // Old
+   var logger *slogtest.Logger
+   if tl, ok := logger.(*slogtest.Logger); ok { ... }
+
+   // New
+   var logger *mock.Logger
+   if tl, ok := logger.(*mock.Logger); ok { ... }
+   ```
+
+3. **Continue using assertion helpers**: The assertion functions
+   (`AssertMessage`, `AssertField`, etc.) remain in this package as they are
+   testing utilities rather than logger implementations.
+
+The backward compatibility aliases will be maintained to ensure existing code
+continues to work without modification.
