@@ -268,8 +268,3 @@ func TestWithStack(t *testing.T, logger slog.Logger) {
 		}
 	}
 }
-
-// Clear clears the recorder if the logger supports it.
-func (l *Logger) Clear() {
-	l.recorder.Clear()
-}

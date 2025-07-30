@@ -280,6 +280,37 @@ These handlers provide additional functionality without external dependencies:
   Channel-based handler for custom log processing.
 - **[`filter`](https://pkg.go.dev/darvaza.org/slog/handlers/filter)**:
   Middleware to filter and transform log entries.
+- **[`mock`](https://pkg.go.dev/darvaza.org/slog/handlers/mock)**:
+  Mock logger implementation that records messages for testing and verification.
+  Provides a fully functional slog.Logger that captures all log entries with
+  their levels, messages, and fields for programmatic inspection.
+
+  ```go
+  import (
+      "testing"
+
+      "darvaza.org/slog/handlers/mock"
+  )
+
+  func TestMyCode(t *testing.T) {
+      logger := mock.NewLogger()
+
+      // Use logger in your code
+      myFunction(logger)
+
+      // Verify what was logged
+      messages := logger.GetMessages()
+      if len(messages) != 1 {
+          t.Fatalf("expected 1 message, got %d", len(messages))
+      }
+
+      msg := messages[0]
+      if msg.Level != slog.Info || msg.Message != "expected message" {
+          t.Errorf("unexpected log entry: %v", msg)
+      }
+  }
+  ```
+
 - **[`discard`](https://pkg.go.dev/darvaza.org/slog/handlers/discard)**:
   No-op handler for testing and optional logging.
 
