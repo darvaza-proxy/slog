@@ -181,9 +181,28 @@ func TestLoggerWithFieldEmptyKey(t *testing.T) {
 	logger1 := logger.WithField("", "value")
 	logger2 := logger.WithField("key", "value")
 
-	if logger1 != logger {
-		t.Error("WithField with empty key should return same logger instance")
+	// Empty keys are filtered out by internal.Loglet, so logger1 should be functionally
+	// equivalent to logger but may be a different instance
+	logger1.Info().Print("test message 1")
+	logger2.Info().Print("test message 2")
+
+	messages := logger.GetMessages()
+
+	// Should have 2 messages, one from logger1 (no extra empty field) and one from logger2 (with field)
+	if len(messages) != 2 {
+		t.Errorf("Expected 2 messages, got %d", len(messages))
 	}
+
+	// First message should have no fields (empty key filtered out)
+	if len(messages[0].Fields) != 0 {
+		t.Errorf("Expected no fields in first message, got %v", messages[0].Fields)
+	}
+
+	// Second message should have the "key" field
+	if len(messages[1].Fields) != 1 || messages[1].Fields["key"] != "value" {
+		t.Errorf("Expected one field 'key'='value' in second message, got %v", messages[1].Fields)
+	}
+
 	if logger2 == logger {
 		t.Error("WithField with valid key should return new logger instance")
 	}
@@ -305,7 +324,7 @@ type fieldCopyingTest struct {
 func (tc fieldCopyingTest) test(t *testing.T) {
 	logger := tc.setupLogger()
 
-	// Test that field copying works through WithLevel (which calls copyFields)
+	// Test that fields are preserved through WithLevel
 	loggerWithLevel := logger.WithLevel(slog.Info)
 	if loggerWithLevel == nil {
 		t.Error("expected non-nil logger")

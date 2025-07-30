@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 // Message represents a recorded log message for testing.
@@ -85,11 +86,10 @@ func (r *Recorder) Clear() {
 
 // Logger implements slog.Logger for testing purposes.
 type Logger struct {
+	internal.Loglet
+
 	recorder *Recorder
 	enabled  bool
-	level    slog.LogLevel
-	fields   map[string]any
-	stack    bool
 }
 
 // NewLogger creates a new test logger with a recorder.
@@ -97,7 +97,6 @@ func NewLogger() *Logger {
 	return &Logger{
 		recorder: NewRecorder(),
 		enabled:  true,
-		fields:   make(map[string]any),
 	}
 }
 
@@ -158,17 +157,19 @@ func (l *Logger) Printf(format string, args ...any) {
 }
 
 func (l *Logger) record(msg string) {
-	// Copy fields to avoid mutations
+	// Collect all fields from the loglet chain
 	fields := make(map[string]any)
-	for k, v := range l.fields {
+	iter := l.Fields()
+	for iter.Next() {
+		k, v := iter.Field()
 		fields[k] = v
 	}
 
 	l.recorder.Record(Message{
 		Message: msg,
-		Level:   l.level,
+		Level:   l.Level(),
 		Fields:  fields,
-		Stack:   l.stack,
+		Stack:   l.CallStack() != nil,
 	})
 }
 
@@ -225,28 +226,15 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if l == nil {
 		return nil
 	}
-	return &Logger{
-		recorder: l.recorder,
-		enabled:  l.enabled,
-		level:    level,
-		fields:   l.copyFields(),
-		stack:    l.stack,
-	}
+	return l.withLoglet(l.Loglet.WithLevel(level))
 }
 
 // WithStack implements slog.Logger.
-// Note: The skip parameter is ignored in this test implementation.
-func (l *Logger) WithStack(_ int) slog.Logger {
+func (l *Logger) WithStack(skip int) slog.Logger {
 	if l == nil {
 		return nil
 	}
-	return &Logger{
-		recorder: l.recorder,
-		enabled:  l.enabled,
-		level:    l.level,
-		fields:   l.copyFields(),
-		stack:    true,
-	}
+	return l.withLoglet(l.Loglet.WithStack(skip + 1))
 }
 
 // WithField implements slog.Logger.
@@ -257,15 +245,7 @@ func (l *Logger) WithField(label string, value any) slog.Logger {
 	if label == "" {
 		return l
 	}
-	newFields := l.copyFields()
-	newFields[label] = value
-	return &Logger{
-		recorder: l.recorder,
-		enabled:  l.enabled,
-		level:    l.level,
-		fields:   newFields,
-		stack:    l.stack,
-	}
+	return l.withLoglet(l.Loglet.WithField(label, value))
 }
 
 // WithFields implements slog.Logger.
@@ -273,31 +253,17 @@ func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 	if l == nil {
 		return nil
 	}
-	if len(fields) == 0 {
+	if !internal.HasFields(fields) {
 		return l
 	}
-	newFields := l.copyFields()
-	for k, v := range fields {
-		if k != "" {
-			newFields[k] = v
-		}
-	}
-	return &Logger{
-		recorder: l.recorder,
-		enabled:  l.enabled,
-		level:    l.level,
-		fields:   newFields,
-		stack:    l.stack,
-	}
+	return l.withLoglet(l.Loglet.WithFields(fields))
 }
 
-func (l *Logger) copyFields() map[string]any {
-	if l == nil {
-		return make(map[string]any)
+// withLoglet creates a new Logger with the given loglet.
+func (l *Logger) withLoglet(loglet internal.Loglet) *Logger {
+	return &Logger{
+		Loglet:   loglet,
+		recorder: l.recorder,
+		enabled:  l.enabled,
 	}
-	newFields := make(map[string]any)
-	for k, v := range l.fields {
-		newFields[k] = v
-	}
-	return newFields
 }
