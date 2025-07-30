@@ -40,8 +40,6 @@ go get darvaza.org/slog
 package main
 
 import (
-    "errors"
-
     "darvaza.org/slog"
     "darvaza.org/slog/handlers/discard"
 )
@@ -271,8 +269,8 @@ library:
 These handlers only allow using the external logging library as a backend for
 slog. They wrap existing loggers but don't provide the reverse conversion:
 
-- **[`logrus`](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)**:
-  Wraps Sirupsen/logrus as a slog backend.
+- **[`zerolog`](https://pkg.go.dev/darvaza.org/slog/handlers/zerolog)**:
+  Wraps rs/zerolog as a slog backend.
 
 ### Utility Handlers
 

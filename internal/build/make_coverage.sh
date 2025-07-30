@@ -4,7 +4,7 @@
 # make_coverage.sh - Execute coverage tests for a single module
 #
 # This script runs Go tests with coverage for a single module and generates
-# coverage profile (.prof), function coverage (.funcs), and HTML report (.html).
+# coverage profile (.prof), function coverage (.func), and HTML report (.html).
 #
 # Usage: make_coverage.sh <module_name> <module_dir> <coverage_dir>
 #
@@ -43,7 +43,7 @@ COVERAGE_DIR=$(cd "$COVERAGE_DIR" && pwd)
 
 # Output files
 COVERPROFILE="$COVERAGE_DIR/coverage_${MODULE_NAME}.prof"
-COVERFUNCS="$COVERAGE_DIR/coverage_${MODULE_NAME}.funcs"
+COVERFUNC="$COVERAGE_DIR/coverage_${MODULE_NAME}.func"
 COVERHTML="$COVERAGE_DIR/coverage_${MODULE_NAME}.html"
 COVERSTDOUT="$COVERAGE_DIR/coverage_${MODULE_NAME}.stdout"
 
@@ -58,7 +58,7 @@ set -- ${GOTEST_FLAGS:-} \
 # Note: The makefile already cd's into the module directory before calling this script
 if ${GO:-go} test "$@" > "$COVERSTDOUT" 2>&1; then
 	# Generate function coverage report
-	${GO:-go} -C "$MODULE_DIR" tool cover -func="$COVERPROFILE" > "$COVERFUNCS" 2>/dev/null || true
+	${GO:-go} -C "$MODULE_DIR" tool cover -func="$COVERPROFILE" > "$COVERFUNC" 2>/dev/null || true
 
 	# Generate HTML coverage report
 	${GO:-go} -C "$MODULE_DIR" tool cover -html="$COVERPROFILE" -o "$COVERHTML" 2>/dev/null || true

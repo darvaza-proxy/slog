@@ -123,13 +123,18 @@ Shell script analysis for all `.sh` files:
 
 Automated coverage reporting across all modules:
 
-- New `coverage` target runs tests with coverage profiling.
+- Individual `coverage-*` targets for each module (coverage-root,
+  coverage-cblog, etc.).
 - Uses `internal/build/make_coverage.sh` to orchestrate testing.
-- Tests each module independently via generated `test-*` targets.
-- Merges coverage profiles automatically (supports gocovmerge).
-- Stores results in `.coverage/` directory.
+- Tests each module independently with atomic coverage mode.
+- Generates multiple output formats per module:
+  - `coverage_${name}.prof`: Coverage profile for tools
+  - `coverage_${name}.func`: Function-level coverage summary
+  - `coverage_${name}.html`: Interactive HTML coverage report
+  - `coverage_${name}.stdout`: Console coverage output
+- Uses `merge_coverage.sh` helper for proper profile merging.
+- Stores results in `.tmp/coverage/` directory.
 - Displays coverage summary after test runs.
-- Optional HTML report generation with `COVERAGE_HTML=true`.
 
 ### CI/CD Workflow Separation
 
