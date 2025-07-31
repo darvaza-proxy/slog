@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"reflect"
 	"testing"
 
 	"darvaza.org/core"
@@ -106,6 +107,7 @@ func TestLogletFields(t *testing.T) {
 	t.Run("WithFields", testLogletWithFields)
 	t.Run("FieldsCount", testLogletFieldsCount)
 	t.Run("EmptyKey", testLogletEmptyKey)
+	t.Run("FieldsMap", testLogletFieldsMap)
 }
 
 func testLogletWithField(t *testing.T) {
@@ -572,4 +574,230 @@ func testWithFieldsNonZeroLogletParent(t *testing.T) {
 
 	// Should set parent for non-zero loglet
 	core.AssertEqual(t, 1, newLoglet.FieldsCount(), "non-zero loglet parent field count")
+}
+
+func testLogletFieldsMap(t *testing.T) {
+	t.Run("NilLoglet", testFieldsMapNil)
+	t.Run("EmptyLoglet", testFieldsMapEmpty)
+	t.Run("SingleField", testFieldsMapSingle)
+	t.Run("MultipleFields", testFieldsMapMultiple)
+	t.Run("ChainedFields", testFieldsMapChained)
+	t.Run("FieldOverride", testFieldsMapOverride)
+	t.Run("Caching", testFieldsMapCaching)
+	t.Run("ImmutableCache", testFieldsMapImmutableCache)
+	t.Run("SharedMapWarning", testFieldsMapSharedWarning)
+}
+
+func testFieldsMapNil(t *testing.T) {
+	var loglet *Loglet
+	fields := loglet.FieldsMap()
+	if fields != nil {
+		t.Error("nil loglet should return nil FieldsMap")
+	}
+}
+
+func testFieldsMapEmpty(t *testing.T) {
+	var loglet Loglet
+	fields := loglet.FieldsMap()
+	if fields == nil || len(fields) != 0 {
+		t.Errorf("empty loglet should return empty map, got %v", fields)
+	}
+}
+
+func testFieldsMapSingle(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", "value")
+
+	fields := loglet1.FieldsMap()
+	if fields == nil {
+		t.Fatal("single field loglet should return non-nil FieldsMap")
+	}
+
+	if len(fields) != 1 {
+		t.Errorf("expected 1 field, got %d", len(fields))
+	}
+
+	if fields["key"] != "value" {
+		t.Errorf("expected value 'value', got %v", fields["key"])
+	}
+}
+
+func testFieldsMapMultiple(t *testing.T) {
+	var loglet Loglet
+	inputFields := map[string]any{
+		"key1": "value1",
+		"key2": 42,
+		"key3": true,
+	}
+
+	loglet1 := loglet.WithFields(inputFields)
+	fields := loglet1.FieldsMap()
+
+	if fields == nil {
+		t.Fatal("multi-field loglet should return non-nil FieldsMap")
+	}
+
+	if len(fields) != len(inputFields) {
+		t.Errorf("expected %d fields, got %d", len(inputFields), len(fields))
+	}
+
+	for k, v := range inputFields {
+		if fields[k] != v {
+			t.Errorf("field %q: expected %v, got %v", k, v, fields[k])
+		}
+	}
+}
+
+func testFieldsMapChained(t *testing.T) {
+	var loglet Loglet
+
+	// Create chain of loglets using proper chaining
+	loglet1 := loglet.WithField("root", "rootValue")
+	loglet2 := loglet1.WithField("child", "childValue")
+	loglet3 := loglet2.WithFields(map[string]any{
+		"grand": "grandValue",
+		"leaf":  "leafValue",
+	})
+
+	fields := loglet3.FieldsMap()
+	if fields == nil {
+		t.Fatal("chained loglet should return non-nil FieldsMap")
+	}
+
+	expected := map[string]any{
+		"root":  "rootValue",
+		"child": "childValue",
+		"grand": "grandValue",
+		"leaf":  "leafValue",
+	}
+
+	if len(fields) != len(expected) {
+		t.Errorf("expected %d fields, got %d", len(expected), len(fields))
+	}
+
+	for k, v := range expected {
+		if fields[k] != v {
+			t.Errorf("field %q: expected %v, got %v", k, v, fields[k])
+		}
+	}
+}
+
+func testFieldsMapOverride(t *testing.T) {
+	var loglet Loglet
+
+	// Create chain where child overrides parent field
+	loglet1 := loglet.WithField("key", "parentValue")
+	loglet2 := loglet1.WithField("key", "childValue") // Same key
+
+	fields := loglet2.FieldsMap()
+	if fields == nil {
+		t.Fatal("override loglet should return non-nil FieldsMap")
+	}
+
+	// Child value should override parent value
+	if fields["key"] != "childValue" {
+		t.Errorf("expected child value 'childValue', got %v", fields["key"])
+	}
+
+	if len(fields) != 1 {
+		t.Errorf("expected 1 field after override, got %d", len(fields))
+	}
+}
+
+func testFieldsMapCaching(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", "value")
+
+	// First call should build the cache
+	fields1 := loglet1.FieldsMap()
+	if fields1 == nil {
+		t.Fatal("first call should return non-nil FieldsMap")
+	}
+
+	// Second call should return same cached map
+	fields2 := loglet1.FieldsMap()
+	if fields2 == nil {
+		t.Fatal("second call should return non-nil FieldsMap")
+	}
+
+	// Should be the same map instance (cached)
+	// Compare map pointers using reflection
+	ptr1 := reflect.ValueOf(fields1).Pointer()
+	ptr2 := reflect.ValueOf(fields2).Pointer()
+	if ptr1 != ptr2 {
+		t.Error("cached calls should return same map instance")
+	}
+}
+
+func testFieldsMapImmutableCache(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("original", "value")
+
+	// Cache the fields map
+	fields1 := loglet1.FieldsMap()
+	if fields1 == nil {
+		t.Fatal("should return non-nil FieldsMap")
+	}
+
+	// Create new loglet with additional field - should not have cache
+	loglet2 := loglet1.WithField("additional", "value2")
+	fields2 := loglet2.FieldsMap()
+
+	if fields2 == nil {
+		t.Fatal("new loglet should return non-nil FieldsMap")
+	}
+
+	// New loglet should have both fields
+	if len(fields2) != 2 {
+		t.Errorf("new loglet should have 2 fields, got %d", len(fields2))
+	}
+
+	// Original loglet should still have cached single field
+	if len(fields1) != 1 {
+		t.Errorf("original loglet should still have 1 field, got %d", len(fields1))
+	}
+
+	// Different map instances
+	ptr1 := reflect.ValueOf(fields1).Pointer()
+	ptr2 := reflect.ValueOf(fields2).Pointer()
+	if ptr1 == ptr2 {
+		t.Error("different loglets should have different map instances")
+	}
+}
+
+func testFieldsMapSharedWarning(t *testing.T) {
+	// Test that demonstrates why the returned map should not be modified
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", "original")
+
+	// Get the cached map
+	fields1 := loglet1.FieldsMap()
+	if fields1 == nil {
+		t.Fatal("should return non-nil FieldsMap")
+	}
+
+	if fields1["key"] != "original" {
+		t.Errorf("expected 'original', got %v", fields1["key"])
+	}
+
+	// Get the map again (should be same cached instance)
+	fields2 := loglet1.FieldsMap()
+	ptr1 := reflect.ValueOf(fields1).Pointer()
+	ptr2 := reflect.ValueOf(fields2).Pointer()
+	if ptr1 != ptr2 {
+		t.Error("should return same cached map instance")
+	}
+
+	// This demonstrates why modifying the map would be dangerous:
+	// If we modified fields1["key"] = "modified", it would affect
+	// all future calls to FieldsMap() on this loglet instance,
+	// breaking the immutable contract.
+	//
+	// Instead, handlers that need to modify fields should build their own copy:
+	// modifiableFields := make(map[string]any)
+	// iter := loglet.Fields()
+	// for iter.Next() {
+	//     k, v := iter.Field()
+	//     modifiableFields[k] = transformValue(v)  // safe to modify
+	// }
 }
