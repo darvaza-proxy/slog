@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"maps"
+
 	"darvaza.org/core"
 	"darvaza.org/slog"
 )
@@ -188,8 +190,7 @@ func (ll *Loglet) Fields() (iter *FieldsIterator) {
 // otherwise returns an empty map for loglets with no fields.
 //
 // WARNING: The returned map is shared and MUST NOT be modified.
-// If you need to modify fields, use the Fields() iterator instead
-// to build your own map copy.
+// If you need to modify fields, use FieldsMapCopy() instead.
 //
 // Note: The returned map is immutable by design for performance reasons.
 // Any attempt to modify it may cause undefined behaviour in concurrent
@@ -200,34 +201,111 @@ func (ll *Loglet) FieldsMap() map[string]any {
 	}
 
 	if ll.fieldsMap == nil {
-		// If we have fields, build the map
-		if len(ll.keys) > 0 {
-			count := ll.FieldsCount()
-			fields := make(map[string]any, count)
-			ll.populateFieldMap(fields)
-			ll.fieldsMap = fields
-		} else if parent := ll.GetParent(); parent != nil {
-			// Pass to parent if we have no fields but have a parent
-			return parent.FieldsMap()
-		} else {
-			// Return empty map if no fields and no parent
-			ll.fieldsMap = make(map[string]any)
-		}
+		ll.fieldsMap = ll.buildFieldsMap()
 	}
 
 	return ll.fieldsMap
 }
 
-func (ll *Loglet) populateFieldMap(fields map[string]any) {
-	iter := ll.Fields()
-	for iter.Next() {
-		key, value := iter.Field()
+// FieldsMapCopy returns a modifiable copy of the fields map with optional
+// excess capacity. Unlike FieldsMap(), this always returns a new map that
+// can be safely modified without affecting the original loglet.
+//
+// The excess parameter specifies additional capacity beyond the current
+// field count, useful when you plan to add more fields to the returned map.
+// Negative excess values are normalized to zero.
+//
+// Returns nil for nil loglets, consistent with FieldsMap().
+func (ll *Loglet) FieldsMapCopy(excess int) map[string]any {
+	if ll == nil {
+		return nil
+	}
+
+	// Normalize excess to avoid negative values
+	if excess < 0 {
+		excess = 0
+	}
+
+	fieldsMap := ll.fieldsMap
+	if fieldsMap == nil {
+		fieldsMap = ll.buildFieldsMap()
+		ll.fieldsMap = fieldsMap
+	}
+
+	return copyFieldsMap(fieldsMap, excess)
+}
+
+// buildFieldsMap builds and returns a fields map, either by delegating to
+// a cached ancestor or by building from the traversal path
+func (ll *Loglet) buildFieldsMap() map[string]any {
+	// Find cached ancestor and build from there
+	info := ll.findCachedAncestor()
+
+	// Get base map, ensuring ancestors with fields get cached if needed
+	baseMap := info.getBaseMap()
+
+	// Check if we can delegate to parent
+	if info.canDelegate() {
+		return baseMap
+	}
+
+	// Build our own map
+	return ll.buildFieldsMapFromPath(info.pathToRoot, baseMap, info.totalFields)
+}
+
+// buildFieldsMapFromPath builds a fields map from the given path and base map
+func (ll *Loglet) buildFieldsMapFromPath(pathToRoot []*Loglet, baseMap map[string]any, totalFields int) map[string]any {
+	result := make(map[string]any, totalFields)
+	if baseMap != nil {
+		maps.Copy(result, baseMap)
+	}
+	ll.populateFromPath(pathToRoot, result)
+	return result
+}
+
+// cacheIfNeeded caches this loglet's field map if it has fields but no cache
+func (ll *Loglet) cacheIfNeeded() (map[string]any, bool) {
+	if len(ll.keys) > 0 && ll.fieldsMap == nil {
+		// Cache this loglet's map
+		info := ll.findCachedAncestor()
+		fieldsMap := ll.buildFieldsMapFromPath(
+			info.pathToRoot, info.baseMap, info.totalFields)
+		ll.fieldsMap = fieldsMap
+		return fieldsMap, true
+	}
+	return nil, false
+}
+
+// populateFromPath adds fields from the path to the result map
+func (*Loglet) populateFromPath(pathToRoot []*Loglet, result map[string]any) {
+	for i := len(pathToRoot) - 1; i >= 0; i-- {
+		node := pathToRoot[i]
+		if node.fieldsMap != nil {
+			continue // Skip already cached ancestor
+		}
+		node.addOwnFields(result)
+	}
+}
+
+// addOwnFields adds only this loglet's own fields to the map
+func (ll *Loglet) addOwnFields(fields map[string]any) {
+	for i, key := range ll.keys {
 		if key != "" {
-			if _, exists := fields[key]; !exists {
-				fields[key] = value
-			}
+			fields[key] = ll.values[i]
 		}
 	}
+}
+
+// copyFieldsMap creates a copy of the fields map with optional excess capacity
+func copyFieldsMap(source map[string]any, excess int) map[string]any {
+	if source == nil {
+		return nil
+	}
+
+	totalCap := len(source) + excess
+	result := make(map[string]any, totalCap)
+	maps.Copy(result, source)
+	return result
 }
 
 // FieldsIterator iterates over fields in a Loglet context chain.
