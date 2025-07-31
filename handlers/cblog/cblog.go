@@ -67,24 +67,10 @@ func (l *Logger) Printf(format string, args ...any) {
 }
 
 func (l *Logger) sendMsg(msg string) {
-	var m map[string]any
-
-	if n := l.FieldsCount(); n > 0 {
-		iter := l.Fields()
-
-		m = make(map[string]any, n)
-
-		for iter.Next() {
-			k, v := iter.Field()
-
-			m[k] = v
-		}
-	}
-
 	l.l.ch <- LogMsg{
 		Message: strings.TrimSpace(msg),
 		Level:   l.Level(),
-		Fields:  m,
+		Fields:  l.FieldsMap(),
 		Stack:   l.CallStack(),
 	}
 }
