@@ -106,6 +106,7 @@ func TestLogletFields(t *testing.T) {
 	t.Run("WithFields", testLogletWithFields)
 	t.Run("FieldsCount", testLogletFieldsCount)
 	t.Run("EmptyKey", testLogletEmptyKey)
+	t.Run("FieldsMap", testLogletFieldsMap)
 }
 
 func testLogletWithField(t *testing.T) {
@@ -582,6 +583,7 @@ func TestLogletCopy(t *testing.T) {
 }
 
 func testLogletCopyNil(t *testing.T) {
+	t.Helper()
 	var ll *Loglet
 	copied := ll.Copy()
 
@@ -590,6 +592,7 @@ func testLogletCopyNil(t *testing.T) {
 }
 
 func testLogletCopyEmpty(t *testing.T) {
+	t.Helper()
 	var ll Loglet
 	copied := ll.Copy()
 
@@ -612,6 +615,7 @@ func testLogletCopyWithFields(t *testing.T) {
 }
 
 func testLogletCopyIndependent(t *testing.T) {
+	t.Helper()
 	var base Loglet
 	original := base.WithField("original", "value")
 	copied := original.Copy()
@@ -642,4 +646,170 @@ func testLogletCopyIndependent(t *testing.T) {
 	core.AssertNotEqual(t, originalFields["child"], copyFields["child"], "independent children")
 	core.AssertEqual(t, "original", originalFields["child"], "original child value")
 	core.AssertEqual(t, "copy", copyFields["child"], "copy child value")
+}
+
+func testLogletFieldsMap(t *testing.T) {
+	t.Run("NilLoglet", testFieldsMapNil)
+	t.Run("EmptyLoglet", testFieldsMapEmpty)
+	t.Run("SingleField", testFieldsMapSingle)
+	t.Run("MultipleFields", testFieldsMapMultiple)
+	t.Run("ChainedFields", testFieldsMapChained)
+	t.Run("FieldOverride", testFieldsMapOverride)
+	t.Run("Caching", testFieldsMapCaching)
+	t.Run("ImmutableCache", testFieldsMapImmutableCache)
+	t.Run("SharedMapWarning", testFieldsMapSharedWarning)
+}
+
+func testFieldsMapNil(t *testing.T) {
+	t.Helper()
+	var loglet *Loglet
+	fields := loglet.FieldsMap()
+	core.AssertNil(t, fields, "nil loglet FieldsMap")
+}
+
+func testFieldsMapEmpty(t *testing.T) {
+	t.Helper()
+	var loglet Loglet
+	fields := loglet.FieldsMap()
+	core.AssertNotNil(t, fields, "empty loglet FieldsMap")
+	core.AssertEqual(t, 0, len(fields), "empty loglet field count")
+}
+
+func testFieldsMapSingle(t *testing.T) {
+	t.Helper()
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", "value")
+
+	fields := loglet1.FieldsMap()
+	core.AssertMustNotNil(t, fields, "single field FieldsMap")
+	core.AssertEqual(t, 1, len(fields), "single field count")
+	core.AssertEqual(t, "value", fields["key"], "field value")
+}
+
+func testFieldsMapMultiple(t *testing.T) {
+	t.Helper()
+	var loglet Loglet
+	inputFields := map[string]any{
+		"key1": "value1",
+		"key2": 42,
+		"key3": true,
+	}
+
+	loglet1 := loglet.WithFields(inputFields)
+	fields := loglet1.FieldsMap()
+
+	core.AssertMustNotNil(t, fields, "multi-field FieldsMap")
+	core.AssertEqual(t, len(inputFields), len(fields), "field count")
+	for k, v := range inputFields {
+		core.AssertEqual(t, v, fields[k], "field %q", k)
+	}
+}
+
+func testFieldsMapChained(t *testing.T) {
+	t.Helper()
+	var loglet Loglet
+
+	// Create chain of loglets using proper chaining
+	loglet1 := loglet.WithField("root", "rootValue")
+	loglet2 := loglet1.WithField("child", "childValue")
+	loglet3 := loglet2.WithFields(map[string]any{
+		"grand": "grandValue",
+		"leaf":  "leafValue",
+	})
+
+	fields := loglet3.FieldsMap()
+	core.AssertMustNotNil(t, fields, "chained FieldsMap")
+
+	expected := map[string]any{
+		"root":  "rootValue",
+		"child": "childValue",
+		"grand": "grandValue",
+		"leaf":  "leafValue",
+	}
+
+	core.AssertEqual(t, len(expected), len(fields), "chained field count")
+	for k, v := range expected {
+		core.AssertEqual(t, v, fields[k], "chained field %q", k)
+	}
+}
+
+func testFieldsMapOverride(t *testing.T) {
+	t.Helper()
+	var loglet Loglet
+
+	// Create chain where child overrides parent field
+	loglet1 := loglet.WithField("key", "parentValue")
+	loglet2 := loglet1.WithField("key", "childValue") // Same key
+
+	fields := loglet2.FieldsMap()
+	core.AssertMustNotNil(t, fields, "override FieldsMap")
+	core.AssertEqual(t, "childValue", fields["key"], "overridden field value")
+	core.AssertEqual(t, 1, len(fields), "override field count")
+}
+
+func testFieldsMapCaching(t *testing.T) {
+	t.Helper()
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", "value")
+
+	// First call should build the cache
+	fields1 := loglet1.FieldsMap()
+	core.AssertMustNotNil(t, fields1, "first call FieldsMap")
+
+	// Second call should return same cached map
+	fields2 := loglet1.FieldsMap()
+	core.AssertMustNotNil(t, fields2, "second call FieldsMap")
+
+	// Should be the same map instance (cached)
+	core.AssertMustSame(t, fields1, fields2, "cached map instance")
+}
+
+func testFieldsMapImmutableCache(t *testing.T) {
+	t.Helper()
+	var loglet Loglet
+	loglet1 := loglet.WithField("original", "value")
+
+	// Cache the fields map
+	fields1 := loglet1.FieldsMap()
+	core.AssertMustNotNil(t, fields1, "original FieldsMap")
+
+	// Create new loglet with additional field - should not have cache
+	loglet2 := loglet1.WithField("additional", "value2")
+	fields2 := loglet2.FieldsMap()
+
+	core.AssertMustNotNil(t, fields2, "new FieldsMap")
+	core.AssertEqual(t, 2, len(fields2), "new loglet field count")
+	core.AssertEqual(t, 1, len(fields1), "original loglet field count")
+
+	// Different map instances
+	core.AssertNotSame(t, fields1, fields2, "different map instances")
+}
+
+func testFieldsMapSharedWarning(t *testing.T) {
+	t.Helper()
+	// Test that demonstrates why the returned map should not be modified
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", "original")
+
+	// Get the cached map
+	fields1 := loglet1.FieldsMap()
+	core.AssertMustNotNil(t, fields1, "cached FieldsMap")
+	core.AssertEqual(t, "original", fields1["key"], "field value")
+
+	// Get the map again (should be same cached instance)
+	fields2 := loglet1.FieldsMap()
+	core.AssertMustSame(t, fields1, fields2, "same cached instance")
+
+	// This demonstrates why modifying the map would be dangerous:
+	// If we modified fields1["key"] = "modified", it would affect
+	// all future calls to FieldsMap() on this loglet instance,
+	// breaking the immutable contract.
+	//
+	// Instead, handlers that need to modify fields should build their own copy:
+	// modifiableFields := make(map[string]any)
+	// iter := loglet.Fields()
+	// for iter.Next() {
+	//     k, v := iter.Field()
+	//     modifiableFields[k] = transformValue(v)  // safe to modify
+	// }
 }
