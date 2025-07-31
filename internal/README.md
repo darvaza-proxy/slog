@@ -71,6 +71,30 @@ if fields := loglet.FieldsMap(); fields != nil {
 **NEVER modify it directly** as this will break immutability and affect all
 future calls on the same loglet instance.
 
+##### FieldsMapCopy() - For Modifiable Maps
+
+Use when you need to modify or extend the fields map:
+
+```go
+// Get modifiable copy with extra capacity for new fields
+modifiable := loglet.FieldsMapCopy(5)  // Extra capacity for 5 more fields
+if modifiable != nil {
+    modifiable["new_field"] = "safe to modify"
+    modifiable["timestamp"] = time.Now()
+    // Process or pass to functions that need to modify the map
+}
+
+// Get exact copy without extra capacity
+exactCopy := loglet.FieldsMapCopy(0)
+```
+
+**Key Benefits**:
+
+- Always returns a new, modifiable map
+- Optional excess capacity for efficient field additions
+- Safe to modify without affecting the original loglet
+- Consistent nil behaviour with FieldsMap()
+
 #### Parent Delegation Optimization
 
 When a loglet has no fields of its own but has a parent with fields,
@@ -157,7 +181,16 @@ if fields := loglet.FieldsMap(); fields != nil {
 #### ✅ Correct: Building Modifiable Copy
 
 ```go
-// For handlers that need to modify fields
+// Method 1: Use FieldsMapCopy() (recommended)
+modifiable := loglet.FieldsMapCopy(3)  // Extra capacity for 3 more fields
+if modifiable != nil {
+    for k, v := range modifiable {
+        modifiable[k] = processValue(v)  // Safe to modify
+    }
+    modifiable["extra"] = "new field"  // Safe to add
+}
+
+// Method 2: Manual iteration (when custom processing needed)
 modifiable := make(map[string]any)
 iter := loglet.Fields()
 for iter.Next() {
@@ -183,7 +216,76 @@ child := parent.WithField("env", "production")
 - **FieldsCount()**: O(n) where n is chain depth
 - **Fields()**: O(1) to create iterator, O(total fields) to iterate
 - **FieldsMap()**: O(total fields) first call, O(1) subsequent calls (cached)
+- **FieldsMapCopy()**: O(total fields) to build copy, O(1) if delegating to
+  cached parent
 - **With* methods**: O(1) for field/level/stack operations
+
+### Advanced Delegation System
+
+The FieldsMap implementation includes a sophisticated delegation and caching
+system that optimizes performance for complex loglet chains through intelligent
+ancestor traversal and selective caching.
+
+#### Ancestor Caching Strategy
+
+The system automatically identifies opportunities to cache field maps at
+strategic points in the loglet chain:
+
+```go
+parent := base.WithField("service", "api")
+child1 := parent.WithLevel(slog.Info)     // No fields - delegates to parent
+child2 := child1.WithStack(1)             // No fields - delegates through chain
+child3 := child2.WithField("user", "123") // Has fields - builds own map
+
+// child1.FieldsMap() and child2.FieldsMap() both delegate to parent
+// child3.FieldsMap() builds a new map incorporating all ancestor fields
+```
+
+#### Delegation Decision Logic
+
+The system uses the following rules to determine optimal field access strategy:
+
+1. **Direct Delegation**: Loglet has no fields but parent has cached map
+   - Returns parent's cached map directly (O(1) performance)
+   - No memory allocation or field iteration required
+
+2. **Ancestor Caching**: Loglet has fields but ancestor in chain has many fields
+   - Proactively cache ancestor's map for future delegation
+   - Build current map from cached ancestor + remaining path
+
+3. **Fresh Construction**: No suitable cached ancestor found
+   - Build map from scratch by traversing entire chain
+   - Cache result for future calls
+
+#### Intelligent Caching Heuristics
+
+The system employs heuristics to decide when ancestor caching is beneficial:
+
+- **Field Threshold**: Ancestors with multiple fields are more likely to be
+  cached
+- **Chain Depth**: Deeper chains benefit more from intermediate caching
+- **Access Patterns**: Frequently accessed intermediate loglets get priority
+
+```go
+// Example: Strategic caching in middleware chains
+base := loglet.WithField("service", "api")
+request := base.WithField("request_id", "123")
+user := request.WithField("user_id", "456")
+
+// Intermediate loglets for different contexts
+trace := user.WithLevel(slog.Debug)    // Delegates to user
+error := trace.WithStack(1)            // Delegates through chain
+final := error.WithField("error", err) // Builds from cached user + path
+```
+
+#### Memory Efficiency
+
+The delegation system provides significant memory benefits:
+
+- **Shared Maps**: Multiple loglets can reference the same cached map
+- **Reduced Allocations**: Delegation eliminates redundant map construction
+- **Garbage Collection**: Fewer temporary maps reduce GC pressure
+- **Chain Optimization**: Long chains benefit from strategic cache points
 
 ### Thread Safety
 
