@@ -801,3 +801,97 @@ func testFieldsMapSharedWarning(t *testing.T) {
 	//     modifiableFields[k] = transformValue(v)  // safe to modify
 	// }
 }
+
+// TestFieldsMapParentDelegation tests the new parent delegation optimization
+func TestFieldsMapParentDelegation(t *testing.T) {
+	var base Loglet
+	parent := base.WithField("parent_key", "parent_value")
+	child := parent.WithLevel(slog.Info) // No fields, only level change
+
+	parentMap := parent.FieldsMap()
+	childMap := child.FieldsMap()
+
+	// Should return same map reference (delegation, not copy)
+	// Compare map pointers using reflection
+	ptrParent := reflect.ValueOf(parentMap).Pointer()
+	ptrChild := reflect.ValueOf(childMap).Pointer()
+	if ptrParent != ptrChild {
+		t.Error("child with no fields should delegate to parent FieldsMap")
+	}
+
+	if childMap["parent_key"] != "parent_value" {
+		t.Errorf("expected parent_value, got %v", childMap["parent_key"])
+	}
+}
+
+// TestFieldsMapMultiLevelDelegation tests delegation through multiple levels
+func TestFieldsMapMultiLevelDelegation(t *testing.T) {
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithLevel(slog.Info)        // No fields, delegates
+	l3 := l2.WithStack(1)                // No fields, delegates
+	l4 := l3.WithField("key2", "value2") // Has fields, builds map
+
+	// l2 and l3 should delegate to l1
+	map1 := l1.FieldsMap()
+	map2 := l2.FieldsMap()
+	map3 := l3.FieldsMap()
+
+	// l2 and l3 should delegate to l1 (same map instance)
+	ptr1 := reflect.ValueOf(map1).Pointer()
+	ptr2 := reflect.ValueOf(map2).Pointer()
+	ptr3 := reflect.ValueOf(map3).Pointer()
+
+	if ptr1 != ptr2 {
+		t.Error("l2 should delegate to l1")
+	}
+	if ptr1 != ptr3 {
+		t.Error("l3 should delegate to l1")
+	}
+
+	// l4 should have its own map with both keys
+	map4 := l4.FieldsMap()
+	ptr4 := reflect.ValueOf(map4).Pointer()
+
+	if ptr1 == ptr4 {
+		t.Error("l4 should have its own map, not delegate")
+	}
+
+	if len(map4) != 2 {
+		t.Errorf("l4 should have 2 fields, got %d", len(map4))
+	}
+
+	if map4["key1"] != "value1" {
+		t.Errorf("expected value1, got %v", map4["key1"])
+	}
+	if map4["key2"] != "value2" {
+		t.Errorf("expected value2, got %v", map4["key2"])
+	}
+}
+
+// TestFieldsMapDelegationCaching tests caching behaviour with delegation
+func TestFieldsMapDelegationCaching(t *testing.T) {
+	var base Loglet
+	parent := base.WithField("key", "value")
+	child := parent.WithLevel(slog.Info)
+
+	// First call should delegate
+	map1 := child.FieldsMap()
+
+	// Second call should still delegate (not cache the delegated result)
+	map2 := child.FieldsMap()
+
+	// Should be same reference (delegates each time)
+	ptr1 := reflect.ValueOf(map1).Pointer()
+	ptr2 := reflect.ValueOf(map2).Pointer()
+	if ptr1 != ptr2 {
+		t.Error("delegation should return same map instance on repeated calls")
+	}
+
+	// Should delegate to parent
+	parentMap := parent.FieldsMap()
+	ptrParent := reflect.ValueOf(parentMap).Pointer()
+	if ptr1 != ptrParent {
+		t.Error("child should delegate to parent's map")
+	}
+}
