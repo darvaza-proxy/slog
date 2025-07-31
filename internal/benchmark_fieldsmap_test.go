@@ -159,3 +159,87 @@ func BenchmarkFieldsMapDelegationVsIteration(b *testing.B) {
 	b.Run("Delegation", BenchmarkFieldsMapDelegation)
 	b.Run("Iteration", benchmarkFieldsMapIterationHelper)
 }
+
+// BenchmarkFieldsMapCopy benchmarks the FieldsMapCopy method
+func BenchmarkFieldsMapCopy(b *testing.B) {
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithField("key2", "value2")
+	l3 := l2.WithField("key3", "value3")
+
+	b.ResetTimer()
+	for range b.N {
+		_ = l3.FieldsMapCopy(0)
+	}
+}
+
+// BenchmarkFieldsMapCopyWithExcess benchmarks FieldsMapCopy with excess capacity
+func BenchmarkFieldsMapCopyWithExcess(b *testing.B) {
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithField("key2", "value2")
+	l3 := l2.WithField("key3", "value3")
+
+	b.ResetTimer()
+	for range b.N {
+		_ = l3.FieldsMapCopy(5)
+	}
+}
+
+// benchmarkFieldsMapCopyFromCachedHelper benchmarks copy from cached source
+func benchmarkFieldsMapCopyFromCachedHelper(b *testing.B) {
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithField("key2", "value2")
+	l3 := l2.WithField("key3", "value3")
+
+	// Prime the cache
+	_ = l3.FieldsMap()
+
+	b.ResetTimer()
+	for range b.N {
+		_ = l3.FieldsMapCopy(0)
+	}
+}
+
+// benchmarkFieldsMapCopyFromUncachedHelper benchmarks copy from uncached source
+func benchmarkFieldsMapCopyFromUncachedHelper(b *testing.B) {
+	for range b.N {
+		var base Loglet
+		l1 := base.WithField("key1", "value1")
+		l2 := l1.WithField("key2", "value2")
+		l3 := l2.WithField("key3", "value3")
+		_ = l3.FieldsMapCopy(0)
+	}
+}
+
+// BenchmarkFieldsMapCopyVsCached compares FieldsMapCopy performance vs cached FieldsMap
+func BenchmarkFieldsMapCopyVsCached(b *testing.B) {
+	b.Run("CopyFromCached", benchmarkFieldsMapCopyFromCachedHelper)
+	b.Run("CopyFromUncached", benchmarkFieldsMapCopyFromUncachedHelper)
+}
+
+// benchmarkManualIterationHelper benchmarks manual iteration to build map
+func benchmarkManualIterationHelper(b *testing.B) {
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithField("key2", "value2")
+	l3 := l2.WithField("key3", "value3")
+
+	b.ResetTimer()
+	for range b.N {
+		fields := make(map[string]any, l3.FieldsCount())
+		iter := l3.Fields()
+		for iter.Next() {
+			k, v := iter.Field()
+			fields[k] = v
+		}
+		_ = fields
+	}
+}
+
+// BenchmarkFieldsMapCopyVsIteration compares FieldsMapCopy vs manual iteration
+func BenchmarkFieldsMapCopyVsIteration(b *testing.B) {
+	b.Run("FieldsMapCopy", BenchmarkFieldsMapCopy)
+	b.Run("ManualIteration", benchmarkManualIterationHelper)
+}

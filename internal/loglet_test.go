@@ -1,12 +1,15 @@
 package internal
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
 )
+
+const testValue = "value"
 
 func TestLogletLevel(t *testing.T) {
 	t.Run("DefaultLevel", testLogletLevelDefault)
@@ -194,7 +197,7 @@ func testLogletEmptyKey(t *testing.T) {
 	var loglet Loglet
 
 	// Empty key should not be added
-	newLoglet := loglet.WithField("", "value")
+	newLoglet := loglet.WithField("", testValue)
 
 	// Should have same properties (can't compare structs directly)
 	if newLoglet.FieldsCount() != loglet.FieldsCount() {
@@ -226,7 +229,7 @@ func testLogletIteratorEmpty(t *testing.T) {
 
 func testLogletIteratorSingle(t *testing.T) {
 	var loglet Loglet
-	loglet1 := loglet.WithField("key", "value")
+	loglet1 := loglet.WithField("key", testValue)
 
 	iter := loglet1.Fields()
 
@@ -241,8 +244,8 @@ func testLogletIteratorSingle(t *testing.T) {
 	if key != "key" {
 		t.Errorf("Expected key 'key', got %q", key)
 	}
-	if value != "value" {
-		t.Errorf("Expected value 'value', got %v", value)
+	if value != testValue {
+		t.Errorf("Expected value '%s', got %v", testValue, value)
 	}
 
 	// Should not have more fields
@@ -380,9 +383,9 @@ func testLogletLevelAndFields(t *testing.T) {
 	var loglet Loglet
 
 	// Add fields, then change level using proper chaining
-	loglet1 := loglet.WithField("before", "value")
+	loglet1 := loglet.WithField("before", testValue)
 	loglet2 := loglet1.WithLevel(slog.Error)
-	loglet3 := loglet2.WithField("after", "value")
+	loglet3 := loglet2.WithField("after", testValue)
 
 	// Both fields should be present
 	if loglet3.FieldsCount() != 2 {
@@ -399,9 +402,9 @@ func testLogletStackAndFields(t *testing.T) {
 	var loglet Loglet
 
 	// Add fields, then stack using proper chaining
-	loglet1 := loglet.WithField("before", "value")
+	loglet1 := loglet.WithField("before", testValue)
 	loglet2 := loglet1.WithStack(1)
-	loglet3 := loglet2.WithField("after", "value")
+	loglet3 := loglet2.WithField("after", testValue)
 
 	// Both fields should be present
 	if loglet3.FieldsCount() != 2 {
@@ -442,7 +445,7 @@ func testLogletIsZeroFalse(t *testing.T) {
 	var loglet Loglet
 
 	// Test with field
-	loglet1 := loglet.WithField("key", "value")
+	loglet1 := loglet.WithField("key", testValue)
 	if loglet1.IsZero() {
 		t.Error("loglet with field should not be zero")
 	}
@@ -563,7 +566,7 @@ func testDirectSelfReference(t *testing.T) {
 
 func testLogletGetParentNormal(t *testing.T) {
 	var loglet Loglet
-	loglet1 := loglet.WithField("key", "value")
+	loglet1 := loglet.WithField("key", testValue)
 
 	// Test that parent relationship works correctly
 	if loglet1.FieldsCount() != 1 {
@@ -634,7 +637,7 @@ func TestWithFieldsEdgeCases(t *testing.T) {
 func testWithFieldsZeroLogletParent(t *testing.T) {
 	var loglet Loglet // Zero loglet
 
-	fields := map[string]any{"key": "value"}
+	fields := map[string]any{"key": testValue}
 	newLoglet := loglet.WithFields(fields)
 
 	// Should not set parent for zero loglet
@@ -647,7 +650,7 @@ func testWithFieldsNonZeroLogletParent(t *testing.T) {
 	var loglet Loglet
 	loglet1 := loglet.WithLevel(slog.Info) // Make it non-zero
 
-	fields := map[string]any{"key": "value"}
+	fields := map[string]any{"key": testValue}
 	newLoglet := loglet1.WithFields(fields)
 
 	// Should set parent for non-zero loglet
@@ -686,7 +689,7 @@ func testFieldsMapEmpty(t *testing.T) {
 
 func testFieldsMapSingle(t *testing.T) {
 	var loglet Loglet
-	loglet1 := loglet.WithField("key", "value")
+	loglet1 := loglet.WithField("key", testValue)
 
 	fields := loglet1.FieldsMap()
 	if fields == nil {
@@ -697,7 +700,7 @@ func testFieldsMapSingle(t *testing.T) {
 		t.Errorf("expected 1 field, got %d", len(fields))
 	}
 
-	if fields["key"] != "value" {
+	if fields["key"] != testValue {
 		t.Errorf("expected value 'value', got %v", fields["key"])
 	}
 }
@@ -786,7 +789,7 @@ func testFieldsMapOverride(t *testing.T) {
 
 func testFieldsMapCaching(t *testing.T) {
 	var loglet Loglet
-	loglet1 := loglet.WithField("key", "value")
+	loglet1 := loglet.WithField("key", testValue)
 
 	// First call should build the cache
 	fields1 := loglet1.FieldsMap()
@@ -811,7 +814,7 @@ func testFieldsMapCaching(t *testing.T) {
 
 func testFieldsMapImmutableCache(t *testing.T) {
 	var loglet Loglet
-	loglet1 := loglet.WithField("original", "value")
+	loglet1 := loglet.WithField("original", testValue)
 
 	// Cache the fields map
 	fields1 := loglet1.FieldsMap()
@@ -973,5 +976,233 @@ func TestFieldsMapDelegationCaching(t *testing.T) {
 	ptrParent := reflect.ValueOf(parentMap).Pointer()
 	if ptr1 != ptrParent {
 		t.Error("child should delegate to parent's map")
+	}
+}
+
+// TestFieldsMapCopy tests the FieldsMapCopy method
+func TestFieldsMapCopy(t *testing.T) {
+	t.Run("NilLoglet", testFieldsMapCopyNil)
+	t.Run("EmptyLoglet", testFieldsMapCopyEmpty)
+	t.Run("SingleField", testFieldsMapCopySingle)
+	t.Run("MultipleFields", testFieldsMapCopyMultiple)
+	t.Run("ChainedFields", testFieldsMapCopyChained)
+	t.Run("WithExcess", testFieldsMapCopyWithExcess)
+	t.Run("CachedSource", testFieldsMapCopyCachedSource)
+	t.Run("ModifiableCopy", testFieldsMapCopyModifiable)
+	t.Run("NegativeExcess", testFieldsMapCopyNegativeExcess)
+}
+
+func testFieldsMapCopyNil(t *testing.T) {
+	var loglet *Loglet
+	fields := loglet.FieldsMapCopy(0)
+	if fields != nil {
+		t.Error("nil loglet should return nil FieldsMapCopy")
+	}
+}
+
+func testFieldsMapCopyEmpty(t *testing.T) {
+	var loglet Loglet
+	fields := loglet.FieldsMapCopy(0)
+	if fields == nil || len(fields) != 0 {
+		t.Errorf("empty loglet should return empty map, got %v", fields)
+	}
+}
+
+func testFieldsMapCopySingle(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", testValue)
+
+	fields := loglet1.FieldsMapCopy(0)
+	if fields == nil {
+		t.Fatal("single field loglet should return non-nil FieldsMapCopy")
+	}
+
+	if len(fields) != 1 {
+		t.Errorf("expected 1 field, got %d", len(fields))
+	}
+
+	if fields["key"] != testValue {
+		t.Errorf("expected value 'value', got %v", fields["key"])
+	}
+}
+
+func testFieldsMapCopyMultiple(t *testing.T) {
+	var loglet Loglet
+	inputFields := map[string]any{
+		"key1": "value1",
+		"key2": 42,
+		"key3": true,
+	}
+
+	loglet1 := loglet.WithFields(inputFields)
+	fields := loglet1.FieldsMapCopy(0)
+
+	if fields == nil {
+		t.Fatal("multi-field loglet should return non-nil FieldsMapCopy")
+	}
+
+	if len(fields) != len(inputFields) {
+		t.Errorf("expected %d fields, got %d", len(inputFields), len(fields))
+	}
+
+	for k, v := range inputFields {
+		if fields[k] != v {
+			t.Errorf("field %q: expected %v, got %v", k, v, fields[k])
+		}
+	}
+}
+
+func testFieldsMapCopyChained(t *testing.T) {
+	var loglet Loglet
+
+	// Create chain of loglets using proper chaining
+	loglet1 := loglet.WithField("root", "rootValue")
+	loglet2 := loglet1.WithField("child", "childValue")
+	loglet3 := loglet2.WithFields(map[string]any{
+		"grand": "grandValue",
+		"leaf":  "leafValue",
+	})
+
+	fields := loglet3.FieldsMapCopy(0)
+	if fields == nil {
+		t.Fatal("chained loglet should return non-nil FieldsMapCopy")
+	}
+
+	expected := map[string]any{
+		"root":  "rootValue",
+		"child": "childValue",
+		"grand": "grandValue",
+		"leaf":  "leafValue",
+	}
+
+	if len(fields) != len(expected) {
+		t.Errorf("expected %d fields, got %d", len(expected), len(fields))
+	}
+
+	for k, v := range expected {
+		if fields[k] != v {
+			t.Errorf("field %q: expected %v, got %v", k, v, fields[k])
+		}
+	}
+}
+
+func testFieldsMapCopyWithExcess(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", testValue)
+
+	testCases := []int{0, 1, 5, 10}
+	for _, excess := range testCases {
+		validateExcessCapacity(t, loglet1, excess)
+	}
+}
+
+func validateExcessCapacity(t *testing.T, loglet Loglet, excess int) {
+	fields := loglet.FieldsMapCopy(excess)
+	if fields == nil {
+		t.Fatalf("should return non-nil map for excess %d", excess)
+	}
+
+	// Add excess fields to verify capacity
+	for i := 0; i < excess; i++ {
+		key := fmt.Sprintf("extra%d", i)
+		fields[key] = fmt.Sprintf("value%d", i)
+	}
+
+	expectedLen := 1 + excess
+	if len(fields) != expectedLen {
+		t.Errorf("excess %d: expected %d fields, got %d", excess, expectedLen, len(fields))
+	}
+
+	if fields["key"] != testValue {
+		t.Errorf("excess %d: original field missing or wrong", excess)
+	}
+}
+
+func testFieldsMapCopyCachedSource(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", testValue)
+
+	// Prime the cache with FieldsMap
+	cached := loglet1.FieldsMap()
+	if cached == nil {
+		t.Fatal("should have cached map")
+	}
+
+	// Now get copy
+	copyMap := loglet1.FieldsMapCopy(2)
+	if copyMap == nil {
+		t.Fatal("should return non-nil copy from cached source")
+	}
+
+	// Should be different instances
+	ptrCached := reflect.ValueOf(cached).Pointer()
+	ptrCopy := reflect.ValueOf(copyMap).Pointer()
+	if ptrCached == ptrCopy {
+		t.Error("copy should be different instance from cached map")
+	}
+
+	// But should have same content
+	if len(copyMap) != len(cached) {
+		t.Errorf("copy should have same field count as cached")
+	}
+
+	for k, v := range cached {
+		if copyMap[k] != v {
+			t.Errorf("field %q: copy has %v, cached has %v", k, copyMap[k], v)
+		}
+	}
+}
+
+func testFieldsMapCopyModifiable(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("original", testValue)
+
+	copyMap := loglet1.FieldsMapCopy(1)
+	if copyMap == nil {
+		t.Fatal("should return non-nil copy")
+	}
+
+	// Modify the copy
+	copyMap["original"] = "modified"
+	copyMap["new"] = "added"
+
+	// Get original via FieldsMap
+	original := loglet1.FieldsMap()
+	if original == nil {
+		t.Fatal("should have original map")
+	}
+
+	// Original should be unchanged
+	if original["original"] != testValue {
+		t.Error("modifying copy should not affect original")
+	}
+
+	if _, exists := original["new"]; exists {
+		t.Error("adding to copy should not affect original")
+	}
+
+	// Copy should be modified
+	if copyMap["original"] != "modified" {
+		t.Error("copy should be modifiable")
+	}
+
+	if copyMap["new"] != "added" {
+		t.Error("should be able to add to copy")
+	}
+}
+
+func testFieldsMapCopyNegativeExcess(t *testing.T) {
+	var loglet Loglet
+	loglet1 := loglet.WithField("key", testValue)
+
+	// Test negative excess - should handle gracefully
+	copyMap := loglet1.FieldsMapCopy(-5)
+	if copyMap == nil {
+		t.Fatal("should handle negative excess gracefully")
+	}
+
+	// Should still have the original field
+	if copyMap["key"] != testValue {
+		t.Error("should still have original field with negative excess")
 	}
 }
