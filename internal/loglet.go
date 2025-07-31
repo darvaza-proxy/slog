@@ -28,11 +28,12 @@ var (
 //
 // Instead, use proper chaining with new variable names.
 type Loglet struct {
-	parent *Loglet
-	level  slog.LogLevel
-	keys   []string
-	values []any
-	stack  core.Stack
+	parent    *Loglet
+	level     slog.LogLevel
+	keys      []string
+	values    []any
+	stack     core.Stack
+	fieldsMap map[string]any // cached fields map
 }
 
 // IsZero returns true if the loglet has no meaningful content.
@@ -175,6 +176,50 @@ func (ll *Loglet) Fields() (iter *FieldsIterator) {
 	return &FieldsIterator{
 		ll: ll,
 		i:  0,
+	}
+}
+
+// FieldsMap returns a map containing all fields from the loglet chain.
+// The map is built once and cached for subsequent calls, providing
+// better performance than iterating through Fields() multiple times.
+//
+// Fields from parent loglets are included, with child fields overriding
+// parent fields when keys collide. Returns nil only for nil loglets,
+// otherwise returns an empty map for loglets with no fields.
+//
+// WARNING: The returned map is shared and MUST NOT be modified.
+// If you need to modify fields, use the Fields() iterator instead
+// to build your own map copy.
+//
+// Note: The returned map is immutable by design for performance reasons.
+// Any attempt to modify it may cause undefined behaviour in concurrent
+// environments and break the caching mechanism.
+func (ll *Loglet) FieldsMap() map[string]any {
+	if ll == nil {
+		return nil
+	}
+
+	if ll.fieldsMap == nil {
+		count := ll.FieldsCount()
+		fields := make(map[string]any, count)
+		if count > 0 {
+			ll.populateFieldMap(fields)
+		}
+		ll.fieldsMap = fields
+	}
+
+	return ll.fieldsMap
+}
+
+func (ll *Loglet) populateFieldMap(fields map[string]any) {
+	iter := ll.Fields()
+	for iter.Next() {
+		key, value := iter.Field()
+		if key != "" {
+			if _, exists := fields[key]; !exists {
+				fields[key] = value
+			}
+		}
 	}
 }
 
