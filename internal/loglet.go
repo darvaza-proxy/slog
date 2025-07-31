@@ -200,12 +200,19 @@ func (ll *Loglet) FieldsMap() map[string]any {
 	}
 
 	if ll.fieldsMap == nil {
-		count := ll.FieldsCount()
-		fields := make(map[string]any, count)
-		if count > 0 {
+		// If we have fields, build the map
+		if len(ll.keys) > 0 {
+			count := ll.FieldsCount()
+			fields := make(map[string]any, count)
 			ll.populateFieldMap(fields)
+			ll.fieldsMap = fields
+		} else if parent := ll.GetParent(); parent != nil {
+			// Pass to parent if we have no fields but have a parent
+			return parent.FieldsMap()
+		} else {
+			// Return empty map if no fields and no parent
+			ll.fieldsMap = make(map[string]any)
 		}
-		ll.fieldsMap = fields
 	}
 
 	return ll.fieldsMap

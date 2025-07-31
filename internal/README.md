@@ -71,6 +71,37 @@ if fields := loglet.FieldsMap(); fields != nil {
 **NEVER modify it directly** as this will break immutability and affect all
 future calls on the same loglet instance.
 
+#### Parent Delegation Optimization
+
+When a loglet has no fields of its own but has a parent with fields,
+`FieldsMap()` delegates directly to the parent instead of building an
+empty map and iterating through the chain. This provides better
+performance for intermediate loglets created for level/stack changes.
+
+```go
+var base Loglet
+parent := base.WithField("service", "api")
+child := parent.WithLevel(slog.Info) // No fields, only level
+
+// child.FieldsMap() delegates to parent.FieldsMap()
+// Returns same map reference - no iteration needed
+parentMap := parent.FieldsMap()
+childMap := child.FieldsMap()
+// parentMap and childMap point to the same map instance
+```
+
+**Delegation Rules**:
+
+- If loglet has fields: builds and caches its own map
+- If loglet has no fields but has parent: delegates to parent's `FieldsMap()`
+- If loglet has no fields and no parent: returns empty cached map
+
+**Performance Benefits**:
+
+- Eliminates unnecessary field iteration for intermediate loglets
+- Reduces memory allocations for field-less loglets
+- Maintains O(1) performance for delegation calls
+
 #### Level and Stack Management
 
 ```go
