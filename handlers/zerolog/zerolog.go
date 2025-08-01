@@ -80,14 +80,10 @@ func (zl *Logger) msg(msg string) {
 }
 
 func (zl *Logger) addFields(event *zerolog.Event) {
-	if zl.FieldsCount() == 0 {
-		return
-	}
-
-	iter := zl.Fields()
-	for iter.Next() {
-		k, v := iter.Field()
-		zl.addField(event, k, v)
+	if fields := zl.FieldsMap(); fields != nil {
+		for k, v := range fields {
+			zl.addField(event, k, v)
+		}
 	}
 }
 

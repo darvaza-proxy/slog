@@ -157,18 +157,10 @@ func (l *Logger) Printf(format string, args ...any) {
 }
 
 func (l *Logger) record(msg string) {
-	// Collect all fields from the loglet chain
-	fields := make(map[string]any)
-	iter := l.Fields()
-	for iter.Next() {
-		k, v := iter.Field()
-		fields[k] = v
-	}
-
 	l.recorder.Record(Message{
 		Message: msg,
 		Level:   l.Level(),
-		Fields:  fields,
+		Fields:  l.FieldsMap(),
 		Stack:   l.CallStack() != nil,
 	})
 }
