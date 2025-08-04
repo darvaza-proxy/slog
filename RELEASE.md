@@ -86,7 +86,7 @@ Before starting the release process:
    - Breaking changes (if any)
 
    Dependencies:
-   - darvaza.org/core v0.17.4
+   - darvaza.org/core v0.18.1
    - Go 1.23 or later"
    ```
 
@@ -356,18 +356,18 @@ For future automation:
 
 ## Latest Releases
 
-As of July 2025:
+As of August 2025:
 
-- **slog**: v0.7.4 (Go 1.23 required)
+- **slog**: v0.7.7 (Go 1.23 required)
 - **handlers/cblog**: v0.8.0
 - **handlers/discard**: v0.6.1
 - **handlers/filter**: v0.6.1
-- **handlers/logr**: v0.7.1
-- **handlers/logrus**: v0.7.1
+- **handlers/logr**: v0.1.0
+- **handlers/logrus**: v0.7.2
 - **handlers/zap**: v0.7.0
 - **handlers/zerolog**: v0.6.1
 
-All modules require Go 1.23 or later and use darvaza.org/core v0.17.4.
+All modules require Go 1.23 or later and use darvaza.org/core v0.18.1.
 
 ## See Also
 
