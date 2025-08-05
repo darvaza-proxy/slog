@@ -255,20 +255,20 @@ func makeTestLevelMethodsLogger(t *testing.T) slog.Logger {
 func TestLoggerPrintMethods(t *testing.T) {
 	logger, recorder := newCblogWithRecorder()
 
-	slogtest.RunWithLogger(t, "Print", logger, func(t *testing.T, logger slog.Logger) {
+	slogtest.RunWithLogger(t, "Print", logger, func(t core.T, logger slog.Logger) {
 		testCblogPrint(t, logger, recorder)
 	})
 
-	slogtest.RunWithLogger(t, "Println", logger, func(t *testing.T, logger slog.Logger) {
+	slogtest.RunWithLogger(t, "Println", logger, func(t core.T, logger slog.Logger) {
 		testCblogPrintln(t, logger, recorder)
 	})
 
-	slogtest.RunWithLogger(t, "Printf", logger, func(t *testing.T, logger slog.Logger) {
+	slogtest.RunWithLogger(t, "Printf", logger, func(t core.T, logger slog.Logger) {
 		testCblogPrintf(t, logger, recorder)
 	})
 }
 
-func testCblogPrint(t *testing.T, logger slog.Logger, recorder *slogtest.Logger) {
+func testCblogPrint(t core.T, logger slog.Logger, recorder *slogtest.Logger) {
 	recorder.Clear()
 	logger.Info().Print("hello", " ", "world")
 
@@ -276,29 +276,29 @@ func testCblogPrint(t *testing.T, logger slog.Logger, recorder *slogtest.Logger)
 	time.Sleep(10 * time.Millisecond)
 
 	msgs := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, 1)
+	slogtest.AssertMustMessageCount(t, msgs, 1)
 	slogtest.AssertMessage(t, msgs[0], slog.Info, testHelloWorld)
 }
 
-func testCblogPrintln(t *testing.T, logger slog.Logger, recorder *slogtest.Logger) {
+func testCblogPrintln(t core.T, logger slog.Logger, recorder *slogtest.Logger) {
 	recorder.Clear()
 	logger.Info().Println("hello", "world")
 
 	time.Sleep(10 * time.Millisecond)
 
 	msgs := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, 1)
+	slogtest.AssertMustMessageCount(t, msgs, 1)
 	slogtest.AssertMessage(t, msgs[0], slog.Info, testHelloWorld)
 }
 
-func testCblogPrintf(t *testing.T, logger slog.Logger, recorder *slogtest.Logger) {
+func testCblogPrintf(t core.T, logger slog.Logger, recorder *slogtest.Logger) {
 	recorder.Clear()
 	logger.Info().Printf("hello %s", "world")
 
 	time.Sleep(10 * time.Millisecond)
 
 	msgs := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, 1)
+	slogtest.AssertMustMessageCount(t, msgs, 1)
 	slogtest.AssertMessage(t, msgs[0], slog.Info, testHelloWorld)
 }
 
@@ -318,20 +318,20 @@ func TestLoggerWithStack(t *testing.T) {
 func TestLoggerWithLevel(t *testing.T) {
 	logger, ch := cblog.New(nil)
 
-	slogtest.RunWithLogger(t, "ValidLevel", logger, func(t *testing.T, logger slog.Logger) {
+	slogtest.RunWithLogger(t, "ValidLevel", logger, func(t core.T, logger slog.Logger) {
 		testCblogValidLevel(t, logger, ch)
 	})
 
-	slogtest.RunWithLogger(t, "SameLevel", logger, func(t *testing.T, logger slog.Logger) {
+	slogtest.RunWithLogger(t, "SameLevel", logger, func(t core.T, logger slog.Logger) {
 		testCblogSameLevel(t, logger)
 	})
 
-	slogtest.RunWithLogger(t, "InvalidLevel", logger, func(t *testing.T, logger slog.Logger) {
+	slogtest.RunWithLogger(t, "InvalidLevel", logger, func(t core.T, logger slog.Logger) {
 		testCblogInvalidLevel(t, logger, ch)
 	})
 }
 
-func testCblogValidLevel(t *testing.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
+func testCblogValidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
 	l := logger.WithLevel(slog.Error)
 	if l == nil {
 		t.Fatal("WithLevel returned nil")
@@ -348,7 +348,7 @@ func testCblogValidLevel(t *testing.T, logger slog.Logger, ch <-chan cblog.LogMs
 	}
 }
 
-func testCblogSameLevel(t *testing.T, logger slog.Logger) {
+func testCblogSameLevel(t core.T, logger slog.Logger) {
 	l1 := logger.Info()
 	l2 := l1.WithLevel(slog.Info)
 	if l1 != l2 {
@@ -356,7 +356,7 @@ func testCblogSameLevel(t *testing.T, logger slog.Logger) {
 	}
 }
 
-func testCblogInvalidLevel(t *testing.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
+func testCblogInvalidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
 	// cblog sends a panic-level message for invalid levels instead of actually panicking
 	// We need to capture the panic message from the channel
 	done := make(chan bool)
@@ -597,7 +597,8 @@ func TestFieldChaining(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	msgs := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, 1)
+	slogtest.AssertMustMessageCount(t, msgs, 1)
+	// Check log level
 	slogtest.AssertMessage(t, msgs[0], slog.Info, "test message")
 
 	// Check all fields are present
@@ -637,7 +638,7 @@ func TestComplexFieldTypes(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	msgs := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, 1)
+	slogtest.AssertMustMessageCount(t, msgs, 1)
 	slogtest.AssertMessage(t, msgs[0], slog.Info, "complex fields test")
 
 	// Verify all fields are present

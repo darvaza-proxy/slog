@@ -20,9 +20,7 @@ func TestRecorderExample(t *testing.T) {
 
 	// Verify the recorded messages
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	// Use helper assertions
 	msg := messages[0]
@@ -80,7 +78,7 @@ func TestCustomHandlerExample(t *testing.T) {
 	testLogger.Info().WithField("test", "value").Print("message")
 
 	msgs := testLogger.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, 1)
+	slogtest.AssertMustMessageCount(t, msgs, 1)
 	slogtest.AssertMessage(t, msgs[0], slog.Info, "message")
 	slogtest.AssertField(t, msgs[0], "test", "value")
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -70,7 +71,7 @@ func extractMessageGetter(logger slog.Logger, opts *ConcurrencyTestOptions) func
 }
 
 // verifyConcurrentTestResults verifies the results of concurrent testing
-func verifyConcurrentTestResults(t *testing.T, test ConcurrencyTest, getMessages func() []Message) {
+func verifyConcurrentTestResults(t core.T, test ConcurrencyTest, getMessages func() []Message) {
 	t.Helper()
 
 	if getMessages == nil {
@@ -80,27 +81,27 @@ func verifyConcurrentTestResults(t *testing.T, test ConcurrencyTest, getMessages
 
 	msgs := getMessages()
 	expected := test.Goroutines * test.Operations
-	AssertMessageCount(t, msgs, expected)
+	AssertMustMessageCount(t, msgs, expected)
 	verifyMessageFields(t, msgs)
 }
 
 // logNoVerification logs when verification is not available
-func logNoVerification(t *testing.T, test ConcurrencyTest) {
+func logNoVerification(t core.T, test ConcurrencyTest) {
 	t.Logf("Concurrent test completed: %d goroutines × %d operations = %d total messages "+
 		"(verification not available)",
 		test.Goroutines, test.Operations, test.Goroutines*test.Operations)
 }
 
 // verifyMessageFields verifies that all messages have required fields
-func verifyMessageFields(t *testing.T, msgs []Message) {
+func verifyMessageFields(t core.T, msgs []Message) {
 	t.Helper()
 
 	for i, msg := range msgs {
-		if msg.Fields["goroutine"] == nil {
-			t.Errorf("message %d missing goroutine field", i)
+		if !core.AssertNotNil(t, msg.Fields["goroutine"], "message %d goroutine field", i) {
+			return
 		}
-		if msg.Fields["operation"] == nil {
-			t.Errorf("message %d missing operation field", i)
+		if !core.AssertNotNil(t, msg.Fields["operation"], "message %d operation field", i) {
+			return
 		}
 	}
 }
@@ -129,26 +130,19 @@ func runGoroutineOperations(logger slog.Logger, id, operations int) {
 }
 
 // verifyConcurrentResults verifies the results of concurrent logging.
-func verifyConcurrentResults(t *testing.T, logger *Logger, test ConcurrencyTest) {
+func verifyConcurrentResults(t core.T, logger *Logger, test ConcurrencyTest) {
 	t.Helper()
 
 	msgs := logger.GetMessages()
 	expected := test.Goroutines * test.Operations
-	AssertMessageCount(t, msgs, expected)
+	AssertMustMessageCount(t, msgs, expected)
 
 	// Verify all messages have required fields
-	for i, msg := range msgs {
-		if msg.Fields["goroutine"] == nil {
-			t.Errorf("message %d missing goroutine field", i)
-		}
-		if msg.Fields["operation"] == nil {
-			t.Errorf("message %d missing operation field", i)
-		}
-	}
+	verifyMessageFields(t, msgs)
 }
 
 // TestConcurrentFields verifies field handling under concurrent access.
-func TestConcurrentFields(t *testing.T, newLogger func() slog.Logger) {
+func TestConcurrentFields(t core.T, newLogger func() slog.Logger) {
 	logger := newLogger()
 
 	const goroutines = 50
@@ -187,11 +181,9 @@ func createLoggerWithFields(base slog.Logger, id, numFields int) slog.Logger {
 }
 
 // verifyConcurrentLoggers verifies each logger is independent.
-func verifyConcurrentLoggers(t *testing.T, loggers []slog.Logger) {
+func verifyConcurrentLoggers(t core.T, loggers []slog.Logger) {
 	t.Helper()
 	for i, l := range loggers {
-		if l == nil {
-			t.Errorf("logger %d is nil", i)
-		}
+		core.AssertNotNil(t, l, "logger %d", i)
 	}
 }
