@@ -789,14 +789,16 @@ func TestSinkWithEmptyValues(t *testing.T) {
 	// Test with empty key-value pairs
 	sink.Info(0, "test message")
 	messages := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
+	slogtest.AssertMustMessageCount(t, messages, 1)
+
 	slogtest.AssertMessage(t, messages[0], slog.Info, "test message")
 
 	// Test with odd number of key-value pairs
 	recorder.Clear()
 	sink.Info(0, "test message", "key1", "value1", "incomplete")
 	messages = recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
+	slogtest.AssertMustMessageCount(t, messages, 1)
+
 	slogtest.AssertMessage(t, messages[0], slog.Info, "test message")
 	slogtest.AssertField(t, messages[0], "key1", "value1")
 	slogtest.AssertNoField(t, messages[0], "incomplete")

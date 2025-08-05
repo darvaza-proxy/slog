@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -59,22 +60,20 @@ func testBidirectionalBasic(t *testing.T, fn func(slog.Logger) slog.Logger) {
 
 	// Verify the message was recorded correctly
 	messages := recorder.GetMessages()
-	AssertMessageCount(t, messages, 1)
-	AssertMessage(t, messages[0], slog.Info, "test message")
+	AssertMustMessageCount(t, messages, 1)
+	AssertMustMessage(t, messages[0], slog.Info, "test message")
 }
 
 // assertIntField checks that an int field has the expected value
 // It handles the case where the value might be stored as int, int64, or float64
-func assertIntField(t *testing.T, fields map[string]any, key string, expected int) {
+func assertIntField(t core.T, fields map[string]any, key string, expected int) {
 	t.Helper()
 
 	value, exists := fields[key]
-	if !exists {
-		t.Errorf("Expected field '%s' not found", key)
+	if !core.AssertTrue(t, exists, "field %q exists", key) {
 		return
 	}
 
-	isExpectedType := true
 	isExpectedValue := false
 
 	switch v := value.(type) {
@@ -85,14 +84,12 @@ func assertIntField(t *testing.T, fields map[string]any, key string, expected in
 	case float64:
 		isExpectedValue = (v == float64(expected))
 	default:
-		isExpectedType = false
+		// Type not recognized for int conversion
+		core.AssertTrue(t, false, "field %q type %T convertible to int", key, value)
+		return
 	}
 
-	if !isExpectedType {
-		t.Errorf("Unexpected type for %s field: %T", key, value)
-	} else if !isExpectedValue {
-		t.Errorf("Expected %s field to be %d, got %v", key, expected, value)
-	}
+	core.AssertTrue(t, isExpectedValue, "field %q value %v equals %d", key, value, expected)
 }
 
 // testBidirectionalFields tests field preservation
@@ -112,10 +109,10 @@ func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger, _ *
 		Print("fields test")
 
 	messages := recorder.GetMessages()
-	AssertMessageCount(t, messages, 1)
+	AssertMustMessageCount(t, messages, 1)
 
 	msg := messages[0]
-	AssertMessage(t, msg, slog.Info, "fields test")
+	AssertMustMessage(t, msg, slog.Info, "fields test")
 	AssertField(t, msg, "string", "value")
 	assertIntField(t, msg.Fields, "int", 42)
 	AssertField(t, msg, "bool", true)
@@ -126,11 +123,25 @@ func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger, _ *
 func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions) {
 	t.Helper()
 
-	testCases := []struct {
-		name    string
-		logFunc func(slog.Logger, string)
-		level   slog.LogLevel
-	}{
+	testCases := buildLevelTestCases()
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testSingleLevel(t, fn, opts, tc)
+		})
+	}
+}
+
+// levelTestCase represents a single level test case
+type levelTestCase struct {
+	name    string
+	logFunc func(slog.Logger, string)
+	level   slog.LogLevel
+}
+
+// buildLevelTestCases creates test cases for all log levels
+func buildLevelTestCases() []levelTestCase {
+	return []levelTestCase{
 		{
 			name: "Debug",
 			logFunc: func(l slog.Logger, msg string) {
@@ -160,29 +171,35 @@ func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger, opt
 			level: slog.Error,
 		},
 	}
+}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			recorder := NewLogger()
-			adapter := fn(recorder)
+// testSingleLevel tests a single log level
+func testSingleLevel(t *testing.T, fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions, tc levelTestCase) {
+	t.Helper()
 
-			msg := fmt.Sprintf("%s level test", tc.name)
-			tc.logFunc(adapter, msg)
+	recorder := NewLogger()
+	adapter := fn(recorder)
 
-			messages := recorder.GetMessages()
+	msg := fmt.Sprintf("%s level test", tc.name)
+	tc.logFunc(adapter, msg)
 
-			// Use options to get expected level
-			expectedLevel := opts.ExpectedLevel(tc.level)
+	messages := recorder.GetMessages()
+	expectedLevel := opts.ExpectedLevel(tc.level)
 
-			// If expected level is UndefinedLevel, message should be skipped
-			if expectedLevel == slog.UndefinedLevel {
-				AssertMessageCount(t, messages, 0)
-			} else {
-				AssertMessageCount(t, messages, 1)
-				AssertMessage(t, messages[0], expectedLevel, msg)
-			}
-		})
+	verifyLevelTestResult(t, messages, expectedLevel, msg)
+}
+
+// verifyLevelTestResult verifies the result of a level test
+func verifyLevelTestResult(t *testing.T, messages []Message, expectedLevel slog.LogLevel, msg string) {
+	t.Helper()
+
+	if expectedLevel == slog.UndefinedLevel {
+		AssertMustMessageCount(t, messages, 0)
+		return
 	}
+
+	AssertMustMessageCount(t, messages, 1)
+	AssertMustMessage(t, messages[0], expectedLevel, msg)
 }
 
 // testBidirectionalChaining tests field chaining behaviour
@@ -205,18 +222,18 @@ func testBidirectionalChaining(t *testing.T, fn func(slog.Logger) slog.Logger, _
 
 	// Verify both messages have the base fields and their specific fields
 	messages := recorder.GetMessages()
-	AssertMessageCount(t, messages, 2)
+	AssertMustMessageCount(t, messages, 2)
 
 	// First message - user
 	msg1 := messages[0]
-	AssertMessage(t, msg1, slog.Info, "user action")
+	AssertMustMessage(t, msg1, slog.Info, "user action")
 	AssertField(t, msg1, "app", "test")
 	AssertField(t, msg1, "version", "1.0")
 	AssertField(t, msg1, "component", "user")
 
 	// Second message - admin
 	msg2 := messages[1]
-	AssertMessage(t, msg2, slog.Info, "admin action")
+	AssertMustMessage(t, msg2, slog.Info, "admin action")
 	AssertField(t, msg2, "app", "test")
 	AssertField(t, msg2, "version", "1.0")
 	AssertField(t, msg2, "component", "admin")
@@ -249,27 +266,22 @@ func testBidirectionalComplexFields(t *testing.T, fn func(slog.Logger) slog.Logg
 		Print("complex fields")
 
 	messages := recorder.GetMessages()
-	AssertMessageCount(t, messages, 1)
+	AssertMustMessageCount(t, messages, 1)
 
 	msg := messages[0]
-	AssertMessage(t, msg, slog.Error, "complex fields")
+	AssertMustMessage(t, msg, slog.Error, "complex fields")
 
 	// Verify fields exist (exact value checking depends on adapter implementation)
-	if _, exists := msg.Fields["error"]; !exists {
-		t.Error("Expected error field to exist")
-	}
-	if _, exists := msg.Fields["custom"]; !exists {
-		t.Error("Expected custom field to exist")
-	}
-	if _, exists := msg.Fields["slice"]; !exists {
-		t.Error("Expected slice field to exist")
-	}
-	if _, exists := msg.Fields["map"]; !exists {
-		t.Error("Expected map field to exist")
-	}
-	if _, exists := msg.Fields["nil"]; !exists {
-		t.Error("Expected nil field to exist")
-	}
+	_, exists := msg.Fields["error"]
+	core.AssertTrue(t, exists, "field %q exists", "error")
+	_, exists = msg.Fields["custom"]
+	core.AssertTrue(t, exists, "field %q exists", "custom")
+	_, exists = msg.Fields["slice"]
+	core.AssertTrue(t, exists, "field %q exists", "slice")
+	_, exists = msg.Fields["map"]
+	core.AssertTrue(t, exists, "field %q exists", "map")
+	_, exists = msg.Fields["nil"]
+	core.AssertTrue(t, exists, "field %q exists", "nil")
 }
 
 // TestBidirectionalWithAdapter is a convenience function that creates an adapter

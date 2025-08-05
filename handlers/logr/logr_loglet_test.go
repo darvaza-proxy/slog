@@ -204,8 +204,8 @@ func testBasicLoggingWithRecorder(t *testing.T, logger slog.Logger, recorder *sl
 	logger.Info().Print("test message")
 
 	messages := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
-	slogtest.AssertMessage(t, messages[0], slog.Info, "test message")
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	slogtest.AssertMustMessage(t, messages[0], slog.Info, "test message")
 }
 
 // testFieldPreservation tests field preservation with recorder
@@ -218,8 +218,8 @@ func testFieldPreservation(t *testing.T, logger slog.Logger, recorder *slogtest.
 		Print("message with fields")
 
 	messages := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
-	slogtest.AssertMessage(t, messages[0], slog.Info, "message with fields")
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	slogtest.AssertMustMessage(t, messages[0], slog.Info, "message with fields")
 	slogtest.AssertField(t, messages[0], "key1", "value1")
 	slogtest.AssertField(t, messages[0], "key2", 42)
 }
@@ -244,7 +244,7 @@ func testLevelMapping(t *testing.T, logger slog.Logger, recorder *slogtest.Logge
 			logger.WithLevel(tc.level).Print("test message")
 
 			messages := recorder.GetMessages()
-			slogtest.AssertMessageCount(t, messages, 1)
+			slogtest.AssertMustMessageCount(t, messages, 1)
 			slogtest.AssertMessage(t, messages[0], tc.expected, "test message")
 		})
 	}
@@ -276,7 +276,7 @@ func TestLoggerFieldIsolation(t *testing.T) {
 	branch2.Info().Print("branch 2 message")
 
 	messages := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 2)
+	slogtest.AssertMustMessageCount(t, messages, 2)
 
 	// Verify first message has correct fields
 	slogtest.AssertMessage(t, messages[0], slog.Info, "branch 1 message")
@@ -300,7 +300,8 @@ func TestLoggerEmptyFields(t *testing.T) {
 	logger.Info().WithField("", "should-be-ignored").WithField("valid", "value").Print("test")
 
 	messages := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
+	slogtest.AssertMustMessageCount(t, messages, 1)
+
 	slogtest.AssertMessage(t, messages[0], slog.Info, "test")
 	slogtest.AssertField(t, messages[0], "valid", "value")
 	slogtest.AssertNoField(t, messages[0], "")
@@ -314,7 +315,8 @@ func TestLoggerEmptyFields(t *testing.T) {
 	logger.Info().WithFields(fields).Print("test fields")
 
 	messages = recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
+	slogtest.AssertMustMessageCount(t, messages, 1)
+
 	slogtest.AssertMessage(t, messages[0], slog.Info, "test fields")
 	slogtest.AssertField(t, messages[0], "valid", "kept")
 	slogtest.AssertNoField(t, messages[0], "")
