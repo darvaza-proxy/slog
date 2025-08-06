@@ -1,6 +1,8 @@
 package testing
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 
 	"darvaza.org/core"
@@ -214,9 +216,7 @@ func testLevelMethod(t core.T, newLogger func() slog.Logger,
 	levelLogger := method(logger)
 
 	// Test that we get a logger back
-	if levelLogger == nil {
-		t.Fatal("level method returned nil")
-	}
+	core.AssertMustNotNil(t, levelLogger, "level method")
 
 	// For testable loggers, verify the level
 	if tl, ok := logger.(*Logger); ok {
@@ -241,27 +241,19 @@ func TestWithField(t core.T, logger slog.Logger) {
 
 	// Test single field
 	l1 := logger.WithField("key1", "value1")
-	if l1 == nil {
-		t.Fatal("WithField returned nil")
-	}
+	core.AssertMustNotNil(t, l1, "WithField")
 
 	// Test empty key (should return same logger)
 	l2 := logger.WithField("", "value")
-	if l2 != logger {
-		t.Error("WithField with empty key should return same logger")
-	}
+	core.AssertEqual(t, logger, l2, "WithField empty key")
 
 	// Test nil value (should work)
 	l3 := logger.WithField("nil", nil)
-	if l3 == nil {
-		t.Fatal("WithField with nil value returned nil")
-	}
+	core.AssertMustNotNil(t, l3, "WithField nil value")
 
 	// Test chaining
 	l4 := logger.WithField("a", 1).WithField("b", 2).WithField("c", 3)
-	if l4 == nil {
-		t.Fatal("chained WithField returned nil")
-	}
+	core.AssertMustNotNil(t, l4, "WithField chaining")
 }
 
 // TestWithFields tests the WithFields method.
@@ -276,29 +268,21 @@ func TestWithFields(t core.T, logger slog.Logger) {
 		"key4": nil,
 	}
 	l1 := logger.WithFields(fields)
-	if l1 == nil {
-		t.Fatal("WithFields returned nil")
-	}
+	core.AssertMustNotNil(t, l1, "WithFields")
 
 	// Test empty map (should return same logger)
 	l2 := logger.WithFields(nil)
-	if l2 != logger {
-		t.Error("WithFields with nil should return same logger")
-	}
+	core.AssertEqual(t, logger, l2, "WithFields nil")
 
 	l3 := logger.WithFields(map[string]any{})
-	if l3 != logger {
-		t.Error("WithFields with empty map should return same logger")
-	}
+	core.AssertEqual(t, logger, l3, "WithFields empty")
 
 	// Test empty keys are filtered
 	l4 := logger.WithFields(map[string]any{
 		"":     "ignored",
 		"kept": "value",
 	})
-	if l4 == nil {
-		t.Fatal("WithFields with mixed keys returned nil")
-	}
+	core.AssertMustNotNil(t, l4, "WithFields mixed keys")
 }
 
 // TestWithStack tests the WithStack method with various skip values.
@@ -309,14 +293,109 @@ func TestWithStack(t core.T, logger slog.Logger) {
 
 	for _, skip := range skipValues {
 		l := logger.WithStack(skip)
-		if l == nil {
-			t.Fatalf("WithStack(%d) returned nil", skip)
-		}
+		core.AssertMustNotNil(t, l, "WithStack %d", skip)
 
 		// Test chaining
 		l2 := l.WithField("test", "value")
-		if l2 == nil {
-			t.Fatal("chaining after WithStack returned nil")
-		}
+		core.AssertMustNotNil(t, l2, "WithStack chaining")
 	}
+}
+
+// AssertSame verifies that two values are the same instance using reflection.
+// This checks pointer equality for reference types and value equality for value types.
+func AssertSame(t core.T, expected, actual any, name string, args ...any) bool {
+	t.Helper()
+
+	ok := IsSame(expected, actual)
+	if !ok {
+		doError(t, name, args, "expected same value or reference, got different")
+	}
+	return ok
+}
+
+// AssertNotSame verifies that two values are not the same instance using reflection.
+// This checks that values are not pointer-equal for reference types and not value-equal for value types.
+func AssertNotSame(t core.T, expected, actual any, name string, args ...any) bool {
+	t.Helper()
+
+	ok := !IsSame(expected, actual)
+	if !ok {
+		doError(t, name, args, "expected different values or references, got same")
+	}
+	return ok
+}
+
+// AssertMustNotSame verifies that two values are not the same instance using reflection.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+func AssertMustNotSame(t core.T, expected, actual any, name string, args ...any) {
+	t.Helper()
+	if !AssertNotSame(t, expected, actual, name, args...) {
+		t.FailNow()
+	}
+}
+
+// IsSame checks if two values are the same instance using reflection.
+// Returns true if the values are the same instance for reference types,
+// or equal for value types.
+func IsSame(expected, actual any) bool {
+	// Handle untyped nil cases first
+	if expected == nil && actual == nil {
+		return true
+	}
+	if expected == nil || actual == nil {
+		return false
+	}
+
+	expectedVal := reflect.ValueOf(expected)
+	actualVal := reflect.ValueOf(actual)
+
+	// Different types are never the same
+	if expectedVal.Type() != actualVal.Type() {
+		return false
+	}
+
+	return isSameReflectValue(expectedVal, actualVal)
+}
+
+// isSameReflectValue compares two reflect values for sameness
+func isSameReflectValue(va, vb reflect.Value) bool {
+	switch va.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func:
+		// For reference types, compare pointers
+		return va.Pointer() == vb.Pointer()
+	case reflect.Interface:
+		return isSameInterface(va, vb)
+	default:
+		// For value types, they're never the same instance
+		return false
+	}
+}
+
+// isSameInterface compares two interface values for sameness
+func isSameInterface(va, vb reflect.Value) bool {
+	if va.IsNil() && vb.IsNil() {
+		return true
+	}
+	if va.IsNil() || vb.IsNil() {
+		return false
+	}
+	return isSameReflectValue(va.Elem(), vb.Elem())
+}
+
+// doError reports a test error with optional prefix formatting
+func doError(t core.T, name string, args []any, messageFormat string, messageArgs ...any) {
+	t.Helper()
+	// Format the message
+	msg := fmt.Sprintf(messageFormat, messageArgs...)
+	// Add prefix if provided
+	if name != "" {
+		var prefix string
+		if len(args) > 0 {
+			prefix = fmt.Sprintf(name, args...)
+		} else {
+			prefix = name
+		}
+		msg = fmt.Sprintf("%s: %s", prefix, msg)
+	}
+	t.Error(msg)
 }

@@ -3,6 +3,7 @@ package testing
 import (
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -90,18 +91,15 @@ func testCompareMessagesCase(t *testing.T, tc compareTestCase) {
 
 	onlyFirst, onlySecond, both := CompareMessages(tc.first, tc.second)
 
-	if len(onlyFirst) != tc.wantOnlyFirst {
-		t.Errorf("onlyFirst: got %d messages, want %d", len(onlyFirst), tc.wantOnlyFirst)
+	if !core.AssertEqual(t, tc.wantOnlyFirst, len(onlyFirst), "onlyFirst count") {
 		logMessages(t, "only in first", onlyFirst)
 	}
 
-	if len(onlySecond) != tc.wantOnlySecond {
-		t.Errorf("onlySecond: got %d messages, want %d", len(onlySecond), tc.wantOnlySecond)
+	if !core.AssertEqual(t, tc.wantOnlySecond, len(onlySecond), "onlySecond count") {
 		logMessages(t, "only in second", onlySecond)
 	}
 
-	if len(both) != tc.wantBoth {
-		t.Errorf("both: got %d messages, want %d", len(both), tc.wantBoth)
+	if !core.AssertEqual(t, tc.wantBoth, len(both), "both count") {
 		logMessages(t, "in both", both)
 	}
 }
@@ -144,14 +142,10 @@ func testTransformMessagesNoOptions(t *testing.T, messages []Message) {
 	t.Helper()
 
 	result := TransformMessages(messages, nil)
-	if len(result) != len(messages) {
-		t.Errorf("expected %d messages, got %d", len(messages), len(result))
-	}
+	core.AssertMustEqual(t, len(messages), len(result), "message count")
 
 	for i, msg := range result {
-		if msg.Level != messages[i].Level {
-			t.Errorf("message %d: level should not change", i)
-		}
+		core.AssertEqual(t, messages[i].Level, msg.Level, "message %d level", i)
 	}
 }
 
@@ -183,11 +177,11 @@ func testTransformMessagesWithUndefinedLevel(t *testing.T, messages []Message) {
 	result := TransformMessages(messages, &opts)
 
 	// We should only have Info and Error messages left
-	if len(result) != 2 {
-		t.Errorf("expected 2 messages after filtering, got %d", len(result))
+	if !core.AssertEqual(t, 2, len(result), "filtered message count") {
 		for i, msg := range result {
 			t.Logf("  [%d] level=%v, message=%q", i, msg.Level, msg.Message)
 		}
+		return
 	}
 
 	// Verify only Info and Error messages remain
@@ -200,12 +194,8 @@ func testTransformMessagesWithUndefinedLevel(t *testing.T, messages []Message) {
 		expectedMessages[msg.Message] = true
 	}
 
-	if !expectedMessages["info"] {
-		t.Error("expected Info message to be present")
-	}
-	if !expectedMessages["error"] {
-		t.Error("expected Error message to be present")
-	}
+	core.AssertTrue(t, expectedMessages["info"], "Info message present")
+	core.AssertTrue(t, expectedMessages["error"], "Error message present")
 }
 
 // verifyTransformations verifies that transformations were applied correctly
@@ -214,9 +204,7 @@ func verifyTransformations(t *testing.T, original, transformed []Message, opts *
 
 	for i, msg := range transformed {
 		expected := opts.ExpectedLevel(original[i].Level)
-		if msg.Level != expected {
-			t.Errorf("message %d: expected level %v, got %v", i, expected, msg.Level)
-		}
+		core.AssertEqual(t, expected, msg.Level, "message %d level", i)
 	}
 }
 
@@ -250,15 +238,9 @@ func verifyComparisonResult(t *testing.T, expected, actual []Message) {
 
 	onlyExpected, onlyActual, both := CompareMessages(expected, actual)
 
-	if len(onlyExpected) != 0 {
-		t.Errorf("expected no messages only in expected, got %d", len(onlyExpected))
-	}
-	if len(onlyActual) != 0 {
-		t.Errorf("expected no messages only in actual, got %d", len(onlyActual))
-	}
-	if len(both) != 2 {
-		t.Errorf("expected 2 messages in both, got %d", len(both))
-	}
+	core.AssertEqual(t, 0, len(onlyExpected), "messages only in expected")
+	core.AssertEqual(t, 0, len(onlyActual), "messages only in actual")
+	core.AssertEqual(t, 2, len(both), "messages in both")
 }
 
 func TestMessageString(t *testing.T) {
@@ -312,5 +294,315 @@ func TestMessageString(t *testing.T) {
 				t.Errorf("String() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIsSame(t *testing.T) {
+	t.Run("nil values", func(t *testing.T) {
+		testIsSameNilValues(t)
+	})
+
+	t.Run("pointer types", func(t *testing.T) {
+		testIsSamePointerTypes(t)
+	})
+
+	t.Run("interface types", func(t *testing.T) {
+		testIsSameInterfaceTypes(t)
+	})
+
+	t.Run("value types", func(t *testing.T) {
+		testIsSameValueTypes(t)
+	})
+
+	t.Run("different types", func(t *testing.T) {
+		testIsSameDifferentTypes(t)
+	})
+}
+
+// testIsSameNilValues tests IsSame with nil values
+func testIsSameNilValues(t *testing.T) {
+	t.Helper()
+
+	// Both nil
+	core.AssertTrue(t, IsSame(nil, nil), "IsSame(nil, nil)")
+
+	// One nil, one non-nil
+	value := 42
+	core.AssertFalse(t, IsSame(nil, value), "IsSame(nil, non-nil)")
+	core.AssertFalse(t, IsSame(value, nil), "IsSame(non-nil, nil)")
+
+	// Nil pointers
+	var ptr1, ptr2 *int
+	core.AssertTrue(t, IsSame(ptr1, ptr2), "IsSame with nil pointers")
+
+	// Nil interfaces
+	var interface1, interface2 any
+	core.AssertTrue(t, IsSame(interface1, interface2), "IsSame with nil interfaces")
+}
+
+// testIsSamePointerTypes tests IsSame with pointer types
+func testIsSamePointerTypes(t *testing.T) {
+	t.Helper()
+
+	value1 := 42
+	value2 := 42
+	ptr1 := &value1
+	ptr2 := &value2
+	ptr3 := ptr1
+
+	// Same pointer
+	if !IsSame(ptr1, ptr3) {
+		t.Error("IsSame with same pointer should return true")
+	}
+
+	// Different pointers to same value
+	if IsSame(ptr1, ptr2) {
+		t.Error("IsSame with different pointers should return false")
+	}
+
+	// Nil pointer vs non-nil pointer
+	var nilPtr *int
+	if IsSame(ptr1, nilPtr) {
+		t.Error("IsSame with nil and non-nil pointer should return false")
+	}
+}
+
+// testIsSameInterfaceTypes tests IsSame with interface types
+func testIsSameInterfaceTypes(t *testing.T) {
+	t.Helper()
+
+	value := 42
+	ptr := &value
+
+	value2 := 42 // Different variable with same value
+
+	var interface1, interface2, interface3 any
+	interface1 = ptr
+	interface2 = ptr     // Same pointer wrapped in interface
+	interface3 = &value2 // Different pointer to same value
+
+	// Same underlying pointer
+	if !IsSame(interface1, interface2) {
+		t.Error("IsSame with same underlying pointer should return true")
+	}
+
+	// Different underlying pointers
+	if IsSame(interface1, interface3) {
+		t.Error("IsSame with different underlying pointers should return false")
+	}
+
+	// One nil interface
+	var nilInterface any
+	if IsSame(interface1, nilInterface) {
+		t.Error("IsSame with nil and non-nil interface should return false")
+	}
+}
+
+// testIsSameValueTypes tests IsSame with value types
+func testIsSameValueTypes(t *testing.T) {
+	t.Helper()
+
+	// Value types should return false (not same instance)
+	value1 := 42
+	value2 := 42
+
+	if IsSame(value1, value2) {
+		t.Error("IsSame with value types should return false")
+	}
+
+	// String values
+	str1 := "hello"
+	str2 := "hello"
+
+	if IsSame(str1, str2) {
+		t.Error("IsSame with string values should return false")
+	}
+
+	// Struct values
+	type testStruct struct{ x int }
+	struct1 := testStruct{x: 1}
+	struct2 := testStruct{x: 1}
+
+	if IsSame(struct1, struct2) {
+		t.Error("IsSame with struct values should return false")
+	}
+}
+
+// testIsSameDifferentTypes tests IsSame with different types
+func testIsSameDifferentTypes(t *testing.T) {
+	t.Helper()
+
+	// Different types should return false
+	if IsSame(42, "42") {
+		t.Error("IsSame with different types should return false")
+	}
+
+	if IsSame(42, 42.0) {
+		t.Error("IsSame with int and float should return false")
+	}
+
+	// Pointer vs value
+	value := 42
+	ptr := &value
+
+	if IsSame(value, ptr) {
+		t.Error("IsSame with value and pointer should return false")
+	}
+}
+
+func TestAssertSame(t *testing.T) {
+	t.Run("same instances pass", func(t *testing.T) {
+		testAssertSamePassing(t)
+	})
+
+	t.Run("different instances fail", func(t *testing.T) {
+		testAssertSameFailing(t)
+	})
+}
+
+func TestAssertNotSame(t *testing.T) {
+	t.Run("different instances pass", func(t *testing.T) {
+		testAssertNotSamePassing(t)
+	})
+
+	t.Run("same instances fail", func(t *testing.T) {
+		testAssertNotSameFailing(t)
+	})
+}
+
+// testAssertSamePassing tests AssertSame with cases that should pass
+func testAssertSamePassing(t *testing.T) {
+	t.Helper()
+
+	// Use a mock test to capture assertions
+	mock := &core.MockT{}
+
+	// Test with same pointers
+	value := 42
+	ptr1 := &value
+	ptr2 := ptr1
+
+	if !AssertSame(mock, ptr1, ptr2, "same pointer test") {
+		t.Error("AssertSame should return true for same pointers")
+	}
+
+	// Mock should not have any failures
+	if mock.Failed() {
+		t.Error("AssertSame should not fail for same instances")
+	}
+
+	// Test with nil values
+	mock = &core.MockT{}
+	if !AssertSame(mock, nil, nil, "nil test") {
+		t.Error("AssertSame should return true for both nil")
+	}
+
+	if mock.Failed() {
+		t.Error("AssertSame should not fail for both nil")
+	}
+}
+
+// testAssertSameFailing tests AssertSame with cases that should fail
+func testAssertSameFailing(t *testing.T) {
+	t.Helper()
+
+	// Use a mock test to capture assertions
+	mock := &core.MockT{}
+
+	// Test with different pointers
+	value1 := 42
+	value2 := 42
+	ptr1 := &value1
+	ptr2 := &value2
+
+	if AssertSame(mock, ptr1, ptr2, "different pointer test") {
+		t.Error("AssertSame should return false for different pointers")
+	}
+
+	// Mock should have a failure (from core.AssertEqual fallback)
+	if !mock.Failed() {
+		t.Error("AssertSame should fail and call core.AssertEqual for different instances")
+	}
+
+	// Test with value types
+	mock = &core.MockT{}
+	val1 := 42
+	val2 := 42
+
+	if AssertSame(mock, val1, val2, "value test") {
+		t.Error("AssertSame should return false for value types")
+	}
+
+	// Mock should have a failure
+	if !mock.Failed() {
+		t.Error("AssertSame should fail for value types")
+	}
+}
+
+// testAssertNotSamePassing tests AssertNotSame with cases that should pass
+func testAssertNotSamePassing(t *testing.T) {
+	t.Helper()
+
+	// Use a mock test to capture assertions
+	mock := &core.MockT{}
+
+	// Test with different pointers
+	value1 := 42
+	value2 := 42
+	ptr1 := &value1
+	ptr2 := &value2
+
+	if !AssertNotSame(mock, ptr1, ptr2, "different pointer test") {
+		t.Error("AssertNotSame should return true for different pointers")
+	}
+
+	// Mock should not have any failures
+	if mock.Failed() {
+		t.Error("AssertNotSame should not fail for different instances")
+	}
+
+	// Test with value types
+	mock = &core.MockT{}
+	val1 := 42
+	val2 := 42
+
+	if !AssertNotSame(mock, val1, val2, "value test") {
+		t.Error("AssertNotSame should return true for value types")
+	}
+
+	if mock.Failed() {
+		t.Error("AssertNotSame should not fail for value types")
+	}
+}
+
+// testAssertNotSameFailing tests AssertNotSame with cases that should fail
+func testAssertNotSameFailing(t *testing.T) {
+	t.Helper()
+
+	// Use a mock test to capture assertions
+	mock := &core.MockT{}
+
+	// Test with same pointers
+	value := 42
+	ptr1 := &value
+	ptr2 := ptr1
+
+	if AssertNotSame(mock, ptr1, ptr2, "same pointer test") {
+		t.Error("AssertNotSame should return false for same pointers")
+	}
+
+	// Mock should have a failure
+	if !mock.Failed() {
+		t.Error("AssertNotSame should fail for same instances")
+	}
+
+	// Test with nil values
+	mock = &core.MockT{}
+	if AssertNotSame(mock, nil, nil, "nil test") {
+		t.Error("AssertNotSame should return false for both nil")
+	}
+
+	if !mock.Failed() {
+		t.Error("AssertNotSame should fail for both nil")
 	}
 }
