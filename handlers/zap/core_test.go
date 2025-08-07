@@ -2,7 +2,6 @@ package zap_test
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -10,10 +9,16 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogzap "darvaza.org/slog/handlers/zap"
 	slogtest "darvaza.org/slog/internal/testing"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = levelTestCase{}
+var _ core.TestCase = mapTestCase{}
+var _ core.TestCase = configTestCase{}
 
 // getFieldValue is a generic helper to safely extract and cast field values
 func getFieldValue[T any](fields map[string]any, key string) (T, bool) {
@@ -30,31 +35,18 @@ func getFieldValue[T any](fields map[string]any, key string) (T, bool) {
 func assertField[T comparable](t *testing.T, fields map[string]any, key string, expected T) {
 	t.Helper()
 	actual, ok := getFieldValue[T](fields, key)
-	if !ok {
-		t.Errorf("Field %q not found or wrong type, got %v (type: %T)", key, fields[key], fields[key])
-		return
-	}
-	if actual != expected {
-		t.Errorf("Field %q = %v, want %v", key, actual, expected)
-	}
+	core.AssertMustTrue(t, ok, "field found")
+	core.AssertEqual(t, expected, actual, "field value")
 }
 
 // assertAnySliceField is a test helper for []any fields (interface slices)
 func assertAnySliceField(t *testing.T, fields map[string]any, key string, expected ...any) {
 	t.Helper()
 	actual, ok := fields[key].([]any)
-	if !ok {
-		t.Errorf("Field %q not []any, got %v (type: %T)", key, fields[key], fields[key])
-		return
-	}
-	if len(actual) != len(expected) {
-		t.Errorf("Field %q length = %d, want %d", key, len(actual), len(expected))
-		return
-	}
+	core.AssertMustTrue(t, ok, "field []any type")
+	core.AssertMustEqual(t, len(expected), len(actual), "field length")
 	for i, v := range expected {
-		if actual[i] != v {
-			t.Errorf("Field %q[%d] = %v, want %v", key, i, actual[i], v)
-		}
+		core.AssertEqual(t, v, actual[i], "field element")
 	}
 }
 
@@ -113,29 +105,45 @@ func TestSlogCoreWrite(t *testing.T) {
 	t.Run("PanicWrite", testSlogCorePanicWrite)
 }
 
-func TestMapZapToSlogLevel(t *testing.T) {
-	// This uses test case types, so we keep it as is
-	testCases := []mapTestCase{
-		{"DPanicLevel", zapcore.DPanicLevel, slog.Panic, true},
-		{"UnknownLevel", zapcore.Level(99), slog.Info, false},
-		{"InvalidLevel", zapcore.InvalidLevel, slog.Info, false},
+func newMapTestCase(
+	name string, zapLevel zapcore.Level, expectedSlogLevel slog.LogLevel, shouldPanic bool,
+) mapTestCase {
+	return mapTestCase{
+		name:              name,
+		zapLevel:          zapLevel,
+		expectedSlogLevel: expectedSlogLevel,
+		shouldPanic:       shouldPanic,
 	}
+}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, tc.test)
+func mapTestCases() []mapTestCase {
+	return []mapTestCase{
+		newMapTestCase("DPanicLevel", zapcore.DPanicLevel, slog.Panic, true),
+		newMapTestCase("UnknownLevel", zapcore.Level(99), slog.Info, false),
+		newMapTestCase("InvalidLevel", zapcore.InvalidLevel, slog.Info, false),
+	}
+}
+
+func TestMapZapToSlogLevel(t *testing.T) {
+	core.RunTestCases(t, mapTestCases())
+}
+
+func newConfigTestCase(name string, config zap.Config) configTestCase {
+	return configTestCase{
+		name:   name,
+		config: config,
+	}
+}
+
+func configTestCases() []configTestCase {
+	return []configTestCase{
+		newConfigTestCase("Development", zap.NewDevelopmentConfig()),
+		newConfigTestCase("Production", zap.NewProductionConfig()),
 	}
 }
 
 func TestSlogCoreWithConfigurations(t *testing.T) {
-	// This uses test case types, so we keep it as is
-	tests := []configTestCase{
-		{"Development", zap.NewDevelopmentConfig()},
-		{"Production", zap.NewProductionConfig()},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	core.RunTestCases(t, configTestCases())
 }
 
 // Test functions
@@ -144,32 +152,26 @@ func testSlogCoreBasic(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
 	// Create a zap logger using our SlogCore
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
-	zapLogger := zap.New(core)
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapLogger := zap.New(zapCore)
 
 	// Test basic logging
 	zapLogger.Info("test message")
 
 	// Check the output
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 log entry, got %d", len(messages))
-	}
+	core.AssertMustEqual(t, 1, len(messages), "log entry count")
 
 	msg := messages[0]
-	if msg.Level != slog.Info {
-		t.Errorf("Expected Info level, got %v", msg.Level)
-	}
-	if msg.Message != "test message" {
-		t.Errorf("Expected 'test message', got %q", msg.Message)
-	}
+	core.AssertEqual(t, slog.Info, msg.Level, "level")
+	core.AssertEqual(t, "test message", msg.Message, "message")
 }
 
 func testSlogCoreWithFields(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
-	zapLogger := zap.New(core)
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapLogger := zap.New(zapCore)
 
 	// Log with fields
 	zapLogger.Info("test with fields",
@@ -179,9 +181,7 @@ func testSlogCoreWithFields(t *testing.T) {
 
 	// Check the output
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 log entry, got %d", len(messages))
-	}
+	core.AssertMustEqual(t, 1, len(messages), "log entry count")
 
 	msg := messages[0]
 	assertField(t, msg.Fields, "key1", "value1")
@@ -191,8 +191,8 @@ func testSlogCoreWithFields(t *testing.T) {
 func testSlogCoreWith(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
-	zapLogger := zap.New(core)
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapLogger := zap.New(zapCore)
 
 	// Create a logger with persistent fields
 	childLogger := zapLogger.With(
@@ -205,9 +205,7 @@ func testSlogCoreWith(t *testing.T) {
 
 	// Check the output
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 log entry, got %d", len(messages))
-	}
+	core.AssertMustEqual(t, 1, len(messages), "log entry count")
 
 	msg := messages[0]
 	assertField(t, msg.Fields, "persistent", "field")
@@ -217,13 +215,11 @@ func testSlogCoreWith(t *testing.T) {
 
 func testSlogCoreWithEmpty(t *testing.T) {
 	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// With() should return the same core when no fields are provided
-	sameCore := core.With([]zapcore.Field{})
-	if sameCore != core {
-		t.Error("With() should return the same core when no fields are provided")
-	}
+	sameCore := zapCore.With([]zapcore.Field{})
+	slogtest.AssertSame(t, zapCore, sameCore, "With() no fields")
 }
 
 // levelTestCase represents a test case for level mapping
@@ -234,61 +230,65 @@ type levelTestCase struct {
 	logFunc   func(*zap.Logger, string, ...zap.Field)
 }
 
-// test runs the level mapping test
-func (tc levelTestCase) test(t *testing.T) {
+func (tc levelTestCase) Name() string {
+	return tc.name
+}
+
+func (tc levelTestCase) Test(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, tc.zapLevel)
-	zapLogger := zap.New(core)
+	zapCore := slogzap.NewCore(recorder, tc.zapLevel)
+	zapLogger := zap.New(zapCore)
 
 	// Log at the test level
 	tc.logFunc(zapLogger, "test")
 
 	// Check output
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 log entry, got %d", len(messages))
-	}
+	core.AssertMustEqual(t, 1, len(messages), "log entry count")
 
 	msg := messages[0]
-	if msg.Level != tc.slogLevel {
-		t.Errorf("Expected slog level %v, got %v", tc.slogLevel, msg.Level)
+	core.AssertEqual(t, tc.slogLevel, msg.Level, "level")
+}
+
+func newLevelTestCase(
+	name string, zapLevel zapcore.Level, slogLevel slog.LogLevel,
+	logFunc func(*zap.Logger, string, ...zap.Field),
+) levelTestCase {
+	return levelTestCase{
+		name:      name,
+		zapLevel:  zapLevel,
+		slogLevel: slogLevel,
+		logFunc:   logFunc,
+	}
+}
+
+func levelTestCases() []levelTestCase {
+	return []levelTestCase{
+		newLevelTestCase("Debug", zap.DebugLevel, slog.Debug, (*zap.Logger).Debug),
+		newLevelTestCase("Info", zap.InfoLevel, slog.Info, (*zap.Logger).Info),
+		newLevelTestCase("Warn", zap.WarnLevel, slog.Warn, (*zap.Logger).Warn),
+		newLevelTestCase("Error", zap.ErrorLevel, slog.Error, (*zap.Logger).Error),
 	}
 }
 
 func testSlogCoreLevels(t *testing.T) {
-	testCases := []levelTestCase{
-		{"Debug", zap.DebugLevel, slog.Debug, (*zap.Logger).Debug},
-		{"Info", zap.InfoLevel, slog.Info, (*zap.Logger).Info},
-		{"Warn", zap.WarnLevel, slog.Warn, (*zap.Logger).Warn},
-		{"Error", zap.ErrorLevel, slog.Error, (*zap.Logger).Error},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, tc.test)
-	}
+	core.RunTestCases(t, levelTestCases())
 }
 
 func testSlogCoreEnabled(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
 	// Create core with Info level
-	core := slogzap.NewCore(recorder, zap.InfoLevel)
+	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
 
 	// Debug should be disabled
-	if core.Enabled(zap.DebugLevel) {
-		t.Error("Debug level should be disabled when core is at Info level")
-	}
+	core.AssertFalse(t, zapCore.Enabled(zap.DebugLevel), "debug disabled")
 
 	// Info and above should be enabled
-	if !core.Enabled(zap.InfoLevel) {
-		t.Error("Info level should be enabled")
-	}
-	if !core.Enabled(zap.WarnLevel) {
-		t.Error("Warn level should be enabled")
-	}
-	if !core.Enabled(zap.ErrorLevel) {
-		t.Error("Error level should be enabled")
-	}
+	core.AssertTrue(t, zapCore.Enabled(zap.InfoLevel), "info enabled")
+	core.AssertTrue(t, zapCore.Enabled(zap.WarnLevel), "warn enabled")
+	core.AssertTrue(t, zapCore.Enabled(zap.ErrorLevel), "error enabled")
 }
 
 func testNewZapLogger(t *testing.T) {
@@ -300,20 +300,14 @@ func testNewZapLogger(t *testing.T) {
 	// Should default to Info level
 	zapLogger.Debug("debug message")
 	messages := recorder.GetMessages()
-	if len(messages) != 0 {
-		t.Error("Debug message should not be logged at Info level")
-	}
+	core.AssertEqual(t, 0, len(messages), "debug count")
 
 	// Info should work
 	recorder.Clear()
 	zapLogger.Info("info message")
 	messages = recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatal("Info message should be logged")
-	}
-	if messages[0].Message != "info message" {
-		t.Errorf("Expected 'info message', got %q", messages[0].Message)
-	}
+	core.AssertMustEqual(t, 1, len(messages), "info message count")
+	core.AssertEqual(t, "info message", messages[0].Message, "message")
 }
 
 func testSlogCoreWithCaller(t *testing.T) {
@@ -325,26 +319,18 @@ func testSlogCoreWithCaller(t *testing.T) {
 	zapLogger.Info("test with caller")
 
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 log entry, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	msg := messages[0]
-	if msg.Fields["caller"] == nil {
-		t.Error("Expected caller information in fields")
-	}
+	core.AssertNotNil(t, msg.Fields["caller"], "caller")
 	callerStr, ok := msg.Fields["caller"].(string)
-	if !ok {
-		t.Error("Caller should be a string")
-	}
-	if !strings.Contains(callerStr, "core_test") {
-		t.Errorf("Caller should contain test file name, got %s", callerStr)
-	}
+	core.AssertTrue(t, ok, "caller type")
+	core.AssertContains(t, callerStr, "core_test", "caller filename")
 }
 
 func testSlogCoreCallerUndefined(t *testing.T) {
 	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// Create entry without caller info
 	entry := zapcore.Entry{
@@ -353,25 +339,20 @@ func testSlogCoreCallerUndefined(t *testing.T) {
 		Caller:  zapcore.EntryCaller{}, // Undefined caller
 	}
 
-	err := core.Write(entry, nil)
-	if err != nil {
-		t.Errorf("Write returned error: %v", err)
-	}
+	err := zapCore.Write(entry, nil)
+	core.AssertNil(t, err, "write error")
 
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	// Should not have caller field when undefined
-	if _, hasCaller := messages[0].Fields["caller"]; hasCaller {
-		t.Error("Should not have caller field when undefined")
-	}
+	_, hasCaller := messages[0].Fields["caller"]
+	core.AssertFalse(t, hasCaller, "Should not have caller field when undefined")
 }
 
 func testSlogCoreWithStack(t *testing.T) {
 	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// Create an entry with stack trace
 	entry := zapcore.Entry{
@@ -380,27 +361,17 @@ func testSlogCoreWithStack(t *testing.T) {
 		Stack:   "goroutine 1 [running]:\nmain.main()\n\t/tmp/test.go:10 +0x20",
 	}
 
-	err := core.Write(entry, nil)
-	if err != nil {
-		t.Errorf("Write returned error: %v", err)
-	}
+	err := zapCore.Write(entry, nil)
+	core.AssertNil(t, err, "write error")
 
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 log entry, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	msg := messages[0]
-	if msg.Fields["stacktrace"] == nil {
-		t.Error("Expected stacktrace in fields")
-	}
+	core.AssertNotNil(t, msg.Fields["stacktrace"], "stacktrace field")
 	stackStr, ok := msg.Fields["stacktrace"].(string)
-	if !ok {
-		t.Error("Stacktrace should be a string")
-	}
-	if !strings.Contains(stackStr, "goroutine 1") {
-		t.Errorf("Stacktrace should contain goroutine info, got %s", stackStr)
-	}
+	core.AssertTrue(t, ok, "Stacktrace field type")
+	core.AssertContains(t, stackStr, "goroutine 1", "goroutine info")
 }
 
 func testSlogCoreComplexFields(t *testing.T) {
@@ -421,9 +392,7 @@ func testSlogCoreComplexFields(t *testing.T) {
 	)
 
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 log entry, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	msg := messages[0]
 	// Check basic field types
@@ -452,41 +421,31 @@ func testSlogCoreComplexFields(t *testing.T) {
 }
 
 func testSlogCoreNilLogger(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("NewCore should panic with nil logger")
-		}
-	}()
-
-	slogzap.NewCore(nil, zap.InfoLevel)
+	core.AssertPanic(t, func() {
+		slogzap.NewCore(nil, zap.InfoLevel)
+	}, nil, "NewCore nil logger panic")
 }
 
 func testSlogCoreNilLevel(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
 	// Should default to InfoLevel
-	core := slogzap.NewCore(recorder, nil)
+	zapCore := slogzap.NewCore(recorder, nil)
 
 	// Debug should be disabled
-	if core.Enabled(zap.DebugLevel) {
-		t.Error("Debug should be disabled with default level")
-	}
+	core.AssertFalse(t, zapCore.Enabled(zap.DebugLevel), "Debug default level")
 
 	// Info should be enabled
-	if !core.Enabled(zap.InfoLevel) {
-		t.Error("Info should be enabled with default level")
-	}
+	core.AssertTrue(t, zapCore.Enabled(zap.InfoLevel), "Info default level")
 }
 
 func testSlogCoreSync(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
-	core := slogzap.NewCore(recorder, zap.InfoLevel)
+	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
 
 	// Sync should always succeed (no-op for slog)
-	if err := core.Sync(); err != nil {
-		t.Errorf("Sync() returned error: %v", err)
-	}
+	core.AssertNil(t, zapCore.Sync(), "Sync() returned error")
 }
 
 func testBidirectionalSlogToZap(t *testing.T) {
@@ -502,14 +461,10 @@ func testBidirectionalSlogToZap(t *testing.T) {
 
 	// Verify slog recorder received the message
 	messages := baseRecorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	msg := messages[0]
-	if msg.Message != "via zap api" {
-		t.Errorf("Expected 'via zap api', got %q", msg.Message)
-	}
+	core.AssertEqual(t, "via zap api", msg.Message, "message text")
 	assertField(t, msg.Fields, "path", "slog->zap")
 	assertField(t, msg.Fields, "test_id", int64(1))
 }
@@ -518,9 +473,7 @@ func testBidirectionalZapToSlog(t *testing.T) {
 	// Test zap → slog: Use zap backend with slog API
 	zapConfig := slogzap.NewDefaultConfig()
 	slogLogger, err := slogzap.New(zapConfig)
-	if err != nil {
-		t.Fatalf("Failed to create slog logger: %v", err)
-	}
+	core.AssertMustNil(t, err, "create slog logger")
 
 	// Use slog API (this internally uses zap)
 	slogLogger.Info().
@@ -547,9 +500,7 @@ func testBidirectionalCompatibility(t *testing.T) {
 	)
 
 	messages := baseRecorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	// Verify field types are preserved correctly
 	fields := messages[0].Fields
@@ -584,9 +535,7 @@ func testSlogCoreConcurrent(t *testing.T) {
 
 	messages := recorder.GetMessages()
 	expectedCount := goroutines * msgsPerGoroutine
-	if len(messages) != expectedCount {
-		t.Errorf("Expected %d messages, got %d", expectedCount, len(messages))
-	}
+	core.AssertEqual(t, expectedCount, len(messages), "message count")
 
 	// Verify all goroutines logged their messages
 	counts := make(map[int]int)
@@ -599,9 +548,7 @@ func testSlogCoreConcurrent(t *testing.T) {
 	}
 
 	for i := 0; i < goroutines; i++ {
-		if counts[i] != msgsPerGoroutine {
-			t.Errorf("Goroutine %d: expected %d messages, got %d", i, msgsPerGoroutine, counts[i])
-		}
+		core.AssertEqual(t, msgsPerGoroutine, counts[i], "Goroutine %d message count", i)
 	}
 }
 
@@ -609,7 +556,7 @@ func testSlogCoreCheckDisabled(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
 	// Create core with Info level
-	core := slogzap.NewCore(recorder, zap.InfoLevel)
+	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
 
 	// Create a debug entry (which should be disabled)
 	entry := zapcore.Entry{
@@ -618,14 +565,14 @@ func testSlogCoreCheckDisabled(t *testing.T) {
 	}
 
 	// Check should return nil for disabled level
-	checked := core.Check(entry, nil)
+	checked := zapCore.Check(entry, nil)
 	if checked != nil {
 		t.Error("Check should return nil for disabled level")
 	}
 
 	// Verify with a CheckedEntry
 	ce := &zapcore.CheckedEntry{}
-	result := core.Check(entry, ce)
+	result := zapCore.Check(entry, ce)
 	if result != ce {
 		t.Error("Check should return the same CheckedEntry when level is disabled")
 	}
@@ -633,7 +580,7 @@ func testSlogCoreCheckDisabled(t *testing.T) {
 
 func testSlogCoreFatalWrite(t *testing.T) {
 	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// We can't actually test os.Exit, but we can verify the Fatal log is written
 	entry := zapcore.Entry{
@@ -645,10 +592,8 @@ func testSlogCoreFatalWrite(t *testing.T) {
 	// The actual Exit call would need to be tested in integration tests.
 	// The Write method will call logger.Fatal() which in our test logger
 	// just records a message with Fatal level
-	err := core.Write(entry, nil)
-	if err != nil {
-		t.Errorf("Write returned error: %v", err)
-	}
+	err := zapCore.Write(entry, nil)
+	core.AssertNil(t, err, "write error")
 
 	// Check that we got the original message
 	messages := recorder.GetMessages()
@@ -659,9 +604,7 @@ func testSlogCoreFatalWrite(t *testing.T) {
 			break
 		}
 	}
-	if !found {
-		t.Error("Expected to find fatal message in recorder")
-	}
+	core.AssertTrue(t, found, "fatal message found")
 
 	// Also check for the "zap fatal exit" message
 	foundExit := false
@@ -671,75 +614,55 @@ func testSlogCoreFatalWrite(t *testing.T) {
 			break
 		}
 	}
-	if !foundExit {
-		t.Error("Expected to find 'zap fatal exit' message")
-	}
+	core.AssertTrue(t, foundExit, "zap fatal exit message")
 }
 
-func testSlogCorePanicWrite(t *testing.T) {
-	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, zap.DebugLevel)
-
-	// Test PanicLevel
-	t.Run("PanicLevel", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic from PanicLevel")
-			} else {
-				expected := "zap panic: panic message"
-				if r != expected {
-					t.Errorf("Expected panic message %q, got %q", expected, r)
-				}
-			}
-		}()
-
+func testPanicLevel(t *testing.T, zapCore zapcore.Core) {
+	core.AssertPanic(t, func() {
 		entry := zapcore.Entry{
 			Level:   zapcore.PanicLevel,
 			Message: "panic message",
 		}
+		_ = zapCore.Write(entry, nil)
+	}, "zap panic: panic message", "PanicLevel panic")
+}
 
-		_ = core.Write(entry, nil)
-	})
-
-	// Test DPanicLevel
-	t.Run("DPanicLevel", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic from DPanicLevel")
-			} else {
-				expected := "zap panic: development panic"
-				if r != expected {
-					t.Errorf("Expected panic message %q, got %q", expected, r)
-				}
-			}
-		}()
-
+func testDPanicLevel(t *testing.T, zapCore zapcore.Core) {
+	core.AssertPanic(t, func() {
 		entry := zapcore.Entry{
 			Level:   zapcore.DPanicLevel,
 			Message: "development panic",
 		}
+		_ = zapCore.Write(entry, nil)
+	}, "zap panic: development panic", "DPanicLevel panic")
+}
 
-		_ = core.Write(entry, nil)
+func testSlogCorePanicWrite(t *testing.T) {
+	recorder := slogtest.NewLogger()
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
+
+	t.Run("PanicLevel", func(t *testing.T) {
+		testPanicLevel(t, zapCore)
+	})
+
+	t.Run("DPanicLevel", func(t *testing.T) {
+		testDPanicLevel(t, zapCore)
 	})
 }
 
 func testConvertFieldsEmpty(t *testing.T) {
 	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, zap.InfoLevel)
-	zapLogger := zap.New(core)
+	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
+	zapLogger := zap.New(zapCore)
 
 	// Test with no fields
 	zapLogger.Info("no fields")
 
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	msg := messages[0]
-	if msg.Fields == nil || len(msg.Fields) != 0 {
-		t.Errorf("Expected empty fields map, got %v", msg.Fields)
-	}
+	core.AssertTrue(t, len(msg.Fields) == 0, "empty fields map, got %v", msg.Fields)
 
 	// Test with empty field slice explicitly
 	recorder.Clear()
@@ -747,18 +670,13 @@ func testConvertFieldsEmpty(t *testing.T) {
 		Level:   zapcore.InfoLevel,
 		Message: "empty field slice",
 	}
-	err := core.Write(entry, []zapcore.Field{})
-	if err != nil {
-		t.Errorf("Write returned error: %v", err)
-	}
+	err := zapCore.Write(entry, []zapcore.Field{})
+	core.AssertNil(t, err, "write error")
 
 	messages = recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(messages))
-	}
-	if messages[0].Fields == nil || len(messages[0].Fields) != 0 {
-		t.Errorf("Expected empty fields map for empty field slice, got %v", messages[0].Fields)
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertTrue(t, len(messages[0].Fields) == 0,
+		"Expected empty fields map for empty field slice, got %v", messages[0].Fields)
 }
 
 // mapTestCase represents a test case for zap to slog level mapping
@@ -769,37 +687,39 @@ type mapTestCase struct {
 	shouldPanic       bool
 }
 
-// test runs the zap to slog level mapping test
-func (tc mapTestCase) test(t *testing.T) {
+func (tc mapTestCase) Name() string {
+	return tc.name
+}
+
+func (tc mapTestCase) Test(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
-	core := slogzap.NewCore(recorder, zapcore.DebugLevel)
+	zapCore := slogzap.NewCore(recorder, zapcore.DebugLevel)
 
-	// For DPanic, we need to catch the panic
 	if tc.shouldPanic {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic from DPanicLevel")
+		core.AssertPanic(t, func() {
+			entry := zapcore.Entry{
+				Level:   tc.zapLevel,
+				Message: fmt.Sprintf("test level %v", tc.zapLevel),
 			}
-		}()
-	}
+			_ = zapCore.Write(entry, nil)
+		}, nil, "DPanicLevel panic")
+	} else {
+		entry := zapcore.Entry{
+			Level:   tc.zapLevel,
+			Message: fmt.Sprintf("test level %v", tc.zapLevel),
+		}
 
-	entry := zapcore.Entry{
-		Level:   tc.zapLevel,
-		Message: fmt.Sprintf("test level %v", tc.zapLevel),
+		recorder.Clear()
+		_ = zapCore.Write(entry, nil)
 	}
-
-	recorder.Clear()
-	_ = core.Write(entry, nil)
 
 	// For non-panic levels, check that they were logged at expected level
 	if !tc.shouldPanic {
 		messages := recorder.GetMessages()
 		if len(messages) > 0 {
 			msg := messages[0]
-			if msg.Level != tc.expectedSlogLevel {
-				t.Errorf("Expected slog level %v for zap level %v, got %v",
-					tc.expectedSlogLevel, tc.zapLevel, msg.Level)
-			}
+			core.AssertEqual(t, tc.expectedSlogLevel, msg.Level, "slog level for zap level %v", tc.zapLevel)
 		}
 	}
 }
@@ -810,8 +730,12 @@ type configTestCase struct {
 	config zap.Config
 }
 
-// test runs the configuration test
-func (tc configTestCase) test(t *testing.T) {
+func (tc configTestCase) Name() string {
+	return tc.name
+}
+
+func (tc configTestCase) Test(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	// Create zap logger with specific config
 	zapLogger, err := tc.config.Build(zap.WrapCore(func(_ zapcore.Core) zapcore.Core {
@@ -824,7 +748,5 @@ func (tc configTestCase) test(t *testing.T) {
 	zapLogger.Info("test message")
 
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Errorf("Expected 1 message, got %d", len(messages))
-	}
+	core.AssertEqual(t, 1, len(messages), "message count")
 }
