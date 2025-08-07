@@ -3,143 +3,143 @@ package discard_test
 import (
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/slog/handlers/discard"
+	slogtest "darvaza.org/slog/internal/testing"
 )
 
-func TestDiscardLoglet(t *testing.T) {
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = discardLogletTestCase{}
+
+type discardLogletTestCase struct {
+	method  func() slog.Logger
+	name    string
+	level   slog.LogLevel
+	enabled bool
+}
+
+func (tc discardLogletTestCase) Name() string {
+	return tc.name
+}
+
+func (tc discardLogletTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := tc.method()
+	core.AssertMustNotNil(t, l, "logger method returned nil")
+
+	core.AssertEqual(t, tc.enabled, l.Enabled(), "Enabled() for level %s", tc.name)
+
+	wl, enabled := l.WithEnabled()
+	core.AssertMustNotNil(t, wl, "WithEnabled returned nil logger")
+	core.AssertEqual(t, tc.enabled, enabled, "WithEnabled() enabled for %s", tc.name)
+}
+
+func newDiscardLogletTestCase(name string,
+	method func() slog.Logger,
+	level slog.LogLevel, enabled bool) discardLogletTestCase {
+	return discardLogletTestCase{
+		name:    name,
+		method:  method,
+		level:   level,
+		enabled: enabled,
+	}
+}
+
+func discardLogletTestCases() []discardLogletTestCase {
 	logger := discard.New()
-
-	// Test level transitions
-	testLevels := []struct {
-		name    string
-		method  func() slog.Logger
-		level   slog.LogLevel
-		enabled bool
-	}{
-		{"Debug", logger.Debug, slog.Debug, false},
-		{"Info", logger.Info, slog.Info, false},
-		{"Warn", logger.Warn, slog.Warn, false},
-		{"Error", logger.Error, slog.Error, false},
-		{"Fatal", logger.Fatal, slog.Fatal, true},
-		{"Panic", logger.Panic, slog.Panic, true},
+	return []discardLogletTestCase{
+		newDiscardLogletTestCase("Debug", logger.Debug, slog.Debug, false),
+		newDiscardLogletTestCase("Info", logger.Info, slog.Info, false),
+		newDiscardLogletTestCase("Warn", logger.Warn, slog.Warn, false),
+		newDiscardLogletTestCase("Error", logger.Error, slog.Error, false),
+		newDiscardLogletTestCase("Fatal", logger.Fatal, slog.Fatal, true),
+		newDiscardLogletTestCase("Panic", logger.Panic, slog.Panic, true),
 	}
+}
 
-	for _, tt := range testLevels {
-		t.Run(tt.name, func(t *testing.T) {
-			l := tt.method()
-			if l == nil {
-				t.Fatal("logger method returned nil")
-			}
-
-			// Check if enabled state matches expected
-			if got := l.Enabled(); got != tt.enabled {
-				t.Errorf("Enabled() = %v, want %v", got, tt.enabled)
-			}
-
-			// Test WithEnabled
-			wl, enabled := l.WithEnabled()
-			if wl == nil {
-				t.Fatal("WithEnabled returned nil logger")
-			}
-			if enabled != tt.enabled {
-				t.Errorf("WithEnabled() enabled = %v, want %v", enabled, tt.enabled)
-			}
-		})
-	}
+func TestDiscardLoglet(t *testing.T) {
+	core.RunTestCases(t, discardLogletTestCases())
 }
 
 func TestDiscardWithFields(t *testing.T) {
 	logger := discard.New()
 
-	// Test WithField
 	l1 := logger.WithField("key1", "value1")
-	if l1 == nil {
-		t.Fatal("WithField returned nil")
-	}
+	slogtest.AssertSame(t, logger, l1, "WithField should return same instance")
 
-	// Test WithField with empty key (should return same logger)
 	l2 := logger.WithField("", "value")
-	if l2 != logger {
-		t.Error("WithField with empty key should return same logger")
-	}
+	slogtest.AssertSame(t, logger, l2, "WithField empty key")
 
-	// Test WithFields
 	fields := map[string]any{
 		"key2": "value2",
 		"key3": 123,
 	}
 	l3 := logger.WithFields(fields)
-	if l3 == nil {
-		t.Fatal("WithFields returned nil")
-	}
+	slogtest.AssertSame(t, logger, l3, "WithFields should return same instance")
 
-	// Test WithFields with empty map
 	l4 := logger.WithFields(map[string]any{})
-	if l4 != logger {
-		t.Error("WithFields with empty map should return same logger")
-	}
+	slogtest.AssertSame(t, logger, l4, "WithFields empty map")
 
-	// Test WithFields removes empty keys
 	fieldsWithEmpty := map[string]any{
 		"":     "should be removed",
 		"key4": "value4",
 	}
 	l5 := logger.WithFields(fieldsWithEmpty)
-	if l5 == nil {
-		t.Fatal("WithFields returned nil")
-	}
+	slogtest.AssertSame(t, logger, l5, "WithFields should return same instance")
 }
 
 func TestDiscardWithStack(t *testing.T) {
 	logger := discard.New()
-
-	// Test WithStack
 	l := logger.WithStack(1)
-	if l == nil {
-		t.Fatal("WithStack returned nil")
-	}
+	core.AssertNotNil(t, l, "WithStack returned nil")
 }
 
 func TestDiscardChaining(t *testing.T) {
-	// Test method chaining preserves fields and level
 	logger := discard.New()
 
-	l := logger.
+	// Chain with level change should create new instance
+	l1 := logger.
 		WithField("key1", "value1").
 		WithField("key2", "value2").
-		Fatal().
-		WithField("key3", "value3")
+		Info()
 
-	if l == nil {
-		t.Fatal("Chained logger is nil")
-	}
+	slogtest.AssertNotSame(t, logger, l1, "Chain with level change should create new instance")
+	core.AssertFalse(t, l1.Enabled(), "Info logger should not be enabled")
 
-	// Should be enabled (Fatal level)
-	if !l.Enabled() {
-		t.Error("Fatal logger should be enabled")
-	}
+	// Branch with more fields should return same instance
+	l2 := l1.
+		WithField("key3", "value3").
+		WithField("key4", "value4")
+
+	slogtest.AssertSame(t, l1, l2, "Chain with only fields should return same instance")
 }
 
 func TestDiscardLevelValidation(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic for invalid log level")
-		}
-	}()
-
-	logger := discard.New()
-	// This should panic
-	logger.WithLevel(slog.UndefinedLevel)
+	core.AssertPanic(t, func() {
+		logger := discard.New()
+		logger.WithLevel(slog.UndefinedLevel)
+	}, nil, "invalid level panic")
 }
 
-func TestDiscardPrint(_ *testing.T) {
+func TestDiscardPrintMethods(t *testing.T) {
 	logger := discard.New()
 
-	// Non-fatal levels should not panic
-	logger.Debug().Print("test")
-	logger.Info().Printf("test %d", 123)
-	logger.Warn().Println("test")
+	// Test that non-fatal print methods don't panic
+	core.AssertNoPanic(t, func() {
+		logger.Debug().Print("test")
+	}, "Debug Print")
 
-	// Can't test Fatal/Panic Print methods as they exit/panic
+	core.AssertNoPanic(t, func() {
+		logger.Info().Printf("test %d", 123)
+	}, "Info Printf")
+
+	core.AssertNoPanic(t, func() {
+		logger.Warn().Println("test")
+	}, "Warn Println")
+
+	core.AssertNoPanic(t, func() {
+		logger.Error().Print("test")
+	}, "Error Print")
 }
