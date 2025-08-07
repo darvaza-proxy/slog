@@ -6,7 +6,7 @@ set -eu
 INDEX="$1"
 
 PROJECTS="$(cut -d':' -f1 "$INDEX")"
-COMMANDS="tidy get build test coverage up"
+COMMANDS="tidy get build test coverage race up"
 
 TAB=$(printf "\t")
 
@@ -140,13 +140,16 @@ gen_make_targets() {
 		call="\$(TOOLSDIR)/make_coverage.sh \"$name\" \".\" \"\$(COVERAGE_DIR)\""
 		depsx="\$(COVERAGE_DIR)"
 		;;
+	race)
+		call="CGO_ENABLED=1 \$(GO) test -race \$(GOTEST_FLAGS) ./..."
+		;;
 	*)
 		call="\$(GO) $cmd -v ./..."
 		;;
 	esac
 
 	case "$cmd" in
-	build|test|coverage)
+	build|test|coverage|race)
 		sequential=true ;;
 	*)
 		sequential=false ;;
