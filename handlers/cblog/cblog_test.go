@@ -19,6 +19,10 @@ const (
 	testValue      = "value"
 )
 
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = messageVerificationTestCase{}
+var _ core.TestCase = callbackMessageTestCase{}
+
 func TestFinaliserClosesInternalChannel(t *testing.T) {
 	// Test that finaliser closes internally created channels
 	type result struct {
@@ -139,11 +143,11 @@ func TestNew(t *testing.T) {
 
 func testNewWithNilChannel(t *testing.T) {
 	logger, ch := cblog.New(nil)
-	if logger == nil {
-		t.Fatal("New returned nil logger")
+	if !core.AssertNotNil(t, logger, "New returned nil logger") {
+		return
 	}
-	if ch == nil {
-		t.Fatal("New returned nil channel")
+	if !core.AssertNotNil(t, ch, "New returned nil channel") {
+		return
 	}
 
 	// Test that we can send messages
@@ -165,11 +169,11 @@ func testNewWithNilChannel(t *testing.T) {
 func testNewWithBufferedChannel(t *testing.T) {
 	ch := make(chan cblog.LogMsg, 100)
 	logger, outCh := cblog.New(ch)
-	if logger == nil {
-		t.Fatal("New returned nil logger")
+	if !core.AssertNotNil(t, logger, "New returned nil logger") {
+		return
 	}
-	if outCh != ch {
-		t.Fatal("New returned different channel")
+	if !core.AssertEqual(t, ch, outCh, "returned channel") {
+		return
 	}
 
 	// Send multiple messages
@@ -177,29 +181,8 @@ func testNewWithBufferedChannel(t *testing.T) {
 	logger.Info().Print("info")
 	logger.Warn().Print("warn")
 
-	// Verify messages
-	messages := []struct {
-		level slog.LogLevel
-		msg   string
-	}{
-		{slog.Debug, "debug"},
-		{slog.Info, "info"},
-		{slog.Warn, "warn"},
-	}
-
-	for _, want := range messages {
-		select {
-		case got := <-ch:
-			if got.Level != want.level {
-				t.Errorf("got level %v, want %v", got.Level, want.level)
-			}
-			if got.Message != want.msg {
-				t.Errorf("got message %q, want %q", got.Message, want.msg)
-			}
-		case <-time.After(time.Second):
-			t.Fatal("timeout waiting for message")
-		}
-	}
+	// Verify messages using TestCase pattern
+	core.RunTestCases(t, messageVerificationTestCases(ch))
 }
 
 // Helper function to create a cblog logger that records messages for testing
@@ -333,16 +316,14 @@ func TestLoggerWithLevel(t *testing.T) {
 
 func testCblogValidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
 	l := logger.WithLevel(slog.Error)
-	if l == nil {
-		t.Fatal("WithLevel returned nil")
+	if !core.AssertNotNil(t, l, "WithLevel returned nil") {
+		return
 	}
 	l.Print("error message")
 
 	select {
 	case msg := <-ch:
-		if msg.Level != slog.Error {
-			t.Errorf("got level %v, want %v", msg.Level, slog.Error)
-		}
+		core.AssertEqual(t, slog.Error, msg.Level, "message level")
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for message")
 	}
@@ -351,9 +332,7 @@ func testCblogValidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
 func testCblogSameLevel(t core.T, logger slog.Logger) {
 	l1 := logger.Info()
 	l2 := l1.WithLevel(slog.Info)
-	if l1 != l2 {
-		t.Error("WithLevel with same level should return same logger")
-	}
+	slogtest.AssertSame(t, l1, l2, "WithLevel same level")
 }
 
 func testCblogInvalidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
@@ -374,28 +353,24 @@ func testCblogInvalidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg)
 
 	select {
 	case ok := <-done:
-		if !ok {
-			t.Error("expected panic-level message for invalid level")
-		}
+		core.AssertTrue(t, ok, "expected panic-level message for invalid level")
 	case <-time.After(time.Second):
-		t.Error("timeout waiting for panic message")
+		if !core.AssertTrue(t, false, "timeout waiting for panic message") {
+			return
+		}
 	}
 }
 
 func TestLoggerEnabled(t *testing.T) {
 	logger, _ := cblog.New(nil)
 
-	if !logger.Enabled() {
-		t.Error("logger should be enabled")
-	}
+	core.AssertTrue(t, logger.Enabled(), "logger enabled")
 
 	l, enabled := logger.WithEnabled()
-	if l == nil {
-		t.Fatal("WithEnabled returned nil logger")
+	if !core.AssertNotNil(t, l, "WithEnabled returned nil logger") {
+		return
 	}
-	if !enabled {
-		t.Error("WithEnabled should return enabled=true")
-	}
+	core.AssertTrue(t, enabled, "WithEnabled result")
 }
 
 func TestConcurrency(t *testing.T) {
@@ -481,13 +456,13 @@ func testCblogConcurrentWithVerification(t *testing.T) {
 	case <-done:
 		// All messages received
 	case <-time.After(5 * time.Second):
-		t.Fatalf("timeout: only received %d messages", len(messages))
+		if !core.AssertTrue(t, false, "timeout: only received %d messages", len(messages)) {
+			return
+		}
 	}
 
 	// Verify we got all messages
-	if len(messages) != numGoroutines*numMessages {
-		t.Errorf("got %d messages, want %d", len(messages), numGoroutines*numMessages)
-	}
+	core.AssertEqual(t, numGoroutines*numMessages, len(messages), "message count")
 }
 
 func TestNewWithCallback(t *testing.T) {
@@ -507,8 +482,8 @@ func testNewWithCallbackWithHandler(t *testing.T) {
 	}
 
 	logger := cblog.NewWithCallback(10, handler)
-	if logger == nil {
-		t.Fatal("NewWithCallback returned nil")
+	if !core.AssertNotNil(t, logger, "NewWithCallback returned nil") {
+		return
 	}
 
 	// Send some messages
@@ -522,40 +497,20 @@ func testNewWithCallbackWithHandler(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if len(messages) != 3 {
-		t.Fatalf("got %d messages, want 3", len(messages))
+	if !core.AssertEqual(t, 3, len(messages), "message count") {
+		return
 	}
 
-	// Verify messages
-	expected := []struct {
-		level   slog.LogLevel
-		message string
-	}{
-		{slog.Info, "message 1"},
-		{slog.Debug, "message 2"},
-		{slog.Error, "message 3"},
-	}
-
-	for i, want := range expected {
-		if messages[i].Level != want.level {
-			t.Errorf("message %d: got level %v, want %v", i, messages[i].Level, want.level)
-		}
-		if messages[i].Message != want.message {
-			t.Errorf("message %d: got message %q, want %q", i, messages[i].Message, want.message)
-		}
-	}
+	// Verify messages using TestCase pattern
+	core.RunTestCases(t, callbackMessageTestCases(messages))
 
 	// Check fields on second message
-	if messages[1].Fields["key"] != "value" {
-		t.Errorf("message 1: missing or incorrect field")
-	}
+	core.AssertEqual(t, "value", messages[1].Fields["key"], "message 1 field")
 }
 
 func testNewWithCallbackWithNilHandler(t *testing.T) {
 	logger := cblog.NewWithCallback(10, nil)
-	if logger != nil {
-		t.Error("NewWithCallback with nil handler should return nil")
-	}
+	core.AssertNil(t, logger, "NewWithCallback nil handler")
 }
 
 func testNewWithCallbackWithZeroSize(t *testing.T) {
@@ -565,16 +520,14 @@ func testNewWithCallbackWithZeroSize(t *testing.T) {
 	}
 
 	logger := cblog.NewWithCallback(0, handler)
-	if logger == nil {
-		t.Fatal("NewWithCallback returned nil")
+	if !core.AssertNotNil(t, logger, "NewWithCallback returned nil") {
+		return
 	}
 
 	logger.Info().Print("test")
 	time.Sleep(100 * time.Millisecond)
 
-	if atomic.LoadInt32(&called) == 0 {
-		t.Error("handler was not called")
-	}
+	core.AssertNotEqual(t, int32(0), atomic.LoadInt32(&called), "handler was not called")
 }
 
 func TestFieldChaining(t *testing.T) {
@@ -643,9 +596,91 @@ func TestComplexFieldTypes(t *testing.T) {
 
 	// Verify all fields are present
 	for k := range fields {
-		if _, ok := msgs[0].Fields[k]; !ok {
-			t.Errorf("missing field %q", k)
-		}
+		_, ok := msgs[0].Fields[k]
+		core.AssertTrue(t, ok, "missing field %q", k)
+	}
+}
+
+type messageVerificationTestCase struct {
+	name    string
+	level   slog.LogLevel
+	message string
+	channel <-chan cblog.LogMsg
+}
+
+func (tc messageVerificationTestCase) Name() string {
+	return tc.name
+}
+
+func (tc messageVerificationTestCase) Test(t *testing.T) {
+	t.Helper()
+	select {
+	case got := <-tc.channel:
+		core.AssertEqual(t, tc.level, got.Level, "message level")
+		core.AssertEqual(t, tc.message, got.Message, "message text")
+	case <-time.After(time.Second):
+		core.AssertTrue(t, false, "timeout waiting for message")
+	}
+}
+
+func newMessageVerificationTestCase(
+	name string, level slog.LogLevel, message string, channel <-chan cblog.LogMsg,
+) messageVerificationTestCase {
+	return messageVerificationTestCase{
+		name:    name,
+		level:   level,
+		message: message,
+		channel: channel,
+	}
+}
+
+func messageVerificationTestCases(channel <-chan cblog.LogMsg) []messageVerificationTestCase {
+	return []messageVerificationTestCase{
+		newMessageVerificationTestCase("Debug", slog.Debug, "debug", channel),
+		newMessageVerificationTestCase("Info", slog.Info, "info", channel),
+		newMessageVerificationTestCase("Warn", slog.Warn, "warn", channel),
+	}
+}
+
+type callbackMessageTestCase struct {
+	name     string
+	index    int
+	level    slog.LogLevel
+	message  string
+	messages []cblog.LogMsg
+}
+
+func (tc callbackMessageTestCase) Name() string {
+	return tc.name
+}
+
+func (tc callbackMessageTestCase) Test(t *testing.T) {
+	t.Helper()
+	if tc.index >= len(tc.messages) {
+		core.AssertTrue(t, false, "message index %d out of bounds", tc.index)
+		return
+	}
+	core.AssertEqual(t, tc.level, tc.messages[tc.index].Level, "message %d level", tc.index)
+	core.AssertEqual(t, tc.message, tc.messages[tc.index].Message, "message %d text", tc.index)
+}
+
+func newCallbackMessageTestCase(
+	name string, index int, level slog.LogLevel, message string, messages []cblog.LogMsg,
+) callbackMessageTestCase {
+	return callbackMessageTestCase{
+		name:     name,
+		index:    index,
+		level:    level,
+		message:  message,
+		messages: messages,
+	}
+}
+
+func callbackMessageTestCases(messages []cblog.LogMsg) []callbackMessageTestCase {
+	return []callbackMessageTestCase{
+		newCallbackMessageTestCase("Message1", 0, slog.Info, "message 1", messages),
+		newCallbackMessageTestCase("Message2", 1, slog.Debug, "message 2", messages),
+		newCallbackMessageTestCase("Message3", 2, slog.Error, "message 3", messages),
 	}
 }
 

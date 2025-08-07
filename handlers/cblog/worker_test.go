@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/slog/handlers/cblog"
 )
@@ -26,13 +27,13 @@ func TestNewWithCallbackConcurrency(t *testing.T) {
 	}
 
 	logger := cblog.NewWithCallback(100, handler)
-	if logger == nil {
-		t.Fatal("NewWithCallback returned nil")
+	if !core.AssertNotNil(t, logger, "NewWithCallback returned nil") {
+		return
 	}
 
 	// Send messages concurrently
 	var wg sync.WaitGroup
-	for i := 0; i < numMessages; i++ {
+	for i := range numMessages {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
@@ -47,22 +48,18 @@ func TestNewWithCallbackConcurrency(t *testing.T) {
 	case <-done:
 		// Success
 	case <-time.After(5 * time.Second):
-		t.Fatalf("timeout: only received %d/%d messages", len(received), numMessages)
+		// Timeout occurred - let the verification below handle the failure
 	}
 
-	// Verify message count
-	if len(received) != numMessages {
-		t.Errorf("got %d messages, want %d", len(received), numMessages)
+	// Verify message count (handles both success and timeout cases)
+	if !core.AssertEqual(t, numMessages, len(received), "message count") {
+		return
 	}
 
 	// Verify all messages have the expected level
 	for i, msg := range received {
-		if msg.Level != slog.Info {
-			t.Errorf("message %d: got level %v, want %v", i, msg.Level, slog.Info)
-		}
-		if msg.Fields["num"] == nil {
-			t.Errorf("message %d: missing 'num' field", i)
-		}
+		core.AssertEqual(t, slog.Info, msg.Level, "message %d level", i)
+		core.AssertNotNil(t, msg.Fields["num"], "message %d 'num' field", i)
 	}
 }
 
@@ -80,13 +77,13 @@ func TestNewWithCallbackOrdering(t *testing.T) {
 	}
 
 	logger := cblog.NewWithCallback(1, handler) // Small buffer to test ordering
-	if logger == nil {
-		t.Fatal("NewWithCallback returned nil")
+	if !core.AssertNotNil(t, logger, "NewWithCallback returned nil") {
+		return
 	}
 
 	// Send messages in order
 	const count = 100
-	for i := 0; i < count; i++ {
+	for i := range count {
 		logger.Info().WithField("order", i).Printf("message %d", i)
 	}
 
@@ -96,15 +93,13 @@ func TestNewWithCallbackOrdering(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if len(messages) != count {
-		t.Fatalf("got %d messages, want %d", len(messages), count)
+	if !core.AssertEqual(t, count, len(messages), "message count") {
+		return
 	}
 
 	// Verify order
 	for i, num := range messages {
-		if num != i {
-			t.Errorf("message %d: got order %d, want %d", i, num, i)
-		}
+		core.AssertEqual(t, i, num, "message %d order", i)
 	}
 }
 
@@ -121,14 +116,14 @@ func TestNewWithCallbackBlocking(t *testing.T) {
 	}
 
 	logger := cblog.NewWithCallback(5, handler) // Small buffer
-	if logger == nil {
-		t.Fatal("NewWithCallback returned nil")
+	if !core.AssertNotNil(t, logger, "NewWithCallback returned nil") {
+		return
 	}
 
 	// Send more messages than buffer size
 	const numMessages = 10
 	start := time.Now()
-	for i := 0; i < numMessages; i++ {
+	for i := range numMessages {
 		logger.Info().Printf("message %d", i)
 	}
 	elapsed := time.Since(start)
@@ -145,9 +140,7 @@ func TestNewWithCallbackBlocking(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	if processed != numMessages {
-		t.Errorf("processed %d messages, want %d", processed, numMessages)
-	}
+	core.AssertEqual(t, numMessages, processed, "processed message count")
 }
 
 func BenchmarkNewWithCallback(b *testing.B) {
@@ -161,7 +154,7 @@ func BenchmarkNewWithCallback(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		logger.Info().Print("benchmark message")
 	}
 }
