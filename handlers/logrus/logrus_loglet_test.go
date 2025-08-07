@@ -7,9 +7,13 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogrus "darvaza.org/slog/handlers/logrus"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = logrusLevelTestCase{}
 
 func TestLogrusLoglet(t *testing.T) {
 	// Create a logrus logger with buffer
@@ -25,40 +29,8 @@ func TestLogrusLoglet(t *testing.T) {
 	// Create slog adapter
 	logger := slogrus.New(logrusLogger)
 
-	// Test level transitions
-	testLevels := []struct {
-		name    string
-		method  func() slog.Logger
-		level   slog.LogLevel
-		enabled bool
-		logMsg  string
-	}{
-		{"Debug", logger.Debug, slog.Debug, true, "level=debug msg=\"test debug\"\n"},
-		{"Info", logger.Info, slog.Info, true, "level=info msg=\"test info\"\n"},
-		{"Warn", logger.Warn, slog.Warn, true, "level=warning msg=\"test warn\"\n"},
-		{"Error", logger.Error, slog.Error, true, "level=error msg=\"test error\"\n"},
-	}
-
-	for _, tt := range testLevels {
-		t.Run(tt.name, func(t *testing.T) {
-			buf.Reset()
-			l := tt.method()
-			if l == nil {
-				t.Fatal("logger method returned nil")
-			}
-
-			// Check if enabled state matches expected
-			if got := l.Enabled(); got != tt.enabled {
-				t.Errorf("Enabled() = %v, want %v", got, tt.enabled)
-			}
-
-			// Test logging
-			l.Printf("test %s", strings.ToLower(tt.name))
-			if got := buf.String(); got != tt.logMsg {
-				t.Errorf("Log output = %q, want %q", got, tt.logMsg)
-			}
-		})
-	}
+	// Test level transitions using TestCase pattern
+	core.RunTestCases(t, logrusLevelTestCases(logger, &buf))
 }
 
 func TestLogrusWithFields(t *testing.T) {
@@ -88,9 +60,7 @@ func TestLogrusWithFields(t *testing.T) {
 	l1 := logger.Info().WithField("key1", "value1")
 	l1.Print("test message")
 	output := buf.String()
-	if !strings.Contains(output, "key1=value1") {
-		t.Errorf("Expected field key1=value1 in output: %s", output)
-	}
+	core.AssertContains(t, output, "key1=value1", "key1 field")
 
 	// Test WithFields
 	buf.Reset()
@@ -101,9 +71,8 @@ func TestLogrusWithFields(t *testing.T) {
 	l2 := logger.Info().WithFields(fields)
 	l2.Print("test message")
 	output = buf.String()
-	if !strings.Contains(output, "key2=value2") || !strings.Contains(output, "key3=123") {
-		t.Errorf("Expected fields in output: %s", output)
-	}
+	core.AssertContains(t, output, "key2=value2", "key2 field")
+	core.AssertContains(t, output, "key3=123", "key3 field")
 }
 
 func TestLogrusChaining(t *testing.T) {
@@ -130,15 +99,9 @@ func TestLogrusChaining(t *testing.T) {
 	output := buf.String()
 
 	// Check all fields are present
-	if !strings.Contains(output, "base=value") {
-		t.Error("Missing base field from parent logger")
-	}
-	if !strings.Contains(output, "key1=value1") {
-		t.Error("Missing key1 field")
-	}
-	if !strings.Contains(output, "key2=value2") {
-		t.Error("Missing key2 field")
-	}
+	core.AssertContains(t, output, "base=value", "base field")
+	core.AssertContains(t, output, "key1=value1", "key1 field")
+	core.AssertContains(t, output, "key2=value2", "key2 field")
 }
 
 func TestLogrusWithStack(t *testing.T) {
@@ -160,12 +123,8 @@ func TestLogrusWithStack(t *testing.T) {
 
 	output := buf.String()
 	// Check for stack trace fields
-	if !strings.Contains(output, "method=") {
-		t.Error("Expected method field in output with stack trace")
-	}
-	if !strings.Contains(output, "call-stack=") {
-		t.Error("Expected call-stack field in output")
-	}
+	core.AssertContains(t, output, "method=", "method field")
+	core.AssertContains(t, output, "call-stack=", "call-stack field")
 }
 
 func TestLogrusDisabledLevels(t *testing.T) {
@@ -188,15 +147,59 @@ func TestLogrusDisabledLevels(t *testing.T) {
 }
 
 func TestLogrusLevelValidation(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic for invalid log level")
-		}
-	}()
+	core.AssertPanic(t, func() {
+		logrusLogger := logrus.New()
+		logger := slogrus.New(logrusLogger)
+		logger.WithLevel(slog.UndefinedLevel)
+	}, nil, "invalid level panic")
+}
 
-	logrusLogger := logrus.New()
-	logger := slogrus.New(logrusLogger)
+type logrusLevelTestCase struct {
+	name    string
+	method  func() slog.Logger
+	level   slog.LogLevel
+	enabled bool
+	logMsg  string
+	buffer  *bytes.Buffer
+}
 
-	// This should panic
-	logger.WithLevel(slog.UndefinedLevel)
+func (tc logrusLevelTestCase) Name() string {
+	return tc.name
+}
+
+func (tc logrusLevelTestCase) Test(t *testing.T) {
+	t.Helper()
+	tc.buffer.Reset()
+	l := tc.method()
+	core.AssertMustNotNil(t, l, "logger method")
+
+	// Check if enabled state matches expected
+	core.AssertEqual(t, tc.enabled, l.Enabled(), "enabled")
+
+	// Test logging
+	l.Printf("test %s", strings.ToLower(tc.name))
+	core.AssertEqual(t, tc.logMsg, tc.buffer.String(), "log output")
+}
+
+func newLogrusLevelTestCase(
+	name string, method func() slog.Logger, level slog.LogLevel,
+	logMsg string, buffer *bytes.Buffer,
+) logrusLevelTestCase {
+	return logrusLevelTestCase{
+		name:    name,
+		method:  method,
+		level:   level,
+		enabled: true,
+		logMsg:  logMsg,
+		buffer:  buffer,
+	}
+}
+
+func logrusLevelTestCases(logger slog.Logger, buffer *bytes.Buffer) []logrusLevelTestCase {
+	return []logrusLevelTestCase{
+		newLogrusLevelTestCase("Debug", logger.Debug, slog.Debug, "level=debug msg=\"test debug\"\n", buffer),
+		newLogrusLevelTestCase("Info", logger.Info, slog.Info, "level=info msg=\"test info\"\n", buffer),
+		newLogrusLevelTestCase("Warn", logger.Warn, slog.Warn, "level=warning msg=\"test warn\"\n", buffer),
+		newLogrusLevelTestCase("Error", logger.Error, slog.Error, "level=error msg=\"test error\"\n", buffer),
+	}
 }
