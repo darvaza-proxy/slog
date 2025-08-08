@@ -3,7 +3,7 @@ module darvaza.org/slog/handlers/logr
 go 1.23.0
 
 require (
-	darvaza.org/core v0.18.0
+	darvaza.org/core v0.18.1
 	darvaza.org/slog v0.7.7
 )
 
