@@ -12,7 +12,7 @@ var (
 
 // Logger implements a factory for level filtered loggers
 type Logger struct {
-	loglet internal.Loglet
+	root internal.Loglet
 
 	// Parent is the Logger to used as backend when conditions are met
 	Parent slog.Logger
@@ -20,17 +20,13 @@ type Logger struct {
 	// Threshold is the minimum level to be logged
 	Threshold slog.LogLevel
 
-	// FieldFilter allows us to modify filters before passing them
+	// FieldFilter allows us to modify single fields before passing them
 	// to the Parent logger
 	FieldFilter func(key string, val any) (string, any, bool)
 
-	// FieldOverride intercepts calls to WithField() on enabled loggers
-	// to let you transform the field
-	FieldOverride func(entry slog.Logger, key string, val any)
-
-	// FieldsOverride intercepts calls to WithFields() on enabled loggers
-	// to let you transform the fields
-	FieldsOverride func(entry slog.Logger, fields map[string]any)
+	// FieldsFilter allows us to modify field maps before passing them
+	// to the Parent logger. Returns filtered fields and whether to continue.
+	FieldsFilter func(fields slog.Fields) (slog.Fields, bool)
 
 	// MessageFilter allows us to modify Print() messages before passing
 	// them to the Parent logger, on completely discard the entry
@@ -40,6 +36,18 @@ type Logger struct {
 // Enabled tells this logger doesn't log anything, but WithLevel() might
 func (*Logger) Enabled() bool {
 	return false
+}
+
+// isEnabled tells if we should create a LogEntry or not
+func (l *Logger) isEnabled() bool {
+	switch {
+	case l == nil, l.Threshold == slog.UndefinedLevel:
+		// uninitialised
+		return false
+	default:
+		// collect fields just in case.
+		return true
+	}
 }
 
 // WithEnabled tells this logger doesn't log anything, but WithLevel() might
@@ -76,65 +84,35 @@ func (l *Logger) Panic() slog.Logger { return l.WithLevel(slog.Panic) }
 
 // WithLevel returns a filtered logger set to the given level
 func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
-	var entry slog.Logger
-
-	if level <= slog.UndefinedLevel {
-		// fix your code
-		l.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if l.Parent != nil {
-		entry = l.Parent.WithLevel(level)
-	} else if level > slog.Fatal {
-		// Parentless non-Fatal, NOOP
-		return l
+	if l.isEnabled() {
+		return doWithLevel(l, &l.root, level)
 	}
-
-	return &LogEntry{
-		loglet: l.loglet.WithLevel(level),
-		logger: l,
-		entry:  entry,
-	}
+	return l
 }
 
-// WithStack does nothing
+// WithStack creates a LogEntry with stack information
 func (l *Logger) WithStack(skip int) slog.Logger {
-	return &Logger{
-		loglet:         l.loglet.WithStack(skip + 1),
-		Parent:         l.Parent,
-		Threshold:      l.Threshold,
-		FieldFilter:    l.FieldFilter,
-		FieldOverride:  l.FieldOverride,
-		FieldsOverride: l.FieldsOverride,
-		MessageFilter:  l.MessageFilter,
+	if l.isEnabled() {
+		return doWithStack(l, &l.root, skip+1)
 	}
+	return l
 }
 
-// WithField does nothing
+// WithField creates a LogEntry with the field
 func (l *Logger) WithField(label string, value any) slog.Logger {
-	if label != "" {
-		return &Logger{
-			loglet:         l.loglet.WithField(label, value),
-			Parent:         l.Parent,
-			Threshold:      l.Threshold,
-			FieldFilter:    l.FieldFilter,
-			FieldOverride:  l.FieldOverride,
-			FieldsOverride: l.FieldsOverride,
-			MessageFilter:  l.MessageFilter,
+	if label != "" && l.isEnabled() {
+		if out := doWithField(l, &l.root, label, value); out != nil {
+			return out
 		}
 	}
 	return l
 }
 
-// WithFields does nothing
+// WithFields creates a LogEntry with the fields
 func (l *Logger) WithFields(fields map[string]any) slog.Logger {
-	if internal.HasFields(fields) {
-		return &Logger{
-			loglet:         l.loglet.WithFields(fields),
-			Parent:         l.Parent,
-			Threshold:      l.Threshold,
-			FieldFilter:    l.FieldFilter,
-			FieldOverride:  l.FieldOverride,
-			FieldsOverride: l.FieldsOverride,
-			MessageFilter:  l.MessageFilter,
+	if internal.HasFields(fields) && l.isEnabled() {
+		if out := doWithFields(l, &l.root, fields); out != nil {
+			return out
 		}
 	}
 	return l
@@ -144,11 +122,13 @@ func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 // initialised as well. Defaults filter entries at level slog.Error or higher
 // Parentless is treated as `noop`, with Fatal implemented like log.Fatal
 func New(parent slog.Logger, threshold slog.LogLevel) slog.Logger {
-	if parent == nil {
+	switch {
+	case parent == nil:
 		threshold = slog.Fatal
-	} else if threshold <= slog.UndefinedLevel {
+	case threshold <= slog.UndefinedLevel:
 		threshold = slog.Error
 	}
+
 	return &Logger{
 		Parent:    parent,
 		Threshold: threshold,
