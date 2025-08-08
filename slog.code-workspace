@@ -13,13 +13,19 @@
 			"path": "handlers/filter"
 		},
 		{
+			"path": "handlers/logr"
+		},
+		{
 			"path": "handlers/logrus"
+		},
+		{
+			"path": "handlers/mock"
 		},
 		{
 			"path": "handlers/zap"
 		},
 		{
 			"path": "handlers/zerolog"
-		},
+		}
 	]
 }

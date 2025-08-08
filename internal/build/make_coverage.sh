@@ -23,22 +23,68 @@ MODULE_NAME="${1:?Module name required}"
 MODULE_DIR="${2:?Module directory required}"
 COVERAGE_DIR="${3:?Coverage directory required}"
 
+# Extract package name from test output line
+extract_package_name() {
+	local line="$1"
+	# Handle both formats: "ok <package>" and "<package>"
+	echo "$line" | sed -n 's/^ok[[:space:]]\+\([^[:space:]]\+\)[[:space:]].*/\1/p; s/^[[:space:]]*\([^[:space:]]\+\)[[:space:]].*/\1/p' | head -1
+}
+
+# Extract coverage percentage from test output line
+extract_coverage_percentage() {
+	local line="$1"
+	echo "$line" | sed -n 's/.*coverage: \([0-9.]\+%\).*/\1/p'
+}
+
+# Convert full package path to module-relative subpackage path
+convert_to_subpackage_path() {
+	local package="$1"
+	local module_path="$2"
+	local module_name="$3"
+	local path="$package"
+
+	if [ -n "$module_path" ]; then
+		sub_package="${package#"$module_path/"}"
+
+		if [ "$package" = "$module_path" ]; then
+			# root
+			path="$module_name"
+		elif [ "$package" != "$sub_package" ]; then
+			# sub package
+			path="$module_name/$sub_package"
+		fi
+	fi
+
+	echo "$path"
+}
+
 # Helper function to format coverage output
 format_coverage_output() {
 	local stdout_file="$1"
 	local module_name="$2"
+	local module_dir="$3"
+
+	# Read module path from go.mod
+	local module_path=""
+	if [ -f "$module_dir/go.mod" ]; then
+		module_path=$(awk '/^module / {print $2}' "$module_dir/go.mod")
+	fi
 
 	if [ -s "$stdout_file" ]; then
-		# Extract coverage percentage and format with module name
-		grep -E 'coverage: [0-9.]+%' "$stdout_file" | tail -1 | \
-			sed "s|coverage: \([0-9.]\+%\) of statements in \./\.\.\.|Coverage: \1 of statements in $module_name|" || \
-			echo "Coverage: no coverage data"
+		grep -E 'coverage: [0-9.]+%' "$stdout_file" | while read -r line; do
+			package=$(extract_package_name "$line")
+			coverage=$(extract_coverage_percentage "$line")
+			subpackage=$(convert_to_subpackage_path "$package" "$module_path" "$module_name")
+
+			printf "coverage: %-30s %s\n" "$subpackage" "$coverage"
+		done
 	else
-		echo "Coverage: no test output"
+		echo "coverage: $module_name: no test output"
 	fi
 }
 
 # Use absolute path for coverage directory
+mkdir -p "$COVERAGE_DIR"
 COVERAGE_DIR=$(cd "$COVERAGE_DIR" && pwd)
 
 # Output files
@@ -64,7 +110,7 @@ if ${GO:-go} test "$@" > "$COVERSTDOUT" 2>&1; then
 	${GO:-go} -C "$MODULE_DIR" tool cover -html="$COVERPROFILE" -o "$COVERHTML" 2>/dev/null || true
 
 	# Display formatted coverage output
-	format_coverage_output "$COVERSTDOUT" "$MODULE_NAME"
+	format_coverage_output "$COVERSTDOUT" "$MODULE_NAME" "$MODULE_DIR"
 else
 	exit_code=$?
 	echo "Tests failed for $MODULE_NAME" >&2

@@ -1,6 +1,6 @@
 # Coverage Testing for Monorepo
 
-This document explains the coverage testing setup for the slog monorepo.
+This document explains the coverage testing setup for monorepos.
 
 ## Overview
 
@@ -30,8 +30,9 @@ This script:
 
 - Reads the module index.
 - Runs `go test -coverprofile -coverpkg=./... ./...` for each module using
-  `go -C` to change directory. This tests all packages recursively and
-  instruments all packages for coverage, not just those with test files.
+  `go -C` to change directory (requires Go 1.23+). This tests all packages
+  recursively and instruments all packages for coverage, not just those with
+  test files.
 - Shows progress with module name and directory.
 - Generates individual coverage files with pattern `coverage_${name}.prof`.
 - Creates multiple output formats: `.prof`, `.func`, `.html`, and `.stdout`.
@@ -93,7 +94,7 @@ This setup provides:
 - **Flag management**: Codecov flags allow filtering coverage by module.
 - **Proper attribution**: Code changes affect only the relevant module's
   coverage.
-- **carryforward support**: Missing coverage data doesn't fail the build.
+- **Carryforward support**: Missing coverage data doesn't fail the build.
 
 ## Design Decisions
 
