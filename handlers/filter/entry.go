@@ -14,12 +14,10 @@ var (
 	_ slog.Logger = (*LogEntry)(nil)
 )
 
-// LogEntry implements a level filtered logger
+// LogEntry implements a level-filtered logger.
 type LogEntry struct {
 	loglet internal.Loglet
-
-	logger *Logger
-	entry  slog.Logger
+	config *Logger
 }
 
 // Level returns the current log level. Exposed for testing only.
@@ -30,216 +28,258 @@ func (l *LogEntry) Level() slog.LogLevel {
 	return l.loglet.Level()
 }
 
-// Enabled tells this logger would record logs
-func (l *LogEntry) Enabled() bool {
-	if l == nil || l.logger == nil {
+func (l *LogEntry) check() bool {
+	if l == nil || l.config == nil || l.config.Threshold == slog.UndefinedLevel {
 		return false
 	}
-	level := l.loglet.Level()
-	if level <= slog.UndefinedLevel || level > l.logger.Threshold {
-		return false
-	}
-	return l.entry == nil || l.entry.Enabled()
+
+	return true
 }
 
-// WithEnabled returns itself and if it's enabled
+// Enabled tells if this logger would record logs.
+func (l *LogEntry) Enabled() bool {
+	parent, level, enabled := l.getEnabled()
+	switch {
+	case !enabled:
+		return false
+	case parent == nil:
+		return true // verified by getEnabled
+	default:
+		// Confirm the parent will accept the messages.
+		return parent.WithLevel(level).Enabled()
+	}
+}
+
+func (l *LogEntry) getEnabled() (parent slog.Logger, level slog.LogLevel, enabled bool) {
+	if !l.check() {
+		return nil, slog.UndefinedLevel, false
+	}
+
+	level = l.loglet.Level()
+	if level == slog.UndefinedLevel {
+		// No level set - not enabled.
+		return nil, level, false
+	}
+
+	parent = l.config.Parent
+	if parent == nil {
+		// For parentless, only Fatal/Panic are enabled for termination.
+		enabled = level == slog.Fatal || level == slog.Panic
+	} else {
+		// Below threshold, enabled.
+		enabled = level <= l.config.Threshold
+	}
+
+	return parent, level, enabled
+}
+
+// WithEnabled returns itself and whether it's enabled.
 func (l *LogEntry) WithEnabled() (slog.Logger, bool) {
 	return l, l.Enabled()
 }
 
 // Print would, if conditions are met, add a log entry with the arguments
-// in the manner of fmt.Print
+// in the manner of fmt.Print.
 func (l *LogEntry) Print(args ...any) {
-	if l.Enabled() {
-		l.msg(fmt.Sprint(args...))
+	if _, _, ok := l.getEnabled(); ok {
+		l.msg(1, fmt.Sprint(args...))
 	}
 }
 
 // Println would, if conditions are met, add a log entry with the arguments
-// in the manner of fmt.Println
+// in the manner of fmt.Println.
 func (l *LogEntry) Println(args ...any) {
-	if l.Enabled() {
-		l.msg(fmt.Sprintln(args...))
+	if _, _, ok := l.getEnabled(); ok {
+		l.msg(1, fmt.Sprintln(args...))
 	}
 }
 
 // Printf would, if conditions are met, add a log entry with the arguments
-// in the manner of fmt.Printf
+// in the manner of fmt.Printf.
 func (l *LogEntry) Printf(format string, args ...any) {
-	if l.Enabled() {
-		l.msg(fmt.Sprintf(format, args...))
+	if _, _, ok := l.getEnabled(); ok {
+		l.msg(1, fmt.Sprintf(format, args...))
 	}
 }
 
 // msg applies MessageFilter before sending the message to
-// the parent Logger
-func (l *LogEntry) msg(msg string) {
-	if fn := l.logger.MessageFilter; fn != nil {
-		var ok bool
-
-		msg, ok = fn(msg)
-		if !ok {
-			return
-		}
+// the parent Logger.
+func (l *LogEntry) msg(skip int, msg string) {
+	msg, ok := applyMessageFilter(l.config, msg)
+	if !ok {
+		return
 	}
 
-	if l.entry == nil {
-		// parentless is either Fatal or Panic
-		_ = log.Output(3, msg)
+	if l.config.Parent == nil {
+		// Parentless is either Fatal or Panic.
+		_ = log.Output(skip+2, msg)
 
-		if l.loglet.Level() != slog.Fatal {
-			panic(msg)
+		switch l.loglet.Level() {
+		case slog.Panic:
+			panic(core.NewPanicError(skip+1, msg))
+		case slog.Fatal:
+			// revive:disable:deep-exit
+			os.Exit(1)
 		}
 
-		// revive:disable:deep-exit
-		os.Exit(1)
+		// Unreachable.
+		return
 	}
 
-	l.entry.Print(msg)
+	if ll, ok := l.makeLogger(skip + 1); ok {
+		ll.Print(msg)
+	}
 }
 
-// Debug creates a new filtered logger on level slog.Debug
+func (l *LogEntry) makeLogger(skip int) (slog.Logger, bool) {
+	ll := l.config.Parent.WithLevel(l.loglet.Level())
+	if !ll.Enabled() {
+		// Level disabled for the parent.
+		return ll, false
+	}
+
+	// Stack.
+	if l.loglet.CallStack() != nil {
+		ll = ll.WithStack(skip + 1)
+	}
+
+	// Collect fields.
+	fields := l.loglet.FieldsMap()
+	if internal.HasFields(fields) {
+		ll = ll.WithFields(fields)
+	}
+
+	return ll, true
+}
+
+// Debug creates a new filtered logger on level slog.Debug.
 func (l *LogEntry) Debug() slog.Logger {
-	return l.logger.WithLevel(slog.Debug)
+	return l.WithLevel(slog.Debug)
 }
 
-// Info creates a new filtered logger on level slog.Info
+// Info creates a new filtered logger on level slog.Info.
 func (l *LogEntry) Info() slog.Logger {
-	return l.logger.WithLevel(slog.Info)
+	return l.WithLevel(slog.Info)
 }
 
-// Warn creates a new filtered logger on level slog.Warn
+// Warn creates a new filtered logger on level slog.Warn.
 func (l *LogEntry) Warn() slog.Logger {
-	return l.logger.WithLevel(slog.Warn)
+	return l.WithLevel(slog.Warn)
 }
 
-// Error creates a new filtered logger on level slog.Error
+// Error creates a new filtered logger on level slog.Error.
 func (l *LogEntry) Error() slog.Logger {
-	return l.logger.WithLevel(slog.Error)
+	return l.WithLevel(slog.Error)
 }
 
-// Fatal creates a new filtered logger on level slog.Fatal
+// Fatal creates a new filtered logger on level slog.Fatal.
 func (l *LogEntry) Fatal() slog.Logger {
-	return l.logger.WithLevel(slog.Fatal)
+	return l.WithLevel(slog.Fatal)
 }
 
-// Panic creates a new filtered logger on level slog.Panic
+// Panic creates a new filtered logger on level slog.Panic.
 func (l *LogEntry) Panic() slog.Logger {
-	return l.logger.WithLevel(slog.Panic)
+	return l.WithLevel(slog.Panic)
 }
 
-// WithLevel creates a new filtered logger on the given level
+// WithLevel creates a new filtered logger on the given level.
 func (l *LogEntry) WithLevel(level slog.LogLevel) slog.Logger {
-	return l.logger.WithLevel(level)
+	err := l.checkWithLevel(1, level)
+	switch err {
+	case nil:
+		// Proceed with level change.
+		return doWithLevel(l.config, &l.loglet, level)
+	case errSkip:
+		// Skip - return self.
+		return l
+	default:
+		// Error - panic immediately.
+		panic(err)
+	}
 }
 
-// WithStack would, if conditions are met, attach a call stack to the log entry
+// checkWithLevel determines if LogEntry.WithLevel should proceed.
+// Returns nil to proceed, errSkip to skip, or an error to panic.
+func (l *LogEntry) checkWithLevel(skip int, level slog.LogLevel) error {
+	err := validateLogLevel(skip+1, level)
+	switch {
+	case err != nil:
+		// invalid level
+		return err
+	case !l.check():
+		// invalid instance
+		return core.NewPanicErrorf(skip+1, "invalid logger entry state")
+	case l.Level() == level:
+		// Same level.
+		return errSkip
+	default:
+		// Create a new entry with the requested level, potentially disabled
+		// by threshold.
+		return nil
+	}
+}
+
+// WithStack would, if conditions are met, attach a call stack to the log entry.
 func (l *LogEntry) WithStack(skip int) slog.Logger {
-	out := &LogEntry{
-		loglet: l.loglet.WithStack(skip + 1),
-		logger: l.logger,
-		entry:  l.entry,
+	if !l.shouldCollectFields() {
+		return l
 	}
 
-	if l.Enabled() && l.entry != nil {
-		out.entry = l.entry.WithStack(skip + 1)
+	if skip < 0 {
+		skip = 0
 	}
-	return out
+
+	return doWithStack(l.config, &l.loglet, skip+1)
 }
 
 // WithField would, if conditions are met, attach a field to the log entry. This
-// field could be altered if a FieldFilter is used
+// field could be altered if a FieldFilter is used.
 func (l *LogEntry) WithField(label string, value any) slog.Logger {
-	if label != "" {
-		out := &LogEntry{
-			loglet: l.loglet.WithField(label, value),
-			logger: l.logger,
-			entry:  l.entry,
-		}
+	if label == "" || !l.shouldCollectFields() {
+		return l
+	}
 
-		if l.Enabled() && l.entry != nil {
-			out.addField(label, value)
-		}
+	if out := doWithField(l.config, &l.loglet, label, value); out != nil {
 		return out
 	}
+
+	// Field was filtered out, return unchanged.
 	return l
-}
-
-func (l *LogEntry) addField(label string, value any) {
-	if fn := l.logger.FieldOverride; fn != nil {
-		// intercepted
-		fn(l.entry, label, value)
-		return
-	}
-
-	if fn := l.logger.FieldsOverride; fn != nil {
-		// intercepted
-		fn(l.entry, slog.Fields{label: value})
-		return
-	}
-
-	if fn := l.logger.FieldFilter; fn != nil {
-		// modified
-		var ok bool
-		label, value, ok = fn(label, value)
-
-		if !ok {
-			return
-		}
-	}
-
-	l.entry = l.entry.WithField(label, value)
 }
 
 // WithFields would, if conditions are met, attach fields to the log entry.
-// These fields could be altered if a FieldFilter is used
+// These fields could be altered if a FieldFilter is used.
 func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
-	if internal.HasFields(fields) {
-		out := &LogEntry{
-			loglet: l.loglet.WithFields(fields),
-			logger: l.logger,
-			entry:  l.entry,
-		}
+	if !internal.HasFields(fields) || !l.shouldCollectFields() {
+		return l
+	}
 
-		if l.Enabled() && l.entry != nil {
-			out.addFields(fields)
-		}
+	if out := doWithFields(l.config, &l.loglet, fields); out != nil {
 		return out
 	}
+
+	// Fields were filtered out, return unchanged.
 	return l
 }
 
-func (l *LogEntry) addFields(fields map[string]any) {
-	if fn := l.logger.FieldsOverride; fn != nil {
-		// intercepted
-		fn(l.entry, fields)
-		return
+// shouldCollectFields checks if fields should be collected.
+func (l *LogEntry) shouldCollectFields() bool {
+	if !l.check() {
+		return false
 	}
 
-	if fn := l.logger.FieldOverride; fn != nil {
-		// intercepted
-		for _, key := range core.SortedKeys(fields) {
-			fn(l.entry, key, fields[key])
-		}
-		return
+	// Parentless never collects fields (nowhere to send them).
+	if l.config.Parent == nil {
+		return false
 	}
 
-	if fn := l.logger.FieldFilter; fn != nil {
-		// modified
-		fields = modifyFields(fields, fn)
+	level := l.loglet.Level()
+
+	// No level set - collect fields speculatively.
+	if level == slog.UndefinedLevel {
+		return true
 	}
 
-	l.entry = l.entry.WithFields(fields)
-}
-
-func modifyFields(fields map[string]any, fn func(string, any) (string, any, bool)) map[string]any {
-	m := make(map[string]any, len(fields))
-
-	for k, v := range fields {
-		if k, v, ok := fn(k, v); ok {
-			m[k] = v
-		}
-	}
-
-	return m
+	// Level is set - only collect if within threshold.
+	return level <= l.config.Threshold
 }
