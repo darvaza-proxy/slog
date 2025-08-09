@@ -3,9 +3,13 @@ package filter_test
 import (
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/slog/handlers/filter"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = filterLogletTestCase{}
 
 // mockLogger is a simple logger for testing
 type mockLogger struct {
@@ -31,112 +35,101 @@ func (m *mockLogger) WithStack(_ int) slog.Logger             { return m }
 func (m *mockLogger) WithField(_ string, _ any) slog.Logger   { return m }
 func (m *mockLogger) WithFields(_ map[string]any) slog.Logger { return m }
 
-func TestFilterLoglet(t *testing.T) {
-	// Create a base logger
+type filterLogletTestCase struct {
+	method  func() slog.Logger
+	name    string
+	level   slog.LogLevel
+	enabled bool
+}
+
+func (tc filterLogletTestCase) Name() string {
+	return tc.name
+}
+
+func (tc filterLogletTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	l := tc.method()
+	core.AssertMustNotNil(t, l, "logger method returned nil")
+
+	core.AssertEqual(t, tc.enabled, l.Enabled(), "Enabled() for level %s", tc.name)
+}
+
+func newFilterLogletTestCase(name string,
+	method func() slog.Logger,
+	level slog.LogLevel, enabled bool) filterLogletTestCase {
+	return filterLogletTestCase{
+		name:    name,
+		method:  method,
+		level:   level,
+		enabled: enabled,
+	}
+}
+
+func filterLogletTestCases() []filterLogletTestCase {
 	base := &mockLogger{enabled: true}
-
-	// Create a filter logger with Info threshold
 	logger := filter.New(base, slog.Info)
-
-	// Test level transitions
-	testLevels := []struct {
-		name    string
-		method  func() slog.Logger
-		level   slog.LogLevel
-		enabled bool
-	}{
-		{"Debug", logger.Debug, slog.Debug, false},
-		{"Info", logger.Info, slog.Info, true},
-		{"Warn", logger.Warn, slog.Warn, true},
-		{"Error", logger.Error, slog.Error, true},
-		{"Fatal", logger.Fatal, slog.Fatal, true},
-		{"Panic", logger.Panic, slog.Panic, true},
+	return []filterLogletTestCase{
+		newFilterLogletTestCase("Debug", logger.Debug, slog.Debug, false),
+		newFilterLogletTestCase("Info", logger.Info, slog.Info, true),
+		newFilterLogletTestCase("Warn", logger.Warn, slog.Warn, true),
+		newFilterLogletTestCase("Error", logger.Error, slog.Error, true),
+		newFilterLogletTestCase("Fatal", logger.Fatal, slog.Fatal, true),
+		newFilterLogletTestCase("Panic", logger.Panic, slog.Panic, true),
 	}
+}
 
-	for _, tt := range testLevels {
-		t.Run(tt.name, func(t *testing.T) {
-			l := tt.method()
-			if l == nil {
-				t.Fatal("logger method returned nil")
-			}
-
-			// Check if enabled state matches expected
-			if got := l.Enabled(); got != tt.enabled {
-				t.Errorf("Enabled() = %v, want %v", got, tt.enabled)
-			}
-		})
-	}
+func TestFilterLoglet(t *testing.T) {
+	core.RunTestCases(t, filterLogletTestCases())
 }
 
 func TestFilterWithFields(t *testing.T) {
 	base := &mockLogger{enabled: true}
 	logger := filter.New(base, slog.Info)
 
-	// Test WithField on root logger (should store in Loglet)
 	l1 := logger.WithField("root", "value")
-	if l1 == nil {
-		t.Fatal("WithField returned nil")
-	}
+	core.AssertMustNotNil(t, l1, "WithField returned nil")
 
-	// Test WithField on enabled logger
 	l2 := logger.Info().WithField("key1", "value1")
-	if l2 == nil {
-		t.Fatal("WithField on enabled logger returned nil")
-	}
+	core.AssertMustNotNil(t, l2, "WithField on enabled logger returned nil")
 
-	// Test WithFields
 	fields := map[string]any{
 		"key2": "value2",
 		"key3": 123,
 	}
 	l3 := logger.Info().WithFields(fields)
-	if l3 == nil {
-		t.Fatal("WithFields returned nil")
-	}
+	core.AssertNotNil(t, l3, "WithFields returned nil")
 }
 
 func TestFilterWithStack(t *testing.T) {
 	base := &mockLogger{enabled: true}
 	logger := filter.New(base, slog.Info)
 
-	// Test WithStack on root logger
 	l1 := logger.WithStack(1)
-	if l1 == nil {
-		t.Fatal("WithStack on root returned nil")
-	}
+	core.AssertMustNotNil(t, l1, "WithStack on root returned nil")
 
-	// Test WithStack on enabled logger
 	l2 := logger.Info().WithStack(1)
-	if l2 == nil {
-		t.Fatal("WithStack on enabled logger returned nil")
-	}
+	core.AssertNotNil(t, l2, "WithStack on enabled logger returned nil")
 }
 
 func TestFilterChaining(t *testing.T) {
 	base := &mockLogger{enabled: true}
 	logger := filter.New(base, slog.Info)
 
-	// Test method chaining preserves fields and level
 	l := logger.
 		WithField("key1", "value1").
 		WithField("key2", "value2").
 		Info().
 		WithField("key3", "value3")
 
-	if l == nil {
-		t.Fatal("Chained logger is nil")
-	}
+	core.AssertMustNotNil(t, l, "Chained logger is nil")
 
-	// Should be enabled (Info level)
-	if !l.Enabled() {
-		t.Error("Info logger should be enabled")
-	}
+	core.AssertTrue(t, l.Enabled(), "Info logger enabled")
 }
 
 func TestFilterFieldTransformation(t *testing.T) {
 	base := &mockLogger{enabled: true}
 
-	// Test with field filter
 	transformed := false
 	logger := &filter.Logger{
 		Parent:    base,
@@ -153,15 +146,12 @@ func TestFilterFieldTransformation(t *testing.T) {
 	l := logger.Info().WithField("password", "secret123")
 	l.Print("test")
 
-	if !transformed {
-		t.Error("FieldFilter was not called")
-	}
+	core.AssertTrue(t, transformed, "FieldFilter was not called")
 }
 
 func TestFilterMessageFilter(t *testing.T) {
 	base := &mockLogger{enabled: true}
 
-	// Test with message filter
 	filtered := false
 	logger := &filter.Logger{
 		Parent:    base,
@@ -175,25 +165,16 @@ func TestFilterMessageFilter(t *testing.T) {
 	l := logger.Info()
 	l.Print("test message")
 
-	if !filtered {
-		t.Error("MessageFilter was not called")
-	}
+	core.AssertTrue(t, filtered, "MessageFilter was not called")
 }
 
 func TestFilterParentless(t *testing.T) {
-	// Test parentless logger (only Fatal/Panic should work)
 	logger := filter.NewNoop()
 
-	// These should not panic
 	logger.Debug().Print("test")
 	logger.Info().Print("test")
 	logger.Error().Print("test")
 
-	// Fatal and Panic levels are enabled
-	if !logger.Fatal().Enabled() {
-		t.Error("Fatal should be enabled for parentless logger")
-	}
-	if !logger.Panic().Enabled() {
-		t.Error("Panic should be enabled for parentless logger")
-	}
+	core.AssertTrue(t, logger.Fatal().Enabled(), "Fatal parentless enabled")
+	core.AssertTrue(t, logger.Panic().Enabled(), "Panic parentless enabled")
 }

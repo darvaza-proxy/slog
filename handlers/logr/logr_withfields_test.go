@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr/funcr"
+
+	"darvaza.org/core"
 )
 
 // TestWithFieldsDoesNotModifyInput tests that WithFields doesn't modify the input map
@@ -36,12 +38,9 @@ func TestWithFieldsDoesNotModifyInput(t *testing.T) {
 	logger.Info().WithFields(fields).Print("test")
 
 	// Check if the map was modified
-	if len(fields) != originalLen {
-		t.Errorf("WithFields modified the input map: original length %d, new length %d", originalLen, len(fields))
-	}
+	core.AssertEqual(t, originalLen, len(fields), "input map length")
 
 	// Check if empty key is still there
-	if _, hasEmpty := fields[""]; !hasEmpty {
-		t.Error("WithFields removed the empty key from the input map")
-	}
+	_, hasEmpty := fields[""]
+	core.AssertTrue(t, hasEmpty, "empty key present")
 }

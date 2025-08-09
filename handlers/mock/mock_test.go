@@ -3,93 +3,89 @@ package mock
 import (
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
-// levelTest represents a test case for log level methods.
-type levelTest struct {
-	name     string
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = levelTestCase{}
+var _ core.TestCase = printTestCase{}
+var _ core.TestCase = fieldCopyingTestCase{}
+
+// levelTestCase represents a test case for log level methods.
+type levelTestCase struct {
 	logFunc  func(*Logger) slog.Logger
 	expected slog.LogLevel
+	name     string
 }
 
-func newLevelTest(name string, logFunc func(*Logger) slog.Logger, expected slog.LogLevel) levelTest {
-	return levelTest{
+func newLevelTestCase(name string, logFunc func(*Logger) slog.Logger, expected slog.LogLevel) levelTestCase {
+	return levelTestCase{
 		name:     name,
 		logFunc:  logFunc,
 		expected: expected,
 	}
 }
 
-func (tc levelTest) test(t *testing.T) {
+func (tc levelTestCase) Name() string {
+	return tc.name
+}
+
+func (tc levelTestCase) Test(t *testing.T) {
+	t.Helper()
 	logger := NewLogger()
 	tc.logFunc(logger).Print("test")
 
 	messages := logger.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(messages))
-	}
-
-	if messages[0].Level != tc.expected {
-		t.Errorf("expected level %v, got %v", tc.expected, messages[0].Level)
-	}
+	core.AssertMustEqual(t, 1, len(messages), "message count")
+	core.AssertEqual(t, tc.expected, messages[0].Level, "log level")
 }
 
-// printTest represents a test case for print methods.
-type printTest struct {
-	name     string
+// printTestCase represents a test case for print methods.
+type printTestCase struct {
 	logFunc  func(*Logger)
 	expected string
+	name     string
 }
 
-func newPrintTest(name string, logFunc func(*Logger), expected string) printTest {
-	return printTest{
+func newPrintTestCase(name string, logFunc func(*Logger), expected string) printTestCase {
+	return printTestCase{
 		name:     name,
 		logFunc:  logFunc,
 		expected: expected,
 	}
 }
 
-func (tc printTest) test(t *testing.T) {
+func (tc printTestCase) Name() string {
+	return tc.name
+}
+
+func (tc printTestCase) Test(t *testing.T) {
+	t.Helper()
 	logger := NewLogger()
 	tc.logFunc(logger)
 
 	messages := logger.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(messages))
-	}
-
-	if messages[0].Message != tc.expected {
-		t.Errorf("expected %q, got %q", tc.expected, messages[0].Message)
-	}
+	core.AssertMustEqual(t, 1, len(messages), "message count")
+	core.AssertEqual(t, tc.expected, messages[0].Message, "log message")
 }
 
 func TestNewLogger(t *testing.T) {
 	logger := NewLogger()
-	if logger == nil {
-		t.Fatal("NewLogger returned nil")
-	}
+	core.AssertMustNotNil(t, logger, "logger")
 
-	if !logger.Enabled() {
-		t.Error("NewLogger should be enabled by default")
-	}
+	core.AssertTrue(t, logger.Enabled(), "enabled by default")
 
 	messages := logger.GetMessages()
-	if len(messages) != 0 {
-		t.Errorf("NewLogger should start with no messages, got %d", len(messages))
-	}
+	core.AssertEqual(t, 0, len(messages), "initial message count")
 }
 
 func TestNewRecorder(t *testing.T) {
 	recorder := NewRecorder()
-	if recorder == nil {
-		t.Fatal("NewRecorder returned nil")
-	}
+	core.AssertMustNotNil(t, recorder, "recorder")
 
 	messages := recorder.GetMessages()
-	if len(messages) != 0 {
-		t.Errorf("NewRecorder should start with no messages, got %d", len(messages))
-	}
+	core.AssertEqual(t, 0, len(messages), "initial message count")
 }
 
 func TestLoggerBasicLogging(t *testing.T) {
@@ -107,30 +103,26 @@ func TestLoggerBasicLogging(t *testing.T) {
 }
 
 func testLoggerLevels(t *testing.T) {
-	tests := []levelTest{
-		newLevelTest("Debug", (*Logger).Debug, slog.Debug),
-		newLevelTest("Info", (*Logger).Info, slog.Info),
-		newLevelTest("Warn", (*Logger).Warn, slog.Warn),
-		newLevelTest("Error", (*Logger).Error, slog.Error),
-		newLevelTest("Fatal", (*Logger).Fatal, slog.Fatal),
-		newLevelTest("Panic", (*Logger).Panic, slog.Panic),
+	tests := []levelTestCase{
+		newLevelTestCase("Debug", (*Logger).Debug, slog.Debug),
+		newLevelTestCase("Info", (*Logger).Info, slog.Info),
+		newLevelTestCase("Warn", (*Logger).Warn, slog.Warn),
+		newLevelTestCase("Error", (*Logger).Error, slog.Error),
+		newLevelTestCase("Fatal", (*Logger).Fatal, slog.Fatal),
+		newLevelTestCase("Panic", (*Logger).Panic, slog.Panic),
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	core.RunTestCases(t, tests)
 }
 
 func testLoggerPrintMethods(t *testing.T) {
-	tests := []printTest{
-		newPrintTest("Print", func(l *Logger) { l.Info().Print("hello", " ", "world") }, "hello world"),
-		newPrintTest("Println", func(l *Logger) { l.Info().Println("hello", "world") }, "hello world\n"),
-		newPrintTest("Printf", func(l *Logger) { l.Info().Printf("hello %s", "world") }, "hello world"),
+	tests := []printTestCase{
+		newPrintTestCase("Print", func(l *Logger) { l.Info().Print("hello", " ", "world") }, "hello world"),
+		newPrintTestCase("Println", func(l *Logger) { l.Info().Println("hello", "world") }, "hello world\n"),
+		newPrintTestCase("Printf", func(l *Logger) { l.Info().Printf("hello %s", "world") }, "hello world"),
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, tc.test)
-	}
+	core.RunTestCases(t, tests)
 }
 
 func TestLoggerMethods(t *testing.T) {
@@ -189,23 +181,16 @@ func TestLoggerWithFieldEmptyKey(t *testing.T) {
 	messages := logger.GetMessages()
 
 	// Should have 2 messages, one from logger1 (no extra empty field) and one from logger2 (with field)
-	if len(messages) != 2 {
-		t.Errorf("Expected 2 messages, got %d", len(messages))
-	}
+	core.AssertEqual(t, 2, len(messages), "message count")
 
 	// First message should have no fields (empty key filtered out)
-	if len(messages[0].Fields) != 0 {
-		t.Errorf("Expected no fields in first message, got %v", messages[0].Fields)
-	}
+	core.AssertEqual(t, 0, len(messages[0].Fields), "first message field count")
 
 	// Second message should have the "key" field
-	if len(messages[1].Fields) != 1 || messages[1].Fields["key"] != "value" {
-		t.Errorf("Expected one field 'key'='value' in second message, got %v", messages[1].Fields)
-	}
+	core.AssertEqual(t, 1, len(messages[1].Fields), "second message field count")
+	core.AssertEqual(t, "value", messages[1].Fields["key"], "second message key field")
 
-	if logger2 == logger {
-		t.Error("WithField with valid key should return new logger instance")
-	}
+	core.AssertTrue(t, logger2 != logger, "WithField returns new instance")
 }
 
 func TestLoggerWithStack(t *testing.T) {
@@ -258,12 +243,8 @@ func TestLoggerWithEnabled(t *testing.T) {
 	logger := NewLogger()
 
 	l, enabled := logger.WithEnabled()
-	if !enabled {
-		t.Error("logger should be enabled")
-	}
-	if l != logger {
-		t.Error("WithEnabled should return same logger instance")
-	}
+	core.AssertTrue(t, enabled, "logger enabled")
+	core.AssertTrue(t, l == logger, "WithEnabled returns same instance")
 }
 
 func TestMessageString(t *testing.T) {
@@ -279,16 +260,12 @@ func TestMessageString(t *testing.T) {
 
 	str := msg.String()
 	expected := `[5] "test message" key1=value1 key2=value2`
-	if str != expected {
-		t.Errorf("expected %q, got %q", expected, str)
-	}
+	core.AssertEqual(t, expected, str, "message string without stack")
 
 	msg.Stack = true
 	str = msg.String()
 	expected = `[5] "test message" key1=value1 key2=value2 [stack]`
-	if str != expected {
-		t.Errorf("expected %q, got %q", expected, str)
-	}
+	core.AssertEqual(t, expected, str, "message string with stack")
 }
 
 func TestRecorderDirectUsage(t *testing.T) {
@@ -303,62 +280,54 @@ func TestRecorderDirectUsage(t *testing.T) {
 	messages := recorder.GetMessages()
 	assertMessageCount(t, messages, 2)
 
-	if messages[0].Message != "message 1" {
-		t.Errorf("expected first message to be 'message 1', got %q", messages[0].Message)
-	}
-	if messages[1].Message != "message 2" {
-		t.Errorf("expected second message to be 'message 2', got %q", messages[1].Message)
-	}
+	core.AssertEqual(t, "message 1", messages[0].Message, "first message")
+	core.AssertEqual(t, "message 2", messages[1].Message, "second message")
 
 	recorder.Clear()
 	messages = recorder.GetMessages()
 	assertMessageCount(t, messages, 0)
 }
 
-type fieldCopyingTest struct {
-	name           string
+type fieldCopyingTestCase struct {
 	setupLogger    func() *Logger
 	expectedFields map[string]any
+	name           string
 }
 
-func (tc fieldCopyingTest) test(t *testing.T) {
+func (tc fieldCopyingTestCase) Name() string {
+	return tc.name
+}
+
+func (tc fieldCopyingTestCase) Test(t *testing.T) {
+	t.Helper()
 	logger := tc.setupLogger()
 
 	// Test that fields are preserved through WithLevel
 	loggerWithLevel := logger.WithLevel(slog.Info)
-	if loggerWithLevel == nil {
-		t.Error("expected non-nil logger")
-		return
-	}
+	core.AssertMustNotNil(t, loggerWithLevel, "logger with level")
 
 	// Test that fields are preserved
 	loggerWithLevel.Print("test message")
 	messages := logger.GetMessages()
-	if len(messages) == 0 {
-		t.Fatal("expected at least one message")
-	}
+	core.AssertMustTrue(t, len(messages) > 0, "has messages")
 
 	msg := messages[len(messages)-1]
 	tc.verifyFields(t, msg)
 }
 
-func (tc fieldCopyingTest) verifyFields(t *testing.T, msg Message) {
+func (tc fieldCopyingTestCase) verifyFields(t *testing.T, msg Message) {
 	t.Helper()
-	if len(msg.Fields) != len(tc.expectedFields) {
-		t.Errorf("expected %d fields, got %d", len(tc.expectedFields), len(msg.Fields))
-	}
+	core.AssertEqual(t, len(tc.expectedFields), len(msg.Fields), "field count")
 
 	for key, expectedValue := range tc.expectedFields {
-		if actualValue, exists := msg.Fields[key]; !exists {
-			t.Errorf("expected field %q not found", key)
-		} else if actualValue != expectedValue {
-			t.Errorf("field %q: expected %v, got %v", key, expectedValue, actualValue)
-		}
+		actualValue, exists := msg.Fields[key]
+		core.AssertMustTrue(t, exists, "field %q exists", key)
+		core.AssertEqual(t, expectedValue, actualValue, "field %q", key)
 	}
 }
 
-func fieldCopyingTestCases() []fieldCopyingTest {
-	return []fieldCopyingTest{
+func fieldCopyingTestCases() []fieldCopyingTestCase {
+	return []fieldCopyingTestCase{
 		{
 			name: "logger with no fields",
 			setupLogger: func() *Logger {
@@ -392,9 +361,59 @@ func fieldCopyingTestCases() []fieldCopyingTest {
 }
 
 func TestFieldCopying(t *testing.T) {
-	for _, tc := range fieldCopyingTestCases() {
-		t.Run(tc.name, tc.test)
-	}
+	core.RunTestCases(t, fieldCopyingTestCases())
+}
+
+func TestThresholdFiltering(t *testing.T) {
+	t.Run("NoThreshold", testThresholdFilteringNoThreshold)
+	t.Run("WithThreshold", testThresholdFilteringWithThreshold)
+}
+
+func testThresholdFilteringNoThreshold(t *testing.T) {
+	// Default NewLogger() should have no threshold (backward compatible)
+	logger := NewLogger()
+
+	// All levels should be enabled
+	core.AssertTrue(t, logger.Debug().Enabled(), "Debug enabled without threshold")
+	core.AssertTrue(t, logger.Info().Enabled(), "Info enabled without threshold")
+	core.AssertTrue(t, logger.Error().Enabled(), "Error enabled without threshold")
+
+	// Should record all levels
+	logger.Debug().Print("debug message")
+	logger.Info().Print("info message")
+	logger.Error().Print("error message")
+
+	messages := logger.GetMessages()
+	core.AssertEqual(t, 3, len(messages), "all messages recorded without threshold")
+}
+
+func testThresholdFilteringWithThreshold(t *testing.T) {
+	// Logger with Info threshold should filter out Debug
+	logger := NewLoggerWithThreshold(slog.Info)
+
+	// Check enablement
+	core.AssertFalse(t, logger.Debug().Enabled(), "Debug disabled with Info threshold")
+	core.AssertTrue(t, logger.Info().Enabled(), "Info enabled with Info threshold")
+	core.AssertTrue(t, logger.Error().Enabled(), "Error enabled with Info threshold")
+
+	// Try to record all levels
+	logger.Debug().Print("debug message")
+	logger.Info().Print("info message")
+	logger.Error().Print("error message")
+
+	messages := logger.GetMessages()
+	core.AssertEqual(t, 2, len(messages), "only Info and above recorded")
+	core.AssertEqual(t, slog.Info, messages[0].Level, "first message is Info")
+	core.AssertEqual(t, slog.Error, messages[1].Level, "second message is Error")
+}
+
+func TestNewLoggerWithThreshold(t *testing.T) {
+	logger := NewLoggerWithThreshold(slog.Warn)
+
+	core.AssertNotNil(t, logger, "logger created")
+	core.AssertTrue(t, logger.enabled, "logger enabled")
+	core.AssertEqual(t, slog.Warn, logger.threshold, "threshold set correctly")
+	core.AssertNotNil(t, logger.recorder, "recorder created")
 }
 
 func TestNilReceiver(t *testing.T) {
@@ -406,14 +425,10 @@ func testNilLogger(t *testing.T) {
 	var logger *Logger
 
 	// Test getter methods
-	if logger.Enabled() {
-		t.Error("nil logger should return false for Enabled()")
-	}
+	core.AssertFalse(t, logger.Enabled(), "nil logger enabled")
 
 	messages := logger.GetMessages()
-	if messages != nil {
-		t.Error("nil logger should return nil for GetMessages()")
-	}
+	core.AssertNil(t, messages, "nil logger messages")
 
 	// Test void methods - these should not panic
 	logger.Clear()
@@ -425,9 +440,8 @@ func testNilLogger(t *testing.T) {
 	testNilLoggerBuilders(t, logger)
 
 	l, enabled := logger.WithEnabled()
-	if l != nil || enabled {
-		t.Error("nil logger should return nil, false for WithEnabled()")
-	}
+	core.AssertNil(t, l, "nil logger WithEnabled result")
+	core.AssertFalse(t, enabled, "nil logger WithEnabled status")
 }
 
 func testNilLoggerBuilders(t *testing.T, logger *Logger) {
@@ -437,49 +451,27 @@ func testNilLoggerBuilders(t *testing.T, logger *Logger) {
 
 func testNilLoggerLevels(t *testing.T, logger *Logger) {
 	t.Helper()
-	if result := logger.Debug(); result != nil {
-		t.Error("nil logger should return nil for Debug()")
-	}
-	if result := logger.Info(); result != nil {
-		t.Error("nil logger should return nil for Info()")
-	}
-	if result := logger.Warn(); result != nil {
-		t.Error("nil logger should return nil for Warn()")
-	}
-	if result := logger.Error(); result != nil {
-		t.Error("nil logger should return nil for Error()")
-	}
-	if result := logger.Fatal(); result != nil {
-		t.Error("nil logger should return nil for Fatal()")
-	}
-	if result := logger.Panic(); result != nil {
-		t.Error("nil logger should return nil for Panic()")
-	}
+	core.AssertNil(t, logger.Debug(), "nil logger Debug")
+	core.AssertNil(t, logger.Info(), "nil logger Info")
+	core.AssertNil(t, logger.Warn(), "nil logger Warn")
+	core.AssertNil(t, logger.Error(), "nil logger Error")
+	core.AssertNil(t, logger.Fatal(), "nil logger Fatal")
+	core.AssertNil(t, logger.Panic(), "nil logger Panic")
 }
 
 func testNilLoggerModifiers(t *testing.T, logger *Logger) {
 	t.Helper()
-	if result := logger.WithField("key", "value"); result != nil {
-		t.Error("nil logger should return nil for WithField()")
-	}
-	if result := logger.WithFields(map[string]any{"key": "value"}); result != nil {
-		t.Error("nil logger should return nil for WithFields()")
-	}
-	if result := logger.WithStack(0); result != nil {
-		t.Error("nil logger should return nil for WithStack()")
-	}
-	if result := logger.WithLevel(slog.Info); result != nil {
-		t.Error("nil logger should return nil for WithLevel()")
-	}
+	core.AssertNil(t, logger.WithField("key", "value"), "nil logger WithField")
+	core.AssertNil(t, logger.WithFields(map[string]any{"key": "value"}), "nil logger WithFields")
+	core.AssertNil(t, logger.WithStack(0), "nil logger WithStack")
+	core.AssertNil(t, logger.WithLevel(slog.Info), "nil logger WithLevel")
 }
 
 func testNilRecorder(t *testing.T) {
 	var recorder *Recorder
 
 	messages := recorder.GetMessages()
-	if messages != nil {
-		t.Error("nil recorder should return nil for GetMessages()")
-	}
+	core.AssertNil(t, messages, "nil recorder messages")
 
 	// These should not panic
 	recorder.Clear()
@@ -490,39 +482,27 @@ func testNilRecorder(t *testing.T) {
 
 func assertMessageCount(t *testing.T, messages []Message, expected int) {
 	t.Helper()
-	if len(messages) != expected {
-		t.Errorf("expected %d messages, got %d", expected, len(messages))
-	}
+	core.AssertEqual(t, expected, len(messages), "message count")
 }
 
 func assertMessage(t *testing.T, msg Message, level slog.LogLevel, text string) {
 	t.Helper()
-	if msg.Level != level {
-		t.Errorf("expected level %v, got %v", level, msg.Level)
-	}
-	if msg.Message != text {
-		t.Errorf("expected message %q, got %q", text, msg.Message)
-	}
+	core.AssertEqual(t, level, msg.Level, "log level")
+	core.AssertEqual(t, text, msg.Message, "log message")
 }
 
 func assertFieldCount(t *testing.T, msg Message, expected int) {
 	t.Helper()
-	if len(msg.Fields) != expected {
-		t.Errorf("expected %d fields, got %d", expected, len(msg.Fields))
-	}
+	core.AssertEqual(t, expected, len(msg.Fields), "field count")
 }
 
 func assertFieldValue(t *testing.T, msg Message, key string, expected any) {
 	t.Helper()
-	if msg.Fields[key] != expected {
-		t.Errorf("expected %s=%v, got %v", key, expected, msg.Fields[key])
-	}
+	core.AssertEqual(t, expected, msg.Fields[key], "field %s", key)
 }
 
 //revive:disable-next-line:flag-parameter
 func assertStack(t *testing.T, msg Message, expected bool) {
 	t.Helper()
-	if msg.Stack != expected {
-		t.Errorf("expected Stack to be %v, got %v", expected, msg.Stack)
-	}
+	core.AssertEqual(t, expected, msg.Stack, "stack trace")
 }

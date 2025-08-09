@@ -9,62 +9,92 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogzerolog "darvaza.org/slog/handlers/zerolog"
 )
 
-func TestZerologLoglet(t *testing.T) {
-	// Create a zerolog logger with buffer
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = zerologLogletTestCase{}
+
+type zerologLogletTestCase struct {
+	name     string
+	level    slog.LogLevel
+	enabled  bool
+	logLevel string
+}
+
+func (tc zerologLogletTestCase) Name() string {
+	return tc.name
+}
+
+func (tc zerologLogletTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	// Create a zerolog logger with buffer for this specific test case
 	var buf bytes.Buffer
 	zl := zerolog.New(&buf).Level(zerolog.DebugLevel)
-
-	// Create slog adapter
 	logger := slogzerolog.New(&zl)
 
-	// Test level transitions
-	testLevels := []struct {
-		name     string
-		method   func() slog.Logger
-		level    slog.LogLevel
-		enabled  bool
-		logLevel string
-	}{
-		{"Debug", logger.Debug, slog.Debug, true, "debug"},
-		{"Info", logger.Info, slog.Info, true, "info"},
-		{"Warn", logger.Warn, slog.Warn, true, "warn"},
-		{"Error", logger.Error, slog.Error, true, "error"},
+	buf.Reset()
+
+	// Get the level method based on the test case level
+	var l slog.Logger
+	switch tc.level {
+	case slog.Debug:
+		l = logger.Debug()
+	case slog.Info:
+		l = logger.Info()
+	case slog.Warn:
+		l = logger.Warn()
+	case slog.Error:
+		l = logger.Error()
+	default:
+		t.Fatalf("Unknown level: %v", tc.level)
 	}
 
-	for _, tt := range testLevels {
-		t.Run(tt.name, func(t *testing.T) {
-			buf.Reset()
-			l := tt.method()
-			if l == nil {
-				t.Fatal("logger method returned nil")
-			}
+	core.AssertMustNotNil(t, l, "logger method")
 
-			// Check if enabled state matches expected
-			if got := l.Enabled(); got != tt.enabled {
-				t.Errorf("Enabled() = %v, want %v", got, tt.enabled)
-			}
+	// Check if enabled state matches expected
+	core.AssertEqual(t, tc.enabled, l.Enabled(), "Enabled() for %s", tc.name)
 
-			// Test logging
-			l.Printf("test %s", strings.ToLower(tt.name))
+	// Test logging
+	l.Printf("test %s", strings.ToLower(tc.name))
 
-			var result map[string]interface{}
-			if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
-				t.Fatalf("Failed to parse log output: %v", err)
-			}
+	var result map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
 
-			if result["level"] != tt.logLevel {
-				t.Errorf("Log level = %v, want %v", result["level"], tt.logLevel)
-			}
-			expectedMsg := "test " + strings.ToLower(tt.name)
-			if result["message"] != expectedMsg {
-				t.Errorf("Log message = %v, want %v", result["message"], expectedMsg)
-			}
-		})
+	level, ok := result["level"].(string)
+	core.AssertMustTrue(t, ok, "level is string")
+	core.AssertEqual(t, tc.logLevel, level, "Log level")
+
+	expectedMsg := "test " + strings.ToLower(tc.name)
+	message, ok := result["message"].(string)
+	core.AssertMustTrue(t, ok, "message is string")
+	core.AssertEqual(t, expectedMsg, message, "Log message")
+}
+
+func newZerologLogletTestCase(name string, level slog.LogLevel, logLevel string) zerologLogletTestCase {
+	return zerologLogletTestCase{
+		name:     name,
+		level:    level,
+		enabled:  true,
+		logLevel: logLevel,
 	}
+}
+
+func zerologLogletTestCases() []zerologLogletTestCase {
+	return []zerologLogletTestCase{
+		newZerologLogletTestCase("Debug", slog.Debug, "debug"),
+		newZerologLogletTestCase("Info", slog.Info, "info"),
+		newZerologLogletTestCase("Warn", slog.Warn, "warn"),
+		newZerologLogletTestCase("Error", slog.Error, "error"),
+	}
+}
+
+func TestZerologLoglet(t *testing.T) {
+	core.RunTestCases(t, zerologLogletTestCases())
 }
 
 func TestZerologWithFields(t *testing.T) {
@@ -78,12 +108,9 @@ func TestZerologWithFields(t *testing.T) {
 	l1.Print("test message")
 
 	var result map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
-		t.Fatalf("Failed to parse log output: %v", err)
-	}
-	if result["key1"] != "value1" {
-		t.Errorf("Expected field key1=value1 in output: %v", result)
-	}
+	err := json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
+	core.AssertEqual(t, "value1", result["key1"], "field key1")
 
 	// Test WithFields
 	buf.Reset()
@@ -94,15 +121,12 @@ func TestZerologWithFields(t *testing.T) {
 	l2 := logger.Info().WithFields(fields)
 	l2.Print("test message")
 
-	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
-		t.Fatalf("Failed to parse log output: %v", err)
-	}
-	if result["key2"] != "value2" {
-		t.Errorf("Expected field key2=value2 in output: %v", result)
-	}
-	if result["key3"] != float64(123) { // JSON unmarshals numbers as float64
-		t.Errorf("Expected field key3=123 in output: %v", result)
-	}
+	err = json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
+	core.AssertEqual(t, "value2", result["key2"], "field key2")
+	key3, ok := result["key3"].(float64)
+	core.AssertMustTrue(t, ok, "key3 is float64")
+	core.AssertEqual(t, float64(123), key3, "field key3")
 }
 
 func TestZerologChaining(t *testing.T) {
@@ -121,20 +145,13 @@ func TestZerologChaining(t *testing.T) {
 	l.Print("chained message")
 
 	var result map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
-		t.Fatalf("Failed to parse log output: %v", err)
-	}
+	err := json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
 
 	// Check all fields are present
-	if result["base"] != "value" {
-		t.Error("Missing base field from parent logger")
-	}
-	if result["key1"] != "value1" {
-		t.Error("Missing key1 field")
-	}
-	if result["key2"] != "value2" {
-		t.Error("Missing key2 field")
-	}
+	core.AssertEqual(t, "value", result["base"], "base field")
+	core.AssertEqual(t, "value1", result["key1"], "key1 field")
+	core.AssertEqual(t, "value2", result["key2"], "key2 field")
 }
 
 func TestZerologWithStack(t *testing.T) {
@@ -144,9 +161,7 @@ func TestZerologWithStack(t *testing.T) {
 
 	// Test WithStack - verify it doesn't crash
 	l := logger.Info().WithStack(0)
-	if l == nil {
-		t.Fatal("WithStack returned nil")
-	}
+	core.AssertNotNil(t, l, "WithStack returned nil")
 
 	// WithStack in Loglet stores the stack but zerolog needs special config to output it
 	// Just verify the logger works correctly
@@ -154,14 +169,11 @@ func TestZerologWithStack(t *testing.T) {
 	l.Print("test with stack")
 
 	var result map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
-		t.Fatalf("Failed to parse log output: %v", err)
-	}
+	err := json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
 
 	// Verify basic log output works
-	if result["message"] != "test with stack" {
-		t.Errorf("Expected message in output: %v", result)
-	}
+	core.AssertEqual(t, "test with stack", result["message"], "message content")
 }
 
 func TestZerologDisabledLevels(t *testing.T) {
@@ -171,14 +183,10 @@ func TestZerologDisabledLevels(t *testing.T) {
 	logger := slogzerolog.New(&zl)
 
 	// Debug should be disabled
-	if logger.Debug().Enabled() {
-		t.Error("Debug should be disabled when zerolog level is Info")
-	}
+	core.AssertFalse(t, logger.Debug().Enabled(), "Debug enabled at Info level")
 
 	// Info should be enabled
-	if !logger.Info().Enabled() {
-		t.Error("Info should be enabled when zerolog level is Info")
-	}
+	core.AssertTrue(t, logger.Info().Enabled(), "Info enabled at Info level")
 }
 
 func TestZerologErrorField(t *testing.T) {
@@ -193,26 +201,17 @@ func TestZerologErrorField(t *testing.T) {
 	l.Print("error occurred")
 
 	var result map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
-		t.Fatalf("Failed to parse log output: %v", err)
-	}
+	err = json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
 
 	// Zerolog puts errors in the "error" field
-	if result["error"] != "test error" {
-		t.Errorf("Expected error field in output: %v", result)
-	}
+	core.AssertEqual(t, "test error", result["error"], "error field")
 }
 
 func TestZerologLevelValidation(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic for invalid log level")
-		}
-	}()
-
-	zl := zerolog.New(bytes.NewBuffer(nil))
-	logger := slogzerolog.New(&zl)
-
-	// This should panic
-	logger.WithLevel(slog.UndefinedLevel)
+	core.AssertPanic(t, func() {
+		zl := zerolog.New(bytes.NewBuffer(nil))
+		logger := slogzerolog.New(&zl)
+		logger.WithLevel(slog.UndefinedLevel)
+	}, nil, "invalid level panic")
 }

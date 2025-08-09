@@ -3,8 +3,12 @@ package internal_test
 import (
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog/internal"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = hasFieldsTestCase{}
 
 func TestHasFields(t *testing.T) {
 	t.Run("EmptyMap", testHasFieldsEmpty)
@@ -15,160 +19,119 @@ func TestHasFields(t *testing.T) {
 }
 
 func testHasFieldsEmpty(t *testing.T) {
+	t.Helper()
 	fields := map[string]any{}
 
-	if internal.HasFields(fields) {
-		t.Error("HasFields should return false for empty map")
-	}
+	core.AssertFalse(t, internal.HasFields(fields), "HasFields with empty map")
 }
 
 func testHasFieldsNil(t *testing.T) {
+	t.Helper()
 	var fields map[string]any
 
-	if internal.HasFields(fields) {
-		t.Error("HasFields should return false for nil map")
+	core.AssertFalse(t, internal.HasFields(fields), "HasFields with nil map")
+}
+
+// hasFieldsTestCase represents a test case for HasFields function.
+type hasFieldsTestCase struct {
+	fields map[string]any
+	name   string
+	want   bool
+}
+
+func (tc hasFieldsTestCase) Name() string {
+	return tc.name
+}
+
+func (tc hasFieldsTestCase) Test(t *testing.T) {
+	t.Helper()
+	got := internal.HasFields(tc.fields)
+	core.AssertEqual(t, tc.want, got, "HasFields result")
+}
+
+func newHasFieldsTestCase(name string, fields map[string]any, want bool) hasFieldsTestCase {
+	return hasFieldsTestCase{
+		name:   name,
+		fields: fields,
+		want:   want,
+	}
+}
+
+func hasFieldsValidTestCases() []hasFieldsTestCase {
+	return []hasFieldsTestCase{
+		newHasFieldsTestCase("SingleField", map[string]any{"key": "value"}, true),
+		newHasFieldsTestCase("MultipleFields", map[string]any{"key1": "value1", "key2": "value2"}, true),
+		newHasFieldsTestCase("NilValue", map[string]any{"key": nil}, true),
+		newHasFieldsTestCase("ZeroValue", map[string]any{"key": 0}, true),
+		newHasFieldsTestCase("EmptyStringValue", map[string]any{"key": ""}, true),
 	}
 }
 
 func testHasFieldsValid(t *testing.T) {
-	testCases := []struct {
-		name   string
-		fields map[string]any
-		want   bool
-	}{
-		{
-			"SingleField",
-			map[string]any{"key": "value"},
-			true,
-		},
-		{
-			"MultipleFields",
-			map[string]any{"key1": "value1", "key2": "value2"},
-			true,
-		},
-		{
-			"NilValue",
-			map[string]any{"key": nil},
-			true,
-		},
-		{
-			"ZeroValue",
-			map[string]any{"key": 0},
-			true,
-		},
-		{
-			"EmptyStringValue",
-			map[string]any{"key": ""},
-			true,
-		},
-	}
+	core.RunTestCases(t, hasFieldsValidTestCases())
+}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := internal.HasFields(tc.fields)
-			if got != tc.want {
-				t.Errorf("HasFields() = %v, want %v", got, tc.want)
-			}
-		})
+func hasFieldsEmptyKeysTestCases() []hasFieldsTestCase {
+	return []hasFieldsTestCase{
+		newHasFieldsTestCase("OnlyEmptyKey", map[string]any{"": "value"}, false),
+		newHasFieldsTestCase("OnlyEmptyKeySingle", map[string]any{"": "value1"}, false),
 	}
 }
 
 func testHasFieldsEmptyKeys(t *testing.T) {
-	testCases := []struct {
-		name   string
-		fields map[string]any
-		want   bool
-	}{
-		{
-			"OnlyEmptyKey",
-			map[string]any{"": "value"},
-			false,
-		},
-		{
-			"OnlyEmptyKeySingle",
-			map[string]any{"": "value1"},
-			false,
-		},
-	}
+	core.RunTestCases(t, hasFieldsEmptyKeysTestCases())
+}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := internal.HasFields(tc.fields)
-			if got != tc.want {
-				t.Errorf("HasFields() = %v, want %v for %v", got, tc.want, tc.fields)
-			}
-		})
+func hasFieldsMixedTestCases() []hasFieldsTestCase {
+	return []hasFieldsTestCase{
+		newHasFieldsTestCase("ValidAndEmptyKeys",
+			map[string]any{"": "empty", "valid": "value"}, true), // Should return true because "valid" is non-empty
+		newHasFieldsTestCase("OnlyEmptyKeysMultiple", map[string]any{"": "value"}, false),
 	}
 }
 
 func testHasFieldsMixed(t *testing.T) {
-	testCases := []struct {
-		name   string
-		fields map[string]any
-		want   bool
-	}{
-		{
-			"ValidAndEmptyKeys",
-			map[string]any{"": "empty", "valid": "value"},
-			true, // Should return true because "valid" is non-empty
-		},
-		{
-			"OnlyEmptyKeysMultiple",
-			map[string]any{"": "value"},
-			false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := internal.HasFields(tc.fields)
-			if got != tc.want {
-				t.Errorf("HasFields() = %v, want %v for %v", got, tc.want, tc.fields)
-			}
-		})
-	}
+	core.RunTestCases(t, hasFieldsMixedTestCases())
 }
 
 func TestHasFieldsEdgeCases(t *testing.T) {
-	t.Run("WhitespaceKeys", func(t *testing.T) {
-		fields := map[string]any{
-			" ":  "space",
-			"\t": "tab",
-			"\n": "newline",
-			"  ": "spaces",
-		}
+	t.Run("WhitespaceKeys", testHasFieldsWhitespaceKeys)
+	t.Run("LargeMap", testHasFieldsLargeMap)
+	t.Run("UnicodeKeys", testHasFieldsUnicodeKeys)
+}
 
-		// Whitespace keys are not empty strings, so should return true
-		if !internal.HasFields(fields) {
-			t.Error("HasFields should return true for whitespace keys")
-		}
-	})
+func testHasFieldsWhitespaceKeys(t *testing.T) {
+	fields := map[string]any{
+		" ":  "space",
+		"\t": "tab",
+		"\n": "newline",
+		"  ": "spaces",
+	}
 
-	t.Run("LargeMap", func(t *testing.T) {
-		fields := make(map[string]any, 1000)
+	// Whitespace keys are not empty strings, so should return true
+	core.AssertTrue(t, internal.HasFields(fields), "HasFields with whitespace keys")
+}
 
-		// Fill with empty keys
-		for i := 0; i < 999; i++ {
-			fields[""] = i // All will overwrite to same empty key
-		}
+func testHasFieldsLargeMap(t *testing.T) {
+	fields := make(map[string]any, 1000)
 
-		// Add one valid key
-		fields["valid"] = "value"
+	// Fill with empty keys
+	for i := 0; i < 999; i++ {
+		fields[""] = i // All will overwrite to same empty key
+	}
 
-		if !internal.HasFields(fields) {
-			t.Error("HasFields should return true when at least one key is non-empty")
-		}
-	})
+	// Add one valid key
+	fields["valid"] = "value"
 
-	t.Run("UnicodeKeys", func(t *testing.T) {
-		fields := map[string]any{
-			"测试":   "chinese",
-			"🔑":    "emoji",
-			"café": "accented",
-		}
+	core.AssertTrue(t, internal.HasFields(fields), "HasFields with large map containing one valid key")
+}
 
-		if !internal.HasFields(fields) {
-			t.Error("HasFields should return true for unicode keys")
-		}
-	})
+func testHasFieldsUnicodeKeys(t *testing.T) {
+	fields := map[string]any{
+		"测试":   "chinese",
+		"🔑":    "emoji",
+		"café": "accented",
+	}
+
+	core.AssertTrue(t, internal.HasFields(fields), "HasFields with unicode keys")
 }
