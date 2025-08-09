@@ -70,12 +70,16 @@ func extractMessageGetter(logger slog.Logger, opts *ConcurrencyTestOptions) func
 	return nil
 }
 
-// verifyConcurrentTestResults verifies the results of concurrent testing
+// verifyConcurrentTestResults verifies the results of concurrent testing.
+// If getMessages is nil, logs completion without verification rather than failing.
 func verifyConcurrentTestResults(t core.T, test ConcurrencyTest, getMessages func() []Message) {
 	t.Helper()
 
 	if getMessages == nil {
-		logNoVerification(t, test)
+		// Log completion when verification is not available (not an error condition)
+		t.Logf("Concurrent test completed: %d goroutines × %d operations = %d total messages "+
+			"(verification not available)",
+			test.Goroutines, test.Operations, test.Goroutines*test.Operations)
 		return
 	}
 
@@ -97,12 +101,8 @@ func verifyMessageFields(t core.T, msgs []Message) {
 	t.Helper()
 
 	for i, msg := range msgs {
-		if !core.AssertNotNil(t, msg.Fields["goroutine"], "message %d goroutine field", i) {
-			return
-		}
-		if !core.AssertNotNil(t, msg.Fields["operation"], "message %d operation field", i) {
-			return
-		}
+		core.AssertMustNotNil(t, msg.Fields["goroutine"], "message %d goroutine field", i)
+		core.AssertMustNotNil(t, msg.Fields["operation"], "message %d operation field", i)
 	}
 }
 

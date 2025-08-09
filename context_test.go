@@ -16,6 +16,7 @@ func TestWithLogger(t *testing.T) {
 }
 
 func testWithLoggerStore(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	ctx := context.Background()
 
@@ -23,21 +24,16 @@ func testWithLoggerStore(t *testing.T) {
 	newCtx := slog.WithLogger(ctx, logger)
 
 	// Verify context was modified
-	if newCtx == ctx {
-		t.Error("WithLogger should return new context")
-	}
+	core.AssertTrue(t, newCtx != ctx, "WithLogger returns new context")
 
 	// Verify logger can be retrieved
 	retrieved, ok := slog.GetLogger(newCtx)
-	if !ok {
-		t.Fatal("GetLogger should return true for context with logger")
-	}
-	if retrieved != logger {
-		t.Error("Retrieved logger should match stored logger")
-	}
+	core.AssertMustTrue(t, ok, "GetLogger success")
+	core.AssertTrue(t, retrieved == logger, "retrieved logger matches")
 }
 
 func testWithLoggerNil(t *testing.T) {
+	t.Helper()
 	ctx := context.Background()
 
 	// Store nil logger
@@ -45,14 +41,15 @@ func testWithLoggerNil(t *testing.T) {
 
 	// Check what actually happens with nil logger
 	retrieved, ok := slog.GetLogger(newCtx)
-	if ok && retrieved != nil {
-		t.Error("Nil logger should result in nil retrieval")
+	if ok {
+		core.AssertNil(t, retrieved, "nil logger retrieval")
 	}
 	// Note: The behaviour with nil might depend on core.NewContextKey implementation
 	// This test validates the actual behaviour rather than assuming
 }
 
 func testWithLoggerPropagation(t *testing.T) {
+	t.Helper()
 	logger1 := slogtest.NewLogger()
 	logger2 := slogtest.NewLogger()
 
@@ -61,22 +58,19 @@ func testWithLoggerPropagation(t *testing.T) {
 	// First logger
 	ctx1 := slog.WithLogger(ctx, logger1)
 	retrieved1, ok := slog.GetLogger(ctx1)
-	if !ok || retrieved1 != logger1 {
-		t.Fatal("First logger not stored correctly")
-	}
+	core.AssertMustTrue(t, ok, "first logger stored")
+	core.AssertTrue(t, retrieved1 == logger1, "first logger value matches")
 
 	// Override with second logger
 	ctx2 := slog.WithLogger(ctx1, logger2)
 	retrieved2, ok := slog.GetLogger(ctx2)
-	if !ok || retrieved2 != logger2 {
-		t.Fatal("Second logger not stored correctly")
-	}
+	core.AssertMustTrue(t, ok, "second logger stored")
+	core.AssertTrue(t, retrieved2 == logger2, "second logger value matches")
 
 	// Original context should still have first logger
 	retrieved1Again, ok := slog.GetLogger(ctx1)
-	if !ok || retrieved1Again != logger1 {
-		t.Error("Original context should be unchanged")
-	}
+	core.AssertMustTrue(t, ok, "original context unchanged")
+	core.AssertTrue(t, retrieved1Again == logger1, "original logger preserved")
 }
 
 func TestGetLogger(t *testing.T) {
@@ -86,33 +80,28 @@ func TestGetLogger(t *testing.T) {
 }
 
 func testGetLoggerEmpty(t *testing.T) {
+	t.Helper()
 	ctx := context.Background()
 
 	// Empty context should return false
 	logger, ok := slog.GetLogger(ctx)
-	if ok {
-		t.Error("GetLogger should return false for empty context")
-	}
-	if logger != nil {
-		t.Error("Logger should be nil for empty context")
-	}
+	core.AssertFalse(t, ok, "GetLogger on empty context")
+	core.AssertNil(t, logger, "logger from empty context")
 }
 
 func testGetLoggerWithLogger(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	ctx := slog.WithLogger(context.Background(), logger)
 
 	// Should retrieve the stored logger
 	retrieved, ok := slog.GetLogger(ctx)
-	if !ok {
-		t.Fatal("GetLogger should return true")
-	}
-	if retrieved != logger {
-		t.Error("Retrieved logger should match stored logger")
-	}
+	core.AssertMustTrue(t, ok, "GetLogger success")
+	core.AssertTrue(t, retrieved == logger, "retrieved logger matches")
 }
 
 func testGetLoggerChain(t *testing.T) {
+	t.Helper()
 	logger1 := slogtest.NewLogger()
 	logger2 := slogtest.NewLogger()
 
@@ -127,23 +116,22 @@ func testGetLoggerChain(t *testing.T) {
 
 	// Should get the most recent logger
 	retrieved, ok := slog.GetLogger(ctx)
-	if !ok {
-		t.Fatal("GetLogger should return true")
-	}
-	if retrieved != logger2 {
-		t.Error("Should retrieve most recent logger")
-	}
+	core.AssertMustTrue(t, ok, "GetLogger success")
+	core.AssertTrue(t, retrieved == logger2, "most recent logger matches")
 
 	// Verify unrelated context values still exist
-	if val, ok := otherKey.Get(ctx); !ok || val != "value" {
-		t.Error("Unrelated context values should be preserved")
+	val1, ok1 := otherKey.Get(ctx)
+	if core.AssertTrue(t, ok1, "other key exists") {
+		core.AssertEqual(t, "value", val1, "other key value")
 	}
-	if val, ok := moreKey.Get(ctx); !ok || val != "data" {
-		t.Error("Unrelated context values should be preserved")
+	val2, ok2 := moreKey.Get(ctx)
+	if core.AssertTrue(t, ok2, "more key exists") {
+		core.AssertEqual(t, "data", val2, "more key value")
 	}
 }
 
 func TestContextKeyIsolation(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	ctx := context.Background()
 
@@ -159,18 +147,16 @@ func TestContextKeyIsolation(t *testing.T) {
 
 	// Should still retrieve correct logger
 	retrieved, ok := slog.GetLogger(ctx)
-	if !ok {
-		t.Fatal("GetLogger should still work")
-	}
-	if retrieved != logger {
-		t.Error("Logger retrieval should be isolated from other context keys")
-	}
+	core.AssertMustTrue(t, ok, "GetLogger still works")
+	core.AssertTrue(t, retrieved == logger, "logger isolation")
 
 	// Verify our interference values exist
-	if val, ok := loggerKey.Get(ctx); !ok || val != "not-a-logger" {
-		t.Error("String key should be independent")
+	val1, ok1 := loggerKey.Get(ctx)
+	if core.AssertTrue(t, ok1, "string key independent") {
+		core.AssertEqual(t, "not-a-logger", val1, "string key value")
 	}
-	if val, ok := numberKey.Get(ctx); !ok || val != logger {
-		t.Error("Numeric key should be independent")
+	val2, ok2 := numberKey.Get(ctx)
+	if core.AssertTrue(t, ok2, "number key independent") {
+		core.AssertTrue(t, val2 == logger, "number key value matches")
 	}
 }

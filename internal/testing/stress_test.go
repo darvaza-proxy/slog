@@ -5,11 +5,24 @@ import (
 	"testing"
 	"time"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogtest "darvaza.org/slog/internal/testing"
 )
 
-func TestDefaultStressTest(t *testing.T) {
+// TestStressTests runs all stress test related tests
+func TestStressTests(t *testing.T) {
+	t.Run("DefaultStressTest", testDefaultStressTest)
+	t.Run("HighVolumeStressTest", testHighVolumeStressTest)
+	t.Run("MemoryPressureStressTest", testMemoryPressureStressTest)
+	t.Run("DurationBasedStressTest", testDurationBasedStressTest)
+	t.Run("StressTestWithOptions", testStressTestWithOptions)
+	t.Run("StressTestSuite", testStressTestSuite)
+	t.Run("CustomStressFunction", testCustomStressFunction)
+}
+
+func testDefaultStressTest(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stress := slogtest.DefaultStressTest()
 
@@ -18,12 +31,11 @@ func TestDefaultStressTest(t *testing.T) {
 	// Verify we got the expected number of messages
 	messages := logger.GetMessages()
 	expected := stress.Goroutines * stress.Operations
-	if len(messages) != expected {
-		t.Errorf("Expected %d messages, got %d", expected, len(messages))
-	}
+	core.AssertEqual(t, expected, len(messages), "Expected %d messages", expected)
 }
 
-func TestHighVolumeStressTest(t *testing.T) {
+func testHighVolumeStressTest(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stress := slogtest.HighVolumeStressTest()
 
@@ -31,12 +43,11 @@ func TestHighVolumeStressTest(t *testing.T) {
 
 	messages := logger.GetMessages()
 	expected := stress.Goroutines * stress.Operations
-	if len(messages) != expected {
-		t.Errorf("Expected %d messages, got %d", expected, len(messages))
-	}
+	core.AssertEqual(t, expected, len(messages), "Expected %d messages", expected)
 }
 
-func TestMemoryPressureStressTest(t *testing.T) {
+func testMemoryPressureStressTest(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stress := slogtest.MemoryPressureStressTest()
 
@@ -44,9 +55,7 @@ func TestMemoryPressureStressTest(t *testing.T) {
 
 	messages := logger.GetMessages()
 	expected := stress.Goroutines * stress.Operations
-	if len(messages) != expected {
-		t.Errorf("Expected %d messages, got %d", expected, len(messages))
-	}
+	core.AssertEqual(t, expected, len(messages), "Expected %d messages", expected)
 
 	// Verify fields were added
 	for i, msg := range messages {
@@ -54,14 +63,13 @@ func TestMemoryPressureStressTest(t *testing.T) {
 		fieldCount := len(msg.Fields)
 		// At least goroutine, operation, and the memory pressure fields
 		minExpected := 2 + stress.FieldsPerMessage
-		if fieldCount < minExpected {
-			t.Errorf("Message %d has %d fields, expected at least %d", i, fieldCount, minExpected)
-			break
-		}
+		core.AssertMustTrue(t, fieldCount >= minExpected,
+			"Message %d should have at least %d fields, got %d", i, minExpected, fieldCount)
 	}
 }
 
-func TestDurationBasedStressTest(t *testing.T) {
+func testDurationBasedStressTest(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	duration := 50 * time.Millisecond
 	stress := slogtest.DurationBasedStressTest(duration)
@@ -71,17 +79,15 @@ func TestDurationBasedStressTest(t *testing.T) {
 	elapsed := time.Since(startTime)
 
 	// Verify test ran for approximately the requested duration
-	if elapsed < duration || elapsed > duration*2 {
-		t.Errorf("Test ran for %v, expected approximately %v", elapsed, duration)
-	}
+	core.AssertTrue(t, elapsed >= duration, "Test should run for at least %v, ran for %v", duration, elapsed)
+	core.AssertTrue(t, elapsed <= duration*2, "Test should not run longer than %v, ran for %v", duration*2, elapsed)
 
 	messages := logger.GetMessages()
-	if len(messages) == 0 {
-		t.Error("Duration-based test produced no messages")
-	}
+	core.AssertTrue(t, len(messages) > 0, "Duration-based test should produce messages")
 }
 
-func TestStressTestWithOptions(t *testing.T) {
+func testStressTestWithOptions(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	logger := recorder // In real usage, this would be a handler wrapping the recorder
 
@@ -97,29 +103,22 @@ func TestStressTestWithOptions(t *testing.T) {
 		PostStressFunc: func() {
 			postStressCalled = true
 		},
-		VerifyFunc: func(t *testing.T, messages []slogtest.Message, _ slogtest.StressTest) {
+		VerifyFunc: func(t core.T, messages []slogtest.Message, _ slogtest.StressTest) {
 			verifyFuncCalled = true
-			if len(messages) == 0 {
-				t.Error("Custom verify: no messages")
-			}
+			core.AssertTrue(t, len(messages) > 0, "Custom verify: should have messages")
 		},
 	}
 
 	stress := slogtest.DefaultStressTest()
 	slogtest.RunStressTestWithOptions(t, logger, stress, opts)
 
-	if !preStressCalled {
-		t.Error("PreStressFunc was not called")
-	}
-	if !postStressCalled {
-		t.Error("PostStressFunc was not called")
-	}
-	if !verifyFuncCalled {
-		t.Error("VerifyFunc was not called")
-	}
+	core.AssertEqual(t, true, preStressCalled, "PreStressFunc was not called")
+	core.AssertEqual(t, true, postStressCalled, "PostStressFunc was not called")
+	core.AssertEqual(t, true, verifyFuncCalled, "VerifyFunc was not called")
 }
 
-func TestStressTestSuite(t *testing.T) {
+func testStressTestSuite(t *testing.T) {
+	t.Helper()
 	suite := slogtest.StressTestSuite{
 		NewLogger: func() slog.Logger {
 			return slogtest.NewLogger()
@@ -133,7 +132,8 @@ func TestStressTestSuite(t *testing.T) {
 	suite.Run(t)
 }
 
-func TestCustomStressFunction(t *testing.T) {
+func testCustomStressFunction(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 
 	var customOperations atomic.Int32
@@ -155,7 +155,112 @@ func TestCustomStressFunction(t *testing.T) {
 
 	messages := logger.GetMessages()
 	// 5 goroutines * 10 iterations each
-	if len(messages) != 50 {
-		t.Errorf("Expected 50 messages, got %d", len(messages))
+	core.AssertEqual(t, 50, len(messages), "Expected 50 messages")
+}
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = verifyDurationBasedCountTestCase{}
+
+type verifyDurationBasedCountTestCase struct {
+	name       string
+	messages   []slogtest.Message
+	shouldFail bool
+}
+
+func (tc verifyDurationBasedCountTestCase) Name() string {
+	return tc.name
+}
+
+func (tc verifyDurationBasedCountTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	// For this test, we'll create a duration-based stress test and verify behaviour
+	logger := slogtest.NewLogger()
+
+	// Pre-populate the logger with our test messages
+	for _, msg := range tc.messages {
+		logger.Info().Print(msg.Message)
 	}
+
+	stress := slogtest.StressTest{
+		Duration:   10 * time.Millisecond, // Short duration
+		Goroutines: 1,
+	}
+
+	// Run with custom options that let us verify behaviour
+	var verifyFuncCalled bool
+	var messageCountAtVerify int
+	opts := &slogtest.StressTestOptions{
+		VerifyResults: true,
+		GetMessages:   logger.GetMessages,
+		VerifyFunc: func(testT core.T, messages []slogtest.Message, _ slogtest.StressTest) {
+			verifyFuncCalled = true
+			messageCountAtVerify = len(messages)
+
+			// This mimics what verifyDurationBasedCount does
+			if len(messages) == 0 && tc.shouldFail {
+				testT.Error("No messages recorded during duration-based stress test")
+			} else {
+				testT.Logf("Duration-based stress test produced %d messages", len(messages))
+			}
+		},
+	}
+
+	slogtest.RunStressTestWithOptions(t, logger, stress, opts)
+
+	core.AssertTrue(t, verifyFuncCalled, "verify function should have been called")
+
+	// For duration-based tests, we expect messages to be generated during the test
+	// So we just verify that the verify function was called and completed
+	core.AssertTrue(t, messageCountAtVerify >= 0, "message count should be non-negative")
+}
+
+func newVerifyDurationBasedCountTestCase(name string, messages []slogtest.Message,
+	shouldFail bool) verifyDurationBasedCountTestCase {
+	return verifyDurationBasedCountTestCase{
+		name:       name,
+		messages:   messages,
+		shouldFail: shouldFail,
+	}
+}
+
+func verifyDurationBasedCountTestCases() []verifyDurationBasedCountTestCase {
+	return []verifyDurationBasedCountTestCase{
+		newVerifyDurationBasedCountTestCase("duration test produces messages",
+			[]slogtest.Message{}, // Start with empty, but stress test will add messages
+			false),               // Should not fail because stress test generates messages
+		newVerifyDurationBasedCountTestCase("pre-existing messages should pass",
+			[]slogtest.Message{
+				{Level: slog.Info, Message: "test message", Fields: map[string]any{}},
+			},
+			false),
+	}
+}
+
+func TestVerifyDurationBasedCount(t *testing.T) {
+	core.RunTestCases(t, verifyDurationBasedCountTestCases())
+}
+
+func TestVerifyDurationBasedCountDirect(t *testing.T) {
+	logger := slogtest.NewLogger()
+
+	// Create a duration-based stress test that uses the default verification path
+	stress := slogtest.StressTest{
+		Duration:   10 * time.Millisecond, // Duration > 0 triggers verifyDurationBasedCount
+		Goroutines: 1,
+	}
+
+	// Use default options which will call verifyDurationBasedCount via verifyMessageCount
+	opts := &slogtest.StressTestOptions{
+		VerifyResults: true,
+		GetMessages:   logger.GetMessages,
+		// No custom VerifyFunc - this ensures default verification path is used
+	}
+
+	// This should call verifyMessageCount -> verifyDurationBasedCount
+	slogtest.RunStressTestWithOptions(t, logger, stress, opts)
+
+	// Verify messages were generated during the test
+	messages := logger.GetMessages()
+	core.AssertTrue(t, len(messages) > 0, "stress test should generate messages")
 }

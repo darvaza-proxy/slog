@@ -5,9 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogtest "darvaza.org/slog/internal/testing"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = logWriterNewlineTestCase{}
 
 func TestNewLogWriter(t *testing.T) {
 	t.Run("BasicCreation", testNewLogWriterBasic)
@@ -17,50 +21,40 @@ func TestNewLogWriter(t *testing.T) {
 }
 
 func testNewLogWriterBasic(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
-	if writer == nil {
-		t.Fatal("NewLogWriter should not return nil for valid logger")
-	}
+	core.AssertNotNil(t, writer, "log writer")
 }
 
 func testNewLogWriterNilLogger(t *testing.T) {
+	t.Helper()
 	writer := slog.NewLogWriter(nil, nil)
 
-	if writer != nil {
-		t.Error("NewLogWriter should return nil for nil logger")
-	}
+	core.AssertNil(t, writer, "log writer with nil logger")
 }
 
 func testNewLogWriterNilHandler(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	// Should use default handler
-	if writer == nil {
-		t.Fatal("NewLogWriter should handle nil handler with default")
-	}
+	core.AssertMustNotNil(t, writer, "log writer with nil handler")
 
 	// Test default behaviour
 	n, err := writer.Write([]byte("test message"))
-	if err != nil {
-		t.Errorf("Write should not error with default handler: %v", err)
-	}
-	if n != 12 {
-		t.Errorf("Write should return correct byte count: got %d, want 12", n)
-	}
+	core.AssertMustNoError(t, err, "write with default handler")
+	core.AssertMustEqual(t, 12, n, "byte count")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
-	if msgs[0].Message != "test message" {
-		t.Errorf("Message should be 'test message', got %q", msgs[0].Message)
-	}
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, "test message", msgs[0].Message, "message content")
 }
 
 func testNewLogWriterCustomHandler(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	called := false
 
@@ -71,26 +65,16 @@ func testNewLogWriterCustomHandler(t *testing.T) {
 	}
 
 	writer := slog.NewLogWriter(logger, customHandler)
-	if writer == nil {
-		t.Fatal("NewLogWriter should not return nil")
-	}
+	core.AssertMustNotNil(t, writer, "log writer with custom handler")
 
 	_, err := writer.Write([]byte("test"))
-	if err != nil {
-		t.Errorf("Write should not error: %v", err)
-	}
+	core.AssertMustNoError(t, err, "write with custom handler")
 
-	if !called {
-		t.Error("Custom handler should have been called")
-	}
+	core.AssertMustTrue(t, called, "custom handler called")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
-	if msgs[0].Message != "custom: test" {
-		t.Errorf("Expected 'custom: test', got %q", msgs[0].Message)
-	}
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, "custom: test", msgs[0].Message, "custom message")
 }
 
 func TestLogWriterWrite(t *testing.T) {
@@ -102,89 +86,84 @@ func TestLogWriterWrite(t *testing.T) {
 }
 
 func testLogWriterWriteBasic(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	message := "basic test message"
 	n, err := writer.Write([]byte(message))
 
-	if err != nil {
-		t.Errorf("Write should not error: %v", err)
-	}
-	if n != len(message) {
-		t.Errorf("Write should return message length: got %d, want %d", n, len(message))
-	}
+	core.AssertMustNoError(t, err, "write operation")
+	core.AssertMustEqual(t, len(message), n, "bytes written")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, message, msgs[0].Message, "message content")
+}
+
+// logWriterNewlineTestCase represents a test case for log writer newline handling.
+type logWriterNewlineTestCase struct {
+	input    string
+	expected string
+	name     string
+}
+
+func (tc logWriterNewlineTestCase) Name() string {
+	return tc.name
+}
+
+func (tc logWriterNewlineTestCase) Test(t *testing.T) {
+	t.Helper()
+	logger := slogtest.NewLogger()
+	writer := slog.NewLogWriter(logger, nil)
+
+	n, err := writer.Write([]byte(tc.input))
+	core.AssertMustNoError(t, err, "write operation")
+	core.AssertMustEqual(t, len(tc.input), n, "bytes written")
+
+	msgs := logger.GetMessages()
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, tc.expected, msgs[0].Message, "message content")
+}
+
+func newLogWriterNewlineTestCase(name, input, expected string) logWriterNewlineTestCase {
+	return logWriterNewlineTestCase{
+		name:     name,
+		input:    input,
+		expected: expected,
 	}
-	if msgs[0].Message != message {
-		t.Errorf("Message mismatch: got %q, want %q", msgs[0].Message, message)
+}
+
+func logWriterNewlineTestCases() []logWriterNewlineTestCase {
+	return []logWriterNewlineTestCase{
+		newLogWriterNewlineTestCase("SingleNewline", "message\n", "message"),
+		newLogWriterNewlineTestCase("MultipleNewlines", "message\n\n\n", "message"),
+		newLogWriterNewlineTestCase("NoNewline", "message", "message"),
+		newLogWriterNewlineTestCase("OnlyNewlines", "\n\n", ""),
+		newLogWriterNewlineTestCase("MiddleNewlines", "line1\nline2\n", "line1\nline2"),
 	}
 }
 
 func testLogWriterWriteNewlines(t *testing.T) {
-	logger := slogtest.NewLogger()
-	writer := slog.NewLogWriter(logger, nil)
-
-	testCases := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"SingleNewline", "message\n", "message"},
-		{"MultipleNewlines", "message\n\n\n", "message"},
-		{"NoNewline", "message", "message"},
-		{"OnlyNewlines", "\n\n", ""},
-		{"MiddleNewlines", "line1\nline2\n", "line1\nline2"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			logger.Clear()
-
-			n, err := writer.Write([]byte(tc.input))
-			if err != nil {
-				t.Errorf("Write should not error: %v", err)
-			}
-			if n != len(tc.input) {
-				t.Errorf("Write should return input length: got %d, want %d", n, len(tc.input))
-			}
-
-			msgs := logger.GetMessages()
-			if len(msgs) != 1 {
-				t.Fatalf("Expected 1 message, got %d", len(msgs))
-			}
-			if msgs[0].Message != tc.expected {
-				t.Errorf("Message mismatch: got %q, want %q", msgs[0].Message, tc.expected)
-			}
-		})
-	}
+	core.RunTestCases(t, logWriterNewlineTestCases())
 }
 
 func testLogWriterWriteEmpty(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	n, err := writer.Write([]byte(""))
-	if err != nil {
-		t.Errorf("Write should not error on empty input: %v", err)
-	}
-	if n != 0 {
-		t.Errorf("Write should return 0 for empty input: got %d", n)
-	}
+	core.AssertMustNoError(t, err, "write empty input")
+	core.AssertMustEqual(t, 0, n, "bytes written for empty input")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
-	if msgs[0].Message != "" {
-		t.Errorf("Message should be empty, got %q", msgs[0].Message)
-	}
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, "", msgs[0].Message, "empty message")
 }
 
 func testLogWriterWriteError(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	expectedErr := errors.New("handler error")
 
@@ -195,15 +174,12 @@ func testLogWriterWriteError(t *testing.T) {
 	writer := slog.NewLogWriter(logger, errorHandler)
 
 	n, err := writer.Write([]byte("test message"))
-	if err != expectedErr {
-		t.Errorf("Write should return handler error: got %v, want %v", err, expectedErr)
-	}
-	if n != 0 {
-		t.Errorf("Write should return 0 on error: got %d", n)
-	}
+	core.AssertMustErrorIs(t, err, expectedErr, "handler error")
+	core.AssertEqual(t, 0, n, "bytes written on error")
 }
 
 func testLogWriterWriteMultiple(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
@@ -211,23 +187,15 @@ func testLogWriterWriteMultiple(t *testing.T) {
 
 	for _, msg := range messages {
 		n, err := writer.Write([]byte(msg))
-		if err != nil {
-			t.Errorf("Write should not error: %v", err)
-		}
-		if n != len(msg) {
-			t.Errorf("Write should return message length: got %d, want %d", n, len(msg))
-		}
+		core.AssertMustNoError(t, err, "write message %q", msg)
+		core.AssertMustEqual(t, len(msg), n, "bytes written for %q", msg)
 	}
 
 	msgs := logger.GetMessages()
-	if len(msgs) != len(messages) {
-		t.Fatalf("Expected %d messages, got %d", len(messages), len(msgs))
-	}
+	core.AssertMustEqual(t, len(messages), len(msgs), "total message count")
 
 	for i, expected := range messages {
-		if msgs[i].Message != expected {
-			t.Errorf("Message %d mismatch: got %q, want %q", i, msgs[i].Message, expected)
-		}
+		core.AssertEqual(t, expected, msgs[i].Message, "message %d", i)
 	}
 }
 
@@ -238,6 +206,7 @@ func TestLogWriterHandlerTypes(t *testing.T) {
 }
 
 func testLogWriterDefaultHandler(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
@@ -245,16 +214,13 @@ func testLogWriterDefaultHandler(t *testing.T) {
 	_, _ = writer.Write([]byte("default test"))
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
-	// Default handler should use Print method
-	if msgs[0].Message != "default test" {
-		t.Errorf("Default handler message: got %q, want %q", msgs[0].Message, "default test")
+	if core.AssertEqual(t, 1, len(msgs), "message count") {
+		core.AssertEqual(t, "default test", msgs[0].Message, "default handler message")
 	}
 }
 
 func testLogWriterCustomTransform(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 
 	transformHandler := func(l slog.Logger, s string) error {
@@ -267,16 +233,15 @@ func testLogWriterCustomTransform(t *testing.T) {
 	_, _ = writer.Write([]byte("transform this"))
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
-	expected := "[TRANSFORM] TRANSFORM THIS"
-	if msgs[0].Message != expected {
-		t.Errorf("Transform handler message: got %q, want %q", msgs[0].Message, expected)
+	if core.AssertEqual(t, 1, len(msgs), "message count") {
+		expected := "[TRANSFORM] TRANSFORM THIS"
+		core.AssertEqual(t, expected, msgs[0].Message, "transformed message")
+		return
 	}
 }
 
 func testLogWriterFilteringHandler(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	filtered := 0
 
@@ -294,18 +259,10 @@ func testLogWriterFilteringHandler(t *testing.T) {
 	_, _ = writer.Write([]byte("ignore this"))
 	_, _ = writer.Write([]byte("keep this too"))
 
-	if filtered != 1 {
-		t.Errorf("Expected 1 filtered message, got %d", filtered)
-	}
+	core.AssertMustEqual(t, 1, filtered, "filtered message count")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 2 {
-		t.Fatalf("Expected 2 messages, got %d", len(msgs))
-	}
-	if msgs[0].Message != "keep this" {
-		t.Errorf("First message: got %q, want %q", msgs[0].Message, "keep this")
-	}
-	if msgs[1].Message != "keep this too" {
-		t.Errorf("Second message: got %q, want %q", msgs[1].Message, "keep this too")
-	}
+	core.AssertMustEqual(t, 2, len(msgs), "kept message count")
+	core.AssertEqual(t, "keep this", msgs[0].Message, "first kept message")
+	core.AssertEqual(t, "keep this too", msgs[1].Message, "second kept message")
 }

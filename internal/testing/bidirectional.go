@@ -3,7 +3,6 @@ package testing
 import (
 	"errors"
 	"fmt"
-	"testing"
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
@@ -12,43 +11,38 @@ import (
 // TestBidirectional tests that a bidirectional adapter correctly preserves
 // log messages, fields, and levels when round-tripping through the adapter.
 // The fn parameter should return a logger that uses the given logger as backend.
-func TestBidirectional(t *testing.T, name string, fn func(slog.Logger) slog.Logger) {
+func TestBidirectional(t core.T, name string, fn func(slog.Logger) slog.Logger) {
 	TestBidirectionalWithOptions(t, name, fn, nil)
 }
 
 // TestBidirectionalWithOptions tests a bidirectional adapter with custom options.
 // This is useful for adapters that have known limitations, such as logr which
 // doesn't have a native Warn level.
-func TestBidirectionalWithOptions(t *testing.T, name string,
+func TestBidirectionalWithOptions(t core.T, name string,
 	fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions) {
 	t.Helper()
 
-	t.Run(name, func(t *testing.T) {
-		// Run subtests for different scenarios
-		t.Run("BasicLogging", func(t *testing.T) {
-			testBidirectionalBasic(t, fn)
+	Run(t, name, func(runner core.T) {
+		Run(runner, "BasicLogging", func(subT core.T) {
+			testBidirectionalBasic(subT, fn)
 		})
-
-		t.Run("WithFields", func(t *testing.T) {
-			testBidirectionalFields(t, fn, opts)
+		Run(runner, "WithFields", func(subT core.T) {
+			testBidirectionalFields(subT, fn, opts)
 		})
-
-		t.Run("AllLevels", func(t *testing.T) {
-			testBidirectionalLevels(t, fn, opts)
+		Run(runner, "AllLevels", func(subT core.T) {
+			testBidirectionalLevels(subT, fn, opts)
 		})
-
-		t.Run("FieldChaining", func(t *testing.T) {
-			testBidirectionalChaining(t, fn, opts)
+		Run(runner, "FieldChaining", func(subT core.T) {
+			testBidirectionalChaining(subT, fn, opts)
 		})
-
-		t.Run("ComplexFields", func(t *testing.T) {
-			testBidirectionalComplexFields(t, fn, opts)
+		Run(runner, "ComplexFields", func(subT core.T) {
+			testBidirectionalComplexFields(subT, fn, opts)
 		})
 	})
 }
 
 // testBidirectionalBasic tests basic message logging
-func testBidirectionalBasic(t *testing.T, fn func(slog.Logger) slog.Logger) {
+func testBidirectionalBasic(t core.T, fn func(slog.Logger) slog.Logger) {
 	t.Helper()
 
 	// Create recorder and adapter
@@ -64,36 +58,8 @@ func testBidirectionalBasic(t *testing.T, fn func(slog.Logger) slog.Logger) {
 	AssertMustMessage(t, messages[0], slog.Info, "test message")
 }
 
-// assertIntField checks that an int field has the expected value
-// It handles the case where the value might be stored as int, int64, or float64
-func assertIntField(t core.T, fields map[string]any, key string, expected int) {
-	t.Helper()
-
-	value, exists := fields[key]
-	if !core.AssertTrue(t, exists, "field %q exists", key) {
-		return
-	}
-
-	isExpectedValue := false
-
-	switch v := value.(type) {
-	case int:
-		isExpectedValue = (v == expected)
-	case int64:
-		isExpectedValue = (v == int64(expected))
-	case float64:
-		isExpectedValue = (v == float64(expected))
-	default:
-		// Type not recognized for int conversion
-		core.AssertTrue(t, false, "field %q type %T convertible to int", key, value)
-		return
-	}
-
-	core.AssertTrue(t, isExpectedValue, "field %q value %v equals %d", key, value, expected)
-}
-
 // testBidirectionalFields tests field preservation
-func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
+func testBidirectionalFields(t core.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
 	t.Helper()
 
 	recorder := NewLogger()
@@ -114,20 +80,20 @@ func testBidirectionalFields(t *testing.T, fn func(slog.Logger) slog.Logger, _ *
 	msg := messages[0]
 	AssertMustMessage(t, msg, slog.Info, "fields test")
 	AssertField(t, msg, "string", "value")
-	assertIntField(t, msg.Fields, "int", 42)
+	AssertField(t, msg, "int", 42)
 	AssertField(t, msg, "bool", true)
 	AssertField(t, msg, "float", 3.14)
 }
 
 // testBidirectionalLevels tests all log levels
-func testBidirectionalLevels(t *testing.T, fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions) {
+func testBidirectionalLevels(t core.T, fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions) {
 	t.Helper()
 
 	testCases := buildLevelTestCases()
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			testSingleLevel(t, fn, opts, tc)
+		Run(t, tc.name, func(subT core.T) {
+			testSingleLevel(subT, fn, opts, tc)
 		})
 	}
 }
@@ -174,7 +140,7 @@ func buildLevelTestCases() []levelTestCase {
 }
 
 // testSingleLevel tests a single log level
-func testSingleLevel(t *testing.T, fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions, tc levelTestCase) {
+func testSingleLevel(t core.T, fn func(slog.Logger) slog.Logger, opts *BidirectionalTestOptions, tc levelTestCase) {
 	t.Helper()
 
 	recorder := NewLogger()
@@ -190,7 +156,7 @@ func testSingleLevel(t *testing.T, fn func(slog.Logger) slog.Logger, opts *Bidir
 }
 
 // verifyLevelTestResult verifies the result of a level test
-func verifyLevelTestResult(t *testing.T, messages []Message, expectedLevel slog.LogLevel, msg string) {
+func verifyLevelTestResult(t core.T, messages []Message, expectedLevel slog.LogLevel, msg string) {
 	t.Helper()
 
 	if expectedLevel == slog.UndefinedLevel {
@@ -203,7 +169,7 @@ func verifyLevelTestResult(t *testing.T, messages []Message, expectedLevel slog.
 }
 
 // testBidirectionalChaining tests field chaining behaviour
-func testBidirectionalChaining(t *testing.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
+func testBidirectionalChaining(t core.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
 	t.Helper()
 
 	recorder := NewLogger()
@@ -240,7 +206,7 @@ func testBidirectionalChaining(t *testing.T, fn func(slog.Logger) slog.Logger, _
 }
 
 // testBidirectionalComplexFields tests complex field types
-func testBidirectionalComplexFields(t *testing.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
+func testBidirectionalComplexFields(t core.T, fn func(slog.Logger) slog.Logger, _ *BidirectionalTestOptions) {
 	t.Helper()
 
 	recorder := NewLogger()
@@ -287,7 +253,7 @@ func testBidirectionalComplexFields(t *testing.T, fn func(slog.Logger) slog.Logg
 // TestBidirectionalWithAdapter is a convenience function that creates an adapter
 // and tests it for bidirectional compatibility. It's useful for handlers that
 // have a simple New() function that returns the adapter.
-func TestBidirectionalWithAdapter(t *testing.T, name string, newAdapter func() slog.Logger) {
+func TestBidirectionalWithAdapter(t core.T, name string, newAdapter func() slog.Logger) {
 	t.Helper()
 
 	TestBidirectional(t, name, func(_ slog.Logger) slog.Logger {

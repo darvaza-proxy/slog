@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -25,15 +26,10 @@ type ComplianceTest struct {
 // Run executes the full compliance test suite.
 func (ct ComplianceTest) Run(t *testing.T) {
 	t.Run("Interface", func(t *testing.T) {
-		logger := ct.NewLogger()
+		var logger slog.Logger = ct.NewLogger()
 
 		// Verify it's not nil
-		if logger == nil {
-			t.Fatal("NewLogger returned nil")
-		}
-
-		// Verify it implements slog.Logger
-		var _ slog.Logger = logger
+		core.AssertNotNil(t, logger, "NewLogger")
 	})
 
 	t.Run("LevelMethods", ct.testLevelMethods)
@@ -77,15 +73,11 @@ func (ct ComplianceTest) testSingleLevelMethod(t *testing.T,
 	levelLogger := method(logger)
 
 	// Test that we get a logger back
-	if levelLogger == nil {
-		t.Fatal("level method returned nil")
-	}
+	core.AssertMustNotNil(t, levelLogger, "level method")
 
 	// Test method chaining
 	chained := levelLogger.WithField("test", "value")
-	if chained == nil {
-		t.Fatal("chained level method returned nil")
-	}
+	core.AssertMustNotNil(t, chained, "chained level method")
 }
 
 func (ct ComplianceTest) testFieldMethods(t *testing.T) {
@@ -164,13 +156,11 @@ func (ct ComplianceTest) testEnabledMethod(t *testing.T) {
 
 		// Test WithEnabled returns logger and bool
 		l, enabled := logger.WithEnabled()
-		if l == nil {
-			t.Error("WithEnabled returned nil logger")
-		}
+		core.AssertNotNil(t, l, "WithEnabled logger")
 
 		// If logger is enabled, the returned logger should be the same
-		if enabled && l != logger {
-			t.Error("WithEnabled should return same logger when enabled")
+		if enabled {
+			core.AssertEqual(t, logger, l, "WithEnabled enabled logger")
 		}
 	})
 }
@@ -210,14 +200,11 @@ func (ComplianceTest) verifyFieldImmutability(t *testing.T, base slog.Logger) {
 	l2 := base.WithField("field2", "value2")
 
 	// l1 and l2 should be independent
-	if l1 == l2 {
-		t.Error("WithField should return new logger instances")
-	}
+	core.AssertNotEqual(t, l1, l2, "WithField independence")
 
 	// Original should be unchanged
-	if base == l1 || base == l2 {
-		t.Error("WithField should not modify original logger")
-	}
+	core.AssertNotEqual(t, base, l1, "WithField base unchanged l1")
+	core.AssertNotEqual(t, base, l2, "WithField base unchanged l2")
 }
 
 // verifyLevelImmutability checks that level methods create new logger instances.
@@ -228,9 +215,7 @@ func (ComplianceTest) verifyLevelImmutability(t *testing.T, base slog.Logger) {
 	l3 := base.Info()
 	l4 := base.Debug()
 
-	if l3 == l4 {
-		t.Error("level methods should return new logger instances")
-	}
+	core.AssertNotEqual(t, l3, l4, "level method independence")
 }
 
 // testBranchingIndependence verifies that branched loggers maintain independence.
@@ -265,9 +250,7 @@ func (ComplianceTest) verifyDistinctLoggers(t *testing.T, loggers []slog.Logger)
 
 	for i := 0; i < len(loggers); i++ {
 		for j := i + 1; j < len(loggers); j++ {
-			if loggers[i] == loggers[j] {
-				t.Errorf("Loggers at indices %d and %d are the same instance", i, j)
-			}
+			core.AssertNotEqual(t, loggers[i], loggers[j], "logger %d vs %d", i, j)
 		}
 	}
 }
@@ -311,9 +294,8 @@ func (ct ComplianceTest) testBaseLoggerIsolation(t *testing.T) {
 
 	// Base message should have no custom fields
 	msg := messages[0]
-	if msg.Fields["app"] != nil || msg.Fields["version"] != nil {
-		t.Error("Base logger message should not have branch fields")
-	}
+	core.AssertNil(t, msg.Fields["app"], "app field")
+	core.AssertNil(t, msg.Fields["version"], "version field")
 }
 
 // testBranchFieldsIsolation verifies branch logger has its own fields.
@@ -398,9 +380,9 @@ func (ComplianceTest) createDeepHierarchy(base slog.Logger) deepHierarchy {
 func (ComplianceTest) verifyDeepHierarchyDistinct(t *testing.T, h deepHierarchy) {
 	t.Helper()
 
-	if h.l1 == h.l2 || h.l2 == h.l3 || h.l3 == h.l4 {
-		t.Error("Deep branching should create new logger instances")
-	}
+	core.AssertNotEqual(t, h.l1, h.l2, "deep hierarchy l1 vs l2")
+	core.AssertNotEqual(t, h.l2, h.l3, "deep hierarchy l2 vs l3")
+	core.AssertNotEqual(t, h.l3, h.l4, "deep hierarchy l3 vs l4")
 }
 
 // verifySiblingIndependence checks that sibling branches are independent.
@@ -413,9 +395,7 @@ func (ComplianceTest) verifySiblingIndependence(t *testing.T, l1 slog.Logger) {
 	// Recreate original l2 to compare
 	l2 := l1.WithField("level", 2).WithField("data", "test")
 
-	if l2 == l2Sibling {
-		t.Error("Sibling branches should be independent")
-	}
+	core.AssertNotEqual(t, l2, l2Sibling, "sibling branch independence")
 }
 
 // concurrencyTest defines a basic concurrency test case.
@@ -519,9 +499,7 @@ func (ComplianceTest) verifyConcurrentLoggersDistinct(t *testing.T, loggers []sl
 
 	for i := 0; i < len(loggers); i++ {
 		for j := i + 1; j < len(loggers); j++ {
-			if loggers[i] == loggers[j] {
-				t.Errorf("Concurrent WithField created same logger instance for goroutines %d and %d", i, j)
-			}
+			core.AssertNotEqual(t, loggers[i], loggers[j], "concurrent logger %d vs %d", i, j)
 		}
 	}
 }

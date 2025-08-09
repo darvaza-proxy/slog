@@ -5,9 +5,16 @@ import (
 	"strings"
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogtest "darvaza.org/slog/internal/testing"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = stdLoggerFlagsTestCase{}
+var _ core.TestCase = stdLogSinkPrefixTestCase{}
+var _ core.TestCase = stdLogSinkNoPrefixTestCase{}
+var _ core.TestCase = stdLogSinkFlagsTestCase{}
 
 func TestNewStdLogger(t *testing.T) {
 	t.Run("BasicCreation", testNewStdLoggerBasic)
@@ -18,26 +25,22 @@ func TestNewStdLogger(t *testing.T) {
 }
 
 func testNewStdLoggerBasic(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", 0)
 
-	if stdLog == nil {
-		t.Fatal("NewStdLogger should not return nil")
-	}
+	core.AssertMustNotNil(t, stdLog, "std logger")
 
 	// Test basic functionality
 	stdLog.Print("test message")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
-	if msgs[0].Message != "test message" {
-		t.Errorf("Message should be 'test message', got %q", msgs[0].Message)
-	}
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, "test message", msgs[0].Message, "message content")
 }
 
 func testNewStdLoggerPrefix(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	prefix := "TEST"
 	stdLog := slog.NewStdLogger(logger, prefix, 0)
@@ -45,68 +48,72 @@ func testNewStdLoggerPrefix(t *testing.T) {
 	stdLog.Print("message")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
 
 	expected := "TEST: message"
-	if msgs[0].Message != expected {
-		t.Errorf("Expected %q, got %q", expected, msgs[0].Message)
+	core.AssertEqual(t, expected, msgs[0].Message, "prefixed message")
+}
+
+// stdLoggerFlagsTestCase represents a test case for std logger flags.
+type stdLoggerFlagsTestCase struct {
+	flags int
+	name  string
+}
+
+func (tc stdLoggerFlagsTestCase) Name() string {
+	return tc.name
+}
+
+func (tc stdLoggerFlagsTestCase) Test(t *testing.T) {
+	t.Helper()
+	logger := slogtest.NewLogger()
+	stdLog := slog.NewStdLogger(logger, "", tc.flags)
+
+	core.AssertMustNotNil(t, stdLog, "std logger with flags")
+
+	stdLog.Print("test")
+
+	msgs := logger.GetMessages()
+	core.AssertEqual(t, 1, len(msgs), "message count")
+	// Note: The actual timestamp formatting would require more complex
+	// parsing to validate, but we can at least ensure it doesn't crash
+}
+
+func newStdLoggerFlagsTestCase(name string, flags int) stdLoggerFlagsTestCase {
+	return stdLoggerFlagsTestCase{
+		name:  name,
+		flags: flags,
+	}
+}
+
+func stdLoggerFlagsTestCases() []stdLoggerFlagsTestCase {
+	return []stdLoggerFlagsTestCase{
+		newStdLoggerFlagsTestCase("NoFlags", 0),
+		newStdLoggerFlagsTestCase("DateFlag", log.Ldate),
+		newStdLoggerFlagsTestCase("TimeFlag", log.Ltime),
+		newStdLoggerFlagsTestCase("DateTimeFlags", log.Ldate|log.Ltime),
+		newStdLoggerFlagsTestCase("AllFlags", log.LstdFlags),
 	}
 }
 
 func testNewStdLoggerFlags(t *testing.T) {
-	logger := slogtest.NewLogger()
-
-	// Test various flag combinations
-	testCases := []struct {
-		name  string
-		flags int
-	}{
-		{"NoFlags", 0},
-		{"DateFlag", log.Ldate},
-		{"TimeFlag", log.Ltime},
-		{"DateTimeFlags", log.Ldate | log.Ltime},
-		{"AllFlags", log.LstdFlags},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			logger.Clear()
-			stdLog := slog.NewStdLogger(logger, "", tc.flags)
-
-			if stdLog == nil {
-				t.Fatal("NewStdLogger should not return nil")
-			}
-
-			stdLog.Print("test")
-
-			msgs := logger.GetMessages()
-			if len(msgs) != 1 {
-				t.Fatalf("Expected 1 message, got %d", len(msgs))
-			}
-			// Note: The actual timestamp formatting would require more complex
-			// parsing to validate, but we can at least ensure it doesn't crash
-		})
-	}
+	core.RunTestCases(t, stdLoggerFlagsTestCases())
 }
 
 func testNewStdLoggerEmptyPrefix(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", 0)
 
 	stdLog.Print("no prefix")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(msgs))
-	}
-	if msgs[0].Message != "no prefix" {
-		t.Errorf("Expected 'no prefix', got %q", msgs[0].Message)
-	}
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, "no prefix", msgs[0].Message, "message without prefix")
 }
 
 func testNewStdLoggerIntegration(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "APP", 0)
 
@@ -116,9 +123,7 @@ func testNewStdLoggerIntegration(t *testing.T) {
 	stdLog.Printf("printf %s %d", "message", 42)
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 3 {
-		t.Fatalf("Expected 3 messages, got %d", len(msgs))
-	}
+	core.AssertMustEqual(t, 3, len(msgs), "message count")
 
 	expected := []string{
 		"APP: print message",
@@ -127,9 +132,7 @@ func testNewStdLoggerIntegration(t *testing.T) {
 	}
 
 	for i, exp := range expected {
-		if msgs[i].Message != exp {
-			t.Errorf("Message %d: expected %q, got %q", i, exp, msgs[i].Message)
-		}
+		core.AssertEqual(t, exp, msgs[i].Message, "message %d", i)
 	}
 }
 
@@ -139,123 +142,143 @@ func TestStdLogSink(t *testing.T) {
 	t.Run("FlagsHandling", testStdLogSinkFlags)
 }
 
-func testStdLogSinkPrefix(t *testing.T) {
-	logger := slogtest.NewLogger()
+// stdLogSinkPrefixTestCase represents a test case for std log sink with prefix.
+type stdLogSinkPrefixTestCase struct {
+	input    string
+	expected string
+	name     string
+}
 
-	// Create std logger with prefix
+func (tc stdLogSinkPrefixTestCase) Name() string {
+	return tc.name
+}
+
+func (tc stdLogSinkPrefixTestCase) Test(t *testing.T) {
+	t.Helper()
+	logger := slogtest.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "PREFIX", 0)
 
-	// Test various message types
-	testCases := []struct {
-		name     string
-		action   func()
-		expected string
-	}{
-		{
-			"Print",
-			func() { stdLog.Print("test") },
-			"PREFIX: test",
-		},
-		{
-			"EmptyMessage",
-			func() { stdLog.Print("") },
-			"PREFIX: ",
-		},
-		{
-			"WithNewline",
-			func() { stdLog.Print("test\n") },
-			"PREFIX: test", // LogWriter trims trailing newlines
-		},
+	stdLog.Print(tc.input)
+
+	msgs := logger.GetMessages()
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, tc.expected, msgs[0].Message, "prefixed message")
+}
+
+func newStdLogSinkPrefixTestCase(name, input, expected string) stdLogSinkPrefixTestCase {
+	return stdLogSinkPrefixTestCase{
+		name:     name,
+		input:    input,
+		expected: expected,
 	}
+}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			logger.Clear()
-			tc.action()
+func stdLogSinkPrefixTestCases() []stdLogSinkPrefixTestCase {
+	return []stdLogSinkPrefixTestCase{
+		newStdLogSinkPrefixTestCase("Print", "test", "PREFIX: test"),
+		newStdLogSinkPrefixTestCase("EmptyMessage", "", "PREFIX: "),
+		newStdLogSinkPrefixTestCase("WithNewline", "test\n", "PREFIX: test"),
+	}
+}
 
-			msgs := logger.GetMessages()
-			if len(msgs) != 1 {
-				t.Fatalf("Expected 1 message, got %d", len(msgs))
-			}
-			if msgs[0].Message != tc.expected {
-				t.Errorf("Expected %q, got %q", tc.expected, msgs[0].Message)
-			}
-		})
+func testStdLogSinkPrefix(t *testing.T) {
+	core.RunTestCases(t, stdLogSinkPrefixTestCases())
+}
+
+// stdLogSinkNoPrefixTestCase represents a test case for std log sink without prefix.
+type stdLogSinkNoPrefixTestCase struct {
+	action   func(*log.Logger)
+	expected string
+	name     string
+}
+
+func (tc stdLogSinkNoPrefixTestCase) Name() string {
+	return tc.name
+}
+
+func (tc stdLogSinkNoPrefixTestCase) Test(t *testing.T) {
+	t.Helper()
+	logger := slogtest.NewLogger()
+	stdLog := slog.NewStdLogger(logger, "", 0)
+
+	tc.action(stdLog)
+
+	msgs := logger.GetMessages()
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	core.AssertEqual(t, tc.expected, msgs[0].Message, "message content")
+}
+
+func newStdLogSinkNoPrefixTestCase(name, expected string, action func(*log.Logger)) stdLogSinkNoPrefixTestCase {
+	return stdLogSinkNoPrefixTestCase{
+		name:     name,
+		expected: expected,
+		action:   action,
+	}
+}
+
+func stdLogSinkNoPrefixTestCases() []stdLogSinkNoPrefixTestCase {
+	return []stdLogSinkNoPrefixTestCase{
+		newStdLogSinkNoPrefixTestCase("Print", "direct", func(stdLog *log.Logger) {
+			stdLog.Print("direct")
+		}),
+		newStdLogSinkNoPrefixTestCase("PrintMultiple", "multiple args", func(stdLog *log.Logger) {
+			stdLog.Print("multiple", " ", "args")
+		}),
 	}
 }
 
 func testStdLogSinkNoPrefix(t *testing.T) {
+	core.RunTestCases(t, stdLogSinkNoPrefixTestCases())
+}
+
+// stdLogSinkFlagsTestCase represents a test case for std log sink with flags.
+type stdLogSinkFlagsTestCase struct {
+	flags int
+	name  string
+}
+
+func (tc stdLogSinkFlagsTestCase) Name() string {
+	return tc.name
+}
+
+func (tc stdLogSinkFlagsTestCase) Test(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
-	stdLog := slog.NewStdLogger(logger, "", 0)
+	stdLog := slog.NewStdLogger(logger, "TEST", tc.flags)
 
-	testCases := []struct {
-		name     string
-		action   func()
-		expected string
-	}{
-		{
-			"Print",
-			func() { stdLog.Print("direct") },
-			"direct",
-		},
-		{
-			"PrintMultiple",
-			func() { stdLog.Print("multiple", " ", "args") },
-			"multiple args",
-		},
+	// Should not panic with any flag combination
+	stdLog.Print("test message")
+
+	msgs := logger.GetMessages()
+	core.AssertMustEqual(t, 1, len(msgs), "message count")
+	// Message should contain the prefix and text, but format may vary with flags
+	message := msgs[0].Message
+	core.AssertContains(t, message, "TEST:", "message contains prefix")
+	core.AssertContains(t, message, "test message", "message contains text")
+}
+
+func newStdLogSinkFlagsTestCase(name string, flags int) stdLogSinkFlagsTestCase {
+	return stdLogSinkFlagsTestCase{
+		name:  name,
+		flags: flags,
 	}
+}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			logger.Clear()
-			tc.action()
-
-			msgs := logger.GetMessages()
-			if len(msgs) != 1 {
-				t.Fatalf("Expected 1 message, got %d", len(msgs))
-			}
-			if msgs[0].Message != tc.expected {
-				t.Errorf("Expected %q, got %q", tc.expected, msgs[0].Message)
-			}
-		})
+func stdLogSinkFlagsTestCases() []stdLogSinkFlagsTestCase {
+	return []stdLogSinkFlagsTestCase{
+		newStdLogSinkFlagsTestCase("NoFlags", 0),
+		newStdLogSinkFlagsTestCase("DateFlag", log.Ldate),
+		newStdLogSinkFlagsTestCase("TimeFlag", log.Ltime),
+		newStdLogSinkFlagsTestCase("MicrosecondsFlag", log.Lmicroseconds),
+		newStdLogSinkFlagsTestCase("LongFileFlag", log.Llongfile),
+		newStdLogSinkFlagsTestCase("ShortFileFlag", log.Lshortfile),
+		newStdLogSinkFlagsTestCase("UTCFlag", log.LUTC),
+		newStdLogSinkFlagsTestCase("StdFlags", log.LstdFlags),
 	}
 }
 
 func testStdLogSinkFlags(t *testing.T) {
-	logger := slogtest.NewLogger()
-
-	// Test that flags are properly passed to standard logger
-	// The actual flag behaviour is handled by Go's log package
-	testCases := []int{
-		0,
-		log.Ldate,
-		log.Ltime,
-		log.Lmicroseconds,
-		log.Llongfile,
-		log.Lshortfile,
-		log.LUTC,
-		log.LstdFlags,
-	}
-
-	for _, flags := range testCases {
-		t.Run("", func(t *testing.T) {
-			logger.Clear()
-			stdLog := slog.NewStdLogger(logger, "TEST", flags)
-
-			// Should not panic with any flag combination
-			stdLog.Print("test message")
-
-			msgs := logger.GetMessages()
-			if len(msgs) != 1 {
-				t.Fatalf("Expected 1 message, got %d", len(msgs))
-			}
-			// Message should contain the prefix and text, but format may vary with flags
-			message := msgs[0].Message
-			if !strings.Contains(message, "TEST:") || !strings.Contains(message, "test message") {
-				t.Errorf("Message should contain prefix and text: %q", message)
-			}
-		})
-	}
+	core.RunTestCases(t, stdLogSinkFlagsTestCases())
 }
 
 func TestStdLoggerCompatibility(t *testing.T) {
@@ -264,6 +287,7 @@ func TestStdLoggerCompatibility(t *testing.T) {
 }
 
 func testStdLoggerInterface(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", 0)
 
@@ -280,12 +304,11 @@ func testStdLoggerInterface(t *testing.T) {
 	stdLog.Println("println")
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 3 {
-		t.Fatalf("Expected 3 messages, got %d", len(msgs))
-	}
+	core.AssertEqual(t, 3, len(msgs), "Expected 3 messages")
 }
 
 func testStdLoggerConcurrent(t *testing.T) {
+	t.Helper()
 	logger := slogtest.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "CONCURRENT", 0)
 
@@ -307,14 +330,10 @@ func testStdLoggerConcurrent(t *testing.T) {
 	<-done
 
 	msgs := logger.GetMessages()
-	if len(msgs) != 2 {
-		t.Fatalf("Expected 2 messages, got %d", len(msgs))
-	}
+	core.AssertMustEqual(t, 2, len(msgs), "Expected 2 messages")
 
 	// Both messages should have prefix
 	for i, msg := range msgs {
-		if !strings.Contains(msg.Message, "CONCURRENT:") {
-			t.Errorf("Message %d should have prefix: %q", i, msg.Message)
-		}
+		core.AssertTrue(t, strings.Contains(msg.Message, "CONCURRENT:"), "Message %d should have prefix: %q", i, msg.Message)
 	}
 }
