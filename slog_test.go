@@ -1,43 +1,87 @@
 package slog_test
 
 import (
+	"fmt"
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = logLevelConstantTestCase{}
+var _ core.TestCase = logLevelOrderingTestCase{}
 
 func TestLogLevel(t *testing.T) {
 	t.Run("Constants", testLogLevelConstants)
 	t.Run("Ordering", testLogLevelOrdering)
 }
 
-func testLogLevelConstants(t *testing.T) {
-	// Test that log level constants have expected values
-	levels := []struct {
-		name  string
-		level slog.LogLevel
-		value slog.LogLevel
-	}{
-		{"UndefinedLevel", slog.UndefinedLevel, 0},
-		{"Panic", slog.Panic, 1},
-		{"Fatal", slog.Fatal, 2},
-		{"Error", slog.Error, 3},
-		{"Warn", slog.Warn, 4},
-		{"Info", slog.Info, 5},
-		{"Debug", slog.Debug, 6},
-	}
+// logLevelConstantTestCase represents a test case for log level constants.
+type logLevelConstantTestCase struct {
+	level slog.LogLevel
+	value slog.LogLevel
+	name  string
+}
 
-	for _, tc := range levels {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.level != tc.value {
-				t.Errorf("%s should be %d, got %d", tc.name, tc.value, tc.level)
-			}
-		})
+func (tc logLevelConstantTestCase) Name() string {
+	return tc.name
+}
+
+func (tc logLevelConstantTestCase) Test(t *testing.T) {
+	t.Helper()
+	core.AssertEqual(t, tc.value, tc.level, "log level constant %s", tc.name)
+}
+
+func newLogLevelConstantTestCase(name string, level, value slog.LogLevel) logLevelConstantTestCase {
+	return logLevelConstantTestCase{
+		name:  name,
+		level: level,
+		value: value,
 	}
 }
 
-func testLogLevelOrdering(t *testing.T) {
-	// Test that log levels are in correct order (lower values = higher priority)
+func logLevelConstantTestCases() []logLevelConstantTestCase {
+	return []logLevelConstantTestCase{
+		newLogLevelConstantTestCase("UndefinedLevel", slog.UndefinedLevel, 0),
+		newLogLevelConstantTestCase("Panic", slog.Panic, 1),
+		newLogLevelConstantTestCase("Fatal", slog.Fatal, 2),
+		newLogLevelConstantTestCase("Error", slog.Error, 3),
+		newLogLevelConstantTestCase("Warn", slog.Warn, 4),
+		newLogLevelConstantTestCase("Info", slog.Info, 5),
+		newLogLevelConstantTestCase("Debug", slog.Debug, 6),
+	}
+}
+
+func testLogLevelConstants(t *testing.T) {
+	core.RunTestCases(t, logLevelConstantTestCases())
+}
+
+// logLevelOrderingTestCase represents a test case for log level ordering.
+type logLevelOrderingTestCase struct {
+	prevLevel slog.LogLevel
+	currLevel slog.LogLevel
+	name      string
+}
+
+func (tc logLevelOrderingTestCase) Name() string {
+	return tc.name
+}
+
+func (tc logLevelOrderingTestCase) Test(t *testing.T) {
+	t.Helper()
+	core.AssertTrue(t, tc.prevLevel < tc.currLevel, "level ordering %s", tc.name)
+}
+
+func newLogLevelOrderingTestCase(name string, prevLevel, currLevel slog.LogLevel) logLevelOrderingTestCase {
+	return logLevelOrderingTestCase{
+		name:      name,
+		prevLevel: prevLevel,
+		currLevel: currLevel,
+	}
+}
+
+func logLevelOrderingTestCases() []logLevelOrderingTestCase {
 	levels := []slog.LogLevel{
 		slog.UndefinedLevel,
 		slog.Panic,
@@ -48,11 +92,17 @@ func testLogLevelOrdering(t *testing.T) {
 		slog.Debug,
 	}
 
+	var cases []logLevelOrderingTestCase
 	for i := 1; i < len(levels); i++ {
-		if levels[i-1] >= levels[i] {
-			t.Errorf("Level %v should be less than %v", levels[i-1], levels[i])
-		}
+		cases = append(cases, newLogLevelOrderingTestCase(
+			fmt.Sprintf("%v < %v", levels[i-1], levels[i]),
+			levels[i-1], levels[i]))
 	}
+	return cases
+}
+
+func testLogLevelOrdering(t *testing.T) {
+	core.RunTestCases(t, logLevelOrderingTestCases())
 }
 
 func TestFields(t *testing.T) {
@@ -61,6 +111,7 @@ func TestFields(t *testing.T) {
 }
 
 func testFieldsTypeAlias(t *testing.T) {
+	t.Helper()
 	// Test that Fields is a proper map alias
 	fields := slog.Fields{
 		"key1": "value1",
@@ -69,16 +120,12 @@ func testFieldsTypeAlias(t *testing.T) {
 	}
 
 	// Should behave like a map
-	if len(fields) != 3 {
-		t.Errorf("Fields should have 3 elements, got %d", len(fields))
-	}
-
-	if fields["key1"] != "value1" {
-		t.Errorf("Fields access should work like map")
-	}
+	core.AssertEqual(t, 3, len(fields), "field count")
+	core.AssertEqual(t, "value1", fields["key1"], "field access")
 }
 
 func testFieldsMapCompatibility(t *testing.T) {
+	t.Helper()
 	// Test that Fields can be used where map[string]any is expected
 	fields := slog.Fields{
 		"test": "value",
@@ -86,23 +133,17 @@ func testFieldsMapCompatibility(t *testing.T) {
 
 	// Should be assignable to map[string]any
 	var m map[string]any = fields
-	if m["test"] != "value" {
-		t.Error("Fields should be compatible with map[string]any")
-	}
+	core.AssertEqual(t, "value", m["test"], "map compatibility")
 
 	// Should be convertible from map[string]any
 	original := map[string]any{
 		"convert": "test",
 	}
 	converted := slog.Fields(original)
-	if converted["convert"] != "test" {
-		t.Error("Should be able to convert map[string]any to Fields")
-	}
+	core.AssertEqual(t, "test", converted["convert"], "map conversion")
 }
 
 func TestErrorFieldName(t *testing.T) {
 	// Test the error field name constant
-	if slog.ErrorFieldName != "error" {
-		t.Errorf("ErrorFieldName should be 'error', got %q", slog.ErrorFieldName)
-	}
+	core.AssertEqual(t, "error", slog.ErrorFieldName, "error field name")
 }

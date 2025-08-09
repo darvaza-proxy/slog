@@ -97,12 +97,8 @@ func verifyMessageFields(t core.T, msgs []Message) {
 	t.Helper()
 
 	for i, msg := range msgs {
-		if !core.AssertNotNil(t, msg.Fields["goroutine"], "message %d goroutine field", i) {
-			return
-		}
-		if !core.AssertNotNil(t, msg.Fields["operation"], "message %d operation field", i) {
-			return
-		}
+		core.AssertMustNotNil(t, msg.Fields["goroutine"], "message %d goroutine field", i)
+		core.AssertMustNotNil(t, msg.Fields["operation"], "message %d operation field", i)
 	}
 }
 

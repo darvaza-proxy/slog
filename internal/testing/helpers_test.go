@@ -1,11 +1,15 @@
 package testing
 
 import (
+	"reflect"
 	"testing"
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
 )
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = messageStringTestCase{}
 
 func TestCompareMessages(t *testing.T) {
 	// Create test messages
@@ -177,7 +181,7 @@ func testTransformMessagesWithUndefinedLevel(t *testing.T, messages []Message) {
 	result := TransformMessages(messages, &opts)
 
 	// We should only have Info and Error messages left
-	if !core.AssertEqual(t, 2, len(result), "filtered message count") {
+	if !core.AssertEqual(t, 2, len(result), "filtered count") {
 		for i, msg := range result {
 			t.Logf("  [%d] level=%v, message=%q", i, msg.Level, msg.Message)
 		}
@@ -194,8 +198,8 @@ func testTransformMessagesWithUndefinedLevel(t *testing.T, messages []Message) {
 		expectedMessages[msg.Message] = true
 	}
 
-	core.AssertTrue(t, expectedMessages["info"], "Info message present")
-	core.AssertTrue(t, expectedMessages["error"], "Error message present")
+	core.AssertTrue(t, expectedMessages["info"], "info present")
+	core.AssertTrue(t, expectedMessages["error"], "error present")
 }
 
 // verifyTransformations verifies that transformations were applied correctly
@@ -238,62 +242,66 @@ func verifyComparisonResult(t *testing.T, expected, actual []Message) {
 
 	onlyExpected, onlyActual, both := CompareMessages(expected, actual)
 
-	core.AssertEqual(t, 0, len(onlyExpected), "messages only in expected")
-	core.AssertEqual(t, 0, len(onlyActual), "messages only in actual")
-	core.AssertEqual(t, 2, len(both), "messages in both")
+	core.AssertEqual(t, 0, len(onlyExpected), "expected only")
+	core.AssertEqual(t, 0, len(onlyActual), "actual only")
+	core.AssertEqual(t, 2, len(both), "both")
 }
 
-func TestMessageString(t *testing.T) {
+// messageStringTestCase represents a test case for Message String method.
+type messageStringTestCase struct {
+	msg  Message
+	want string
+	name string
+}
+
+func (tc messageStringTestCase) Name() string {
+	return tc.name
+}
+
+func (tc messageStringTestCase) Test(t *testing.T) {
+	t.Helper()
+	got := tc.msg.String()
+	core.AssertEqual(t, tc.want, got, "string representation")
+}
+
+func newMessageStringTestCase(name string, msg Message, want string) messageStringTestCase {
+	return messageStringTestCase{
+		name: name,
+		msg:  msg,
+		want: want,
+	}
+}
+
+func messageStringTestCases() []messageStringTestCase {
 	// Note: This test is currently expected to fail because LogLevel
 	// doesn't have a String() method, so it prints as a number.
 	// This documents the current behaviour.
-	tests := []struct {
-		name string
-		msg  Message
-		want string
-	}{
-		{
-			name: "basic message",
-			msg:  Message{Level: slog.Info, Message: "hello"},
-			want: `[5] "hello"`, // Info = 5
-		},
-		{
-			name: "message with fields",
-			msg: Message{
+	return []messageStringTestCase{
+		newMessageStringTestCase("basic message",
+			Message{Level: slog.Info, Message: "hello"},
+			`[5] "hello"`), // Info = 5
+		newMessageStringTestCase("message with fields",
+			Message{
 				Level:   slog.Debug,
 				Message: "test",
 				Fields:  map[string]any{"b": 2, "a": 1}, // Intentionally unsorted
 			},
-			want: `[6] "test" a=1 b=2`, // Debug = 6, fields sorted
-		},
-		{
-			name: "message with stack",
-			msg: Message{
+			`[6] "test" a=1 b=2`), // Debug = 6, fields sorted
+		newMessageStringTestCase("message with stack",
+			Message{
 				Level:   slog.Error,
 				Message: "error",
 				Stack:   true,
 			},
-			want: `[3] "error" [stack]`, // Error = 3
-		},
-		{
-			name: "message with everything",
-			msg: Message{
+			`[3] "error" [stack]`), // Error = 3
+		newMessageStringTestCase("message with everything",
+			Message{
 				Level:   slog.Warn,
 				Message: "warning",
 				Fields:  map[string]any{"code": 500, "msg": "internal"},
 				Stack:   true,
 			},
-			want: `[4] "warning" code=500 msg=internal [stack]`, // Warn = 4
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.msg.String()
-			if got != tt.want {
-				t.Errorf("String() = %q, want %q", got, tt.want)
-			}
-		})
+			`[4] "warning" code=500 msg=internal [stack]`), // Warn = 4
 	}
 }
 
@@ -539,6 +547,182 @@ func testAssertSameFailing(t *testing.T) {
 	}
 }
 
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = assertNoFieldTestCase{}
+
+type assertNoFieldTestCase struct {
+	msg        Message
+	key        string
+	name       string
+	expectPass bool
+}
+
+func (tc assertNoFieldTestCase) Name() string {
+	return tc.name
+}
+
+func (tc assertNoFieldTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	// Use MockT to test assertion function without failing the build
+	mock := &core.MockT{}
+	result := AssertNoField(mock, tc.msg, tc.key)
+
+	core.AssertEqual(t, tc.expectPass, result, "result")
+}
+
+func newAssertNoFieldTestCase(name, key string, msg Message, expectPass bool) assertNoFieldTestCase {
+	return assertNoFieldTestCase{
+		name:       name,
+		key:        key,
+		msg:        msg,
+		expectPass: expectPass,
+	}
+}
+
+func assertNoFieldTestCases() []assertNoFieldTestCase {
+	return []assertNoFieldTestCase{
+		newAssertNoFieldTestCase("field does not exist", "non-existent",
+			Message{Level: slog.Info, Message: "test", Fields: map[string]any{"existing": "value"}},
+			true),
+		newAssertNoFieldTestCase("field exists", "existing",
+			Message{Level: slog.Info, Message: "test", Fields: map[string]any{"existing": "value"}},
+			false),
+		newAssertNoFieldTestCase("empty fields map", "someKey",
+			Message{Level: slog.Info, Message: "test", Fields: map[string]any{}},
+			true),
+		newAssertNoFieldTestCase("nil fields map", "someKey",
+			Message{Level: slog.Info, Message: "test", Fields: nil},
+			true),
+		newAssertNoFieldTestCase("field with nil value", "nilField",
+			Message{Level: slog.Info, Message: "test", Fields: map[string]any{"nilField": nil}},
+			false),
+	}
+}
+
+func TestAssertNoField(t *testing.T) {
+	core.RunTestCases(t, assertNoFieldTestCases())
+}
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = runWithLoggerFactoryTestCase{}
+
+type runWithLoggerFactoryTestCase struct {
+	factory       func() slog.Logger
+	name          string
+	expectedCalls int
+	expectNil     bool
+}
+
+func (tc runWithLoggerFactoryTestCase) Name() string {
+	return tc.name
+}
+
+func (tc runWithLoggerFactoryTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	callCount := 0
+	actualFactory := func() slog.Logger {
+		callCount++
+		return tc.factory()
+	}
+
+	RunWithLoggerFactory(t, "subtest", actualFactory, func(subT core.T, logger slog.Logger) {
+		if tc.expectNil {
+			core.AssertNil(subT, logger, "logger")
+		} else {
+			core.AssertNotNil(subT, logger, "logger")
+		}
+	})
+
+	core.AssertEqual(t, tc.expectedCalls, callCount, "factory call count")
+}
+
+func newRunWithLoggerFactoryTestCase(name string, expectedCalls int,
+	factory func() slog.Logger, expectNil bool) runWithLoggerFactoryTestCase {
+	return runWithLoggerFactoryTestCase{
+		name:          name,
+		expectedCalls: expectedCalls,
+		factory:       factory,
+		expectNil:     expectNil,
+	}
+}
+
+func runWithLoggerFactoryTestCases() []runWithLoggerFactoryTestCase {
+	return []runWithLoggerFactoryTestCase{
+		newRunWithLoggerFactoryTestCase("factory called once", 1,
+			func() slog.Logger { return NewLogger() },
+			false),
+		newRunWithLoggerFactoryTestCase("test receives logger", 1,
+			func() slog.Logger { return NewLogger() },
+			false),
+		newRunWithLoggerFactoryTestCase("nil logger factory", 1,
+			func() slog.Logger { return nil },
+			true),
+	}
+}
+
+func TestRunWithLoggerFactory(t *testing.T) {
+	core.RunTestCases(t, runWithLoggerFactoryTestCases())
+}
+
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = isSameInterfaceTestCase{}
+
+type isSameInterfaceTestCase struct {
+	valueA   any
+	valueB   any
+	expected bool
+	name     string
+}
+
+func (tc isSameInterfaceTestCase) Name() string {
+	return tc.name
+}
+
+func (tc isSameInterfaceTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	va := reflect.ValueOf(&tc.valueA).Elem()
+	vb := reflect.ValueOf(&tc.valueB).Elem()
+
+	result := isSameInterface(va, vb)
+	core.AssertEqual(t, tc.expected, result, "interface sameness")
+}
+
+func newIsSameInterfaceTestCase(name string, valueA, valueB any, expected bool) isSameInterfaceTestCase {
+	return isSameInterfaceTestCase{
+		name:     name,
+		valueA:   valueA,
+		valueB:   valueB,
+		expected: expected,
+	}
+}
+
+func isSameInterfaceTestCases() []isSameInterfaceTestCase {
+	value := 42
+	ptr := &value
+	value1 := 42
+	value2 := 42
+	ptr1 := &value1
+	ptr2 := &value2
+
+	// testAssertNotSamePassing tests AssertNotSame with cases that should pass
+	return []isSameInterfaceTestCase{
+		newIsSameInterfaceTestCase("both nil interfaces", nil, nil, true),
+		newIsSameInterfaceTestCase("nil and non-nil interface", nil, 42, false),
+		newIsSameInterfaceTestCase("non-nil and nil interface", 42, nil, false),
+		newIsSameInterfaceTestCase("same underlying pointer", ptr, ptr, true),
+		newIsSameInterfaceTestCase("different underlying pointers", ptr1, ptr2, false),
+		newIsSameInterfaceTestCase("same value types", value1, value2, false),
+		newIsSameInterfaceTestCase("different underlying types", 42, "42", false),
+	}
+}
+
+func TestIsSameInterface(t *testing.T) {
+	core.RunTestCases(t, isSameInterfaceTestCases())
+}
+
 // testAssertNotSamePassing tests AssertNotSame with cases that should pass
 func testAssertNotSamePassing(t *testing.T) {
 	t.Helper()
@@ -605,4 +789,8 @@ func testAssertNotSameFailing(t *testing.T) {
 	if !mock.Failed() {
 		t.Error("AssertNotSame should fail for both nil")
 	}
+}
+
+func TestMessageString(t *testing.T) {
+	core.RunTestCases(t, messageStringTestCases())
 }

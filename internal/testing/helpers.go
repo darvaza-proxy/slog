@@ -56,9 +56,7 @@ func AssertMustMessage(t core.T, msg Message, level slog.LogLevel, text string) 
 func AssertField(t core.T, msg Message, key string, value any) bool {
 	t.Helper()
 	got, exists := msg.Fields[key]
-	if !core.AssertTrue(t, exists, "field %q exists", key) {
-		return false
-	}
+	core.AssertMustTrue(t, exists, "field %q exists", key)
 	return core.AssertEqual(t, value, got, "field %q value", key)
 }
 
