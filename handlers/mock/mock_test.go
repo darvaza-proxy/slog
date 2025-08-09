@@ -3,6 +3,7 @@ package mock
 import (
 	"testing"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -349,11 +350,9 @@ func (tc fieldCopyingTest) verifyFields(t *testing.T, msg Message) {
 	}
 
 	for key, expectedValue := range tc.expectedFields {
-		if actualValue, exists := msg.Fields[key]; !exists {
-			t.Errorf("expected field %q not found", key)
-		} else if actualValue != expectedValue {
-			t.Errorf("field %q: expected %v, got %v", key, expectedValue, actualValue)
-		}
+		actualValue, exists := msg.Fields[key]
+		core.AssertMustTrue(t, exists, "field %q exists", key)
+		core.AssertEqual(t, expectedValue, actualValue, "field %q", key)
 	}
 }
 
@@ -395,6 +394,58 @@ func TestFieldCopying(t *testing.T) {
 	for _, tc := range fieldCopyingTestCases() {
 		t.Run(tc.name, tc.test)
 	}
+}
+
+func TestThresholdFiltering(t *testing.T) {
+	t.Run("NoThreshold", testThresholdFilteringNoThreshold)
+	t.Run("WithThreshold", testThresholdFilteringWithThreshold)
+}
+
+func testThresholdFilteringNoThreshold(t *testing.T) {
+	// Default NewLogger() should have no threshold (backward compatible)
+	logger := NewLogger()
+
+	// All levels should be enabled
+	core.AssertTrue(t, logger.Debug().Enabled(), "Debug enabled without threshold")
+	core.AssertTrue(t, logger.Info().Enabled(), "Info enabled without threshold")
+	core.AssertTrue(t, logger.Error().Enabled(), "Error enabled without threshold")
+
+	// Should record all levels
+	logger.Debug().Print("debug message")
+	logger.Info().Print("info message")
+	logger.Error().Print("error message")
+
+	messages := logger.GetMessages()
+	core.AssertEqual(t, 3, len(messages), "all messages recorded without threshold")
+}
+
+func testThresholdFilteringWithThreshold(t *testing.T) {
+	// Logger with Info threshold should filter out Debug
+	logger := NewLoggerWithThreshold(slog.Info)
+
+	// Check enablement
+	core.AssertFalse(t, logger.Debug().Enabled(), "Debug disabled with Info threshold")
+	core.AssertTrue(t, logger.Info().Enabled(), "Info enabled with Info threshold")
+	core.AssertTrue(t, logger.Error().Enabled(), "Error enabled with Info threshold")
+
+	// Try to record all levels
+	logger.Debug().Print("debug message")
+	logger.Info().Print("info message")
+	logger.Error().Print("error message")
+
+	messages := logger.GetMessages()
+	core.AssertEqual(t, 2, len(messages), "only Info and above recorded")
+	core.AssertEqual(t, slog.Info, messages[0].Level, "first message is Info")
+	core.AssertEqual(t, slog.Error, messages[1].Level, "second message is Error")
+}
+
+func TestNewLoggerWithThreshold(t *testing.T) {
+	logger := NewLoggerWithThreshold(slog.Warn)
+
+	core.AssertNotNil(t, logger, "logger created")
+	core.AssertTrue(t, logger.enabled, "logger enabled")
+	core.AssertEqual(t, slog.Warn, logger.threshold, "threshold set correctly")
+	core.AssertNotNil(t, logger.recorder, "recorder created")
 }
 
 func TestNilReceiver(t *testing.T) {
