@@ -150,6 +150,7 @@ func New(parent slog.Logger, threshold slog.LogLevel) slog.Logger {
 		threshold = slog.Error
 	}
 	return &Logger{
+		Loglet:    internal.Loglet{},
 		Parent:    parent,
 		Threshold: threshold,
 	}
