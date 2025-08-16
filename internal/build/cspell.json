@@ -80,6 +80,7 @@
     "shellcheck",
     "sirupsen",
     "Sirupsen",
+    "skipcq",
     "slog",
     "sloglogr",
     "slogrus",
