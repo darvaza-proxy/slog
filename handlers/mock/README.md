@@ -1,7 +1,7 @@
 # Mock Logger Handler
 
 The mock handler provides a Logger implementation that records log messages for
-testing and verification purposes. It's designed to help test other slog
+testing and verification purposes. It is designed to help test other slog
 handlers and applications that use slog.
 
 ## Overview
@@ -9,9 +9,9 @@ handlers and applications that use slog.
 The mock handler consists of two main components:
 
 - **Logger**: A fully functional slog.Logger implementation that records
-  messages instead of outputting them
+  messages instead of outputting them.
 - **Recorder**: A thread-safe storage system for capturing and retrieving log
-  messages
+  messages.
 
 ## Usage
 
@@ -25,25 +25,19 @@ import (
 )
 
 func TestMyCode(t *testing.T) {
-    // Create a mock logger
+    // Create a mock logger.
     logger := mock.NewLogger()
 
-    // Use it in your code
+    // Use it in your code.
     myFunction(logger)
 
-    // Verify the logged messages
+    // Verify the logged messages.
     messages := logger.GetMessages()
-    if len(messages) != 1 {
-        t.Fatalf("expected 1 message, got %d", len(messages))
-    }
+    core.AssertMustEqual(t, 1, len(messages), "message count")
 
     msg := messages[0]
-    if msg.Level != slog.Info {
-        t.Errorf("expected Info level, got %v", msg.Level)
-    }
-    if msg.Message != "expected message" {
-        t.Errorf("expected 'expected message', got '%s'", msg.Message)
-    }
+    core.AssertEqual(t, slog.Info, msg.Level, "log level")
+    core.AssertEqual(t, "expected message", msg.Message, "log message")
 }
 ```
 
@@ -68,6 +62,35 @@ func TestWithFields(t *testing.T) {
     if msg.Fields["action"] != "login" {
         t.Errorf("expected action=login, got %v", msg.Fields["action"])
     }
+}
+```
+
+### Testing with Level Filtering
+
+The mock logger supports threshold-based filtering for testing handlers that
+only process certain log levels:
+
+```go
+package mock_test
+
+import (
+    "testing"
+
+    "darvaza.org/core"
+    "darvaza.org/slog"
+    "darvaza.org/slog/handlers/mock"
+)
+
+func TestLevelFiltering(t *testing.T) {
+    // Create logger that only records Info and above
+    logger := mock.NewLoggerWithThreshold(slog.Info)
+
+    logger.Debug().Print("debug message")  // Not recorded
+    logger.Info().Print("info message")    // Recorded
+    logger.Error().Print("error message")  // Recorded
+
+    messages := logger.GetMessages()
+    core.AssertEqual(t, 2, len(messages), "message count")
 }
 ```
 
@@ -97,40 +120,51 @@ func TestMyAdapter(t *testing.T) {
 
 ### Logger
 
-- `NewLogger() *Logger` - Creates a new mock logger
-- `GetMessages() []Message` - Returns all recorded messages
-- Implements all slog.Logger methods (Debug, Info, WithField, etc.)
+- `NewLogger() *Logger` - Creates a new mock logger that records all levels.
+- `NewLoggerWithThreshold(threshold slog.LogLevel) *Logger` - Creates a new mock
+  logger with level filtering.
+- `GetMessages() []Message` - Returns all recorded messages.
+- `Clear()` - Removes all recorded messages from this logger.
+- Implements all slog.Logger methods (Debug, Info, WithField, etc.).
 
 ### Recorder
 
-- `NewRecorder() *Recorder` - Creates a new message recorder
-- `Record(msg Message)` - Stores a message
-- `GetMessages() []Message` - Returns all recorded messages
-- `Clear()` - Removes all stored messages
+- `NewRecorder() *Recorder` - Creates a new message recorder.
+- `Record(msg Message)` - Stores a message.
+- `GetMessages() []Message` - Returns all recorded messages.
+- `Clear()` - Removes all stored messages.
 
 ### Message
 
 - `Message` struct contains:
-  - `Message string` - The log message text
-  - `Level slog.LogLevel` - The log level
-  - `Fields map[string]any` - Attached fields
-  - `Stack bool` - Whether stack trace was requested
-- `String() string` - Formatted string representation
+  - `Message string` - The log message text.
+  - `Level slog.LogLevel` - The log level.
+  - `Fields map[string]any` - Attached fields.
+  - `Stack bool` - Whether stack trace was requested.
+- `String() string` - Formatted string representation.
 
 ## Features
 
-- **Thread-safe**: All operations are safe for concurrent use
-- **Immutable**: Logger methods return new instances, preserving immutability
-- **Complete**: Implements the full slog.Logger interface
-- **Field preservation**: Maintains field chains correctly
-- **Stack tracking**: Records when WithStack() was called
+- **Thread-safe**: All operations are safe for concurrent use.
+- **Immutable**: Logger methods return new instances, preserving immutability.
+- **Complete**: Implements the full slog.Logger interface.
+- **Field preservation**: Maintains field chains correctly.
+- **Stack tracking**: Records when WithStack() was called.
+- **Level filtering**: Optional threshold filtering for testing specific log
+  levels.
+- **Backward compatible**: Existing code using NewLogger() continues to work
+  unchanged.
 
 ## Design Notes
 
 The mock logger is designed to be a faithful implementation of the slog.Logger
-interface while capturing all the information needed for testing. It preserves
+interface whilst capturing all the information needed for testing. It preserves
 the immutable nature of loggers by creating new instances for each modification.
 
 The recorder component is separate to allow for advanced testing scenarios where
 you might want to share a recorder between multiple logger instances or create
 custom recording strategies.
+
+Level filtering uses the same logic as the filter handler: the zero value
+(UndefinedLevel) means no filtering occurs, maintaining backward compatibility.
+When a threshold is set, only messages at or above that level are recorded.

@@ -88,15 +88,28 @@ func (r *Recorder) Clear() {
 type Logger struct {
 	internal.Loglet
 
-	recorder *Recorder
-	enabled  bool
+	recorder  *Recorder
+	enabled   bool
+	threshold slog.LogLevel // Zero value (UndefinedLevel) = always enabled (backward compat)
 }
 
 // NewLogger creates a new test logger with a recorder.
+// By default, it logs all levels (no threshold filtering).
 func NewLogger() *Logger {
 	return &Logger{
-		recorder: NewRecorder(),
-		enabled:  true,
+		recorder:  NewRecorder(),
+		enabled:   true,
+		threshold: slog.UndefinedLevel, // No threshold = always enabled (backward compatible)
+	}
+}
+
+// NewLoggerWithThreshold creates a new test logger with a specific threshold.
+// Only messages at or above the threshold level will be recorded.
+func NewLoggerWithThreshold(threshold slog.LogLevel) *Logger {
+	return &Logger{
+		recorder:  NewRecorder(),
+		enabled:   true,
+		threshold: threshold,
 	}
 }
 
@@ -116,12 +129,28 @@ func (l *Logger) Clear() {
 	l.recorder.Clear()
 }
 
-// Enabled returns whether this logger is enabled.
+// Enabled returns whether this logger is enabled and would record at its current level.
 func (l *Logger) Enabled() bool {
 	if l == nil {
 		return false
 	}
-	return l.enabled
+	if !l.enabled {
+		return false
+	}
+
+	// Backward compatibility: if threshold is UndefinedLevel (zero value), always enabled
+	if l.threshold == slog.UndefinedLevel {
+		return true
+	}
+
+	// Check if current level meets threshold
+	level := l.Level()
+	// If no specific level is set, treat as enabled (consistent with existing behaviour)
+	if level == slog.UndefinedLevel {
+		return true
+	}
+	// Level filtering: only enabled if current level >= threshold (lower numeric value)
+	return level <= l.threshold
 }
 
 // WithEnabled returns the logger and its enabled state.
@@ -157,6 +186,11 @@ func (l *Logger) Printf(format string, args ...any) {
 }
 
 func (l *Logger) record(msg string) {
+	// Only record if enabled at current level
+	if !l.Enabled() {
+		return
+	}
+
 	// Collect all fields from the loglet chain
 	fields := make(map[string]any)
 	iter := l.Fields()
@@ -262,8 +296,9 @@ func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 // withLoglet creates a new Logger with the given loglet.
 func (l *Logger) withLoglet(loglet internal.Loglet) *Logger {
 	return &Logger{
-		Loglet:   loglet,
-		recorder: l.recorder,
-		enabled:  l.enabled,
+		Loglet:    loglet,
+		recorder:  l.recorder,
+		enabled:   l.enabled,
+		threshold: l.threshold,
 	}
 }

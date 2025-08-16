@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/funcr"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogtest "darvaza.org/slog/internal/testing"
 )
@@ -50,14 +51,6 @@ func createTestLogger(buf *bytes.Buffer) logr.Logger {
 	})
 }
 
-// assertContains checks if the output contains the expected string
-func assertContains(t *testing.T, output, expected string) {
-	t.Helper()
-	if !strings.Contains(output, expected) {
-		t.Errorf("expected output to contain %q, got: %s", expected, output)
-	}
-}
-
 // testBasicLogging tests basic logging functionality
 func testBasicLogging(t *testing.T) {
 	t.Helper()
@@ -67,7 +60,7 @@ func testBasicLogging(t *testing.T) {
 
 	// Test basic logging
 	logger.Info().Print("test info message")
-	assertContains(t, buf.String(), "test info message")
+	core.AssertContains(t, buf.String(), "test info message", "info message")
 }
 
 // testLogLevels tests different log levels
@@ -90,13 +83,19 @@ func testLogLevels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf.Reset()
-			l := tt.fn()
-			l.Printf("test %s message", tt.name)
-
-			assertContains(t, buf.String(), fmt.Sprintf("test %s message", tt.name))
+			testSingleLogLevel(t, &buf, tt.fn, tt.name)
 		})
 	}
+}
+
+// testSingleLogLevel tests a single log level
+func testSingleLogLevel(t *testing.T, buf *bytes.Buffer, fn func() slog.Logger, name string) {
+	t.Helper()
+	buf.Reset()
+	l := fn()
+	l.Printf("test %s message", name)
+	expected := fmt.Sprintf("test %s message", name)
+	core.AssertContains(t, buf.String(), expected, "test message")
 }
 
 // TestLogger tests the Logger adapter (logr as slog.Logger)
@@ -140,8 +139,8 @@ func testWithFields(t *testing.T) {
 	// Test WithField
 	logger.Info().WithField("key1", "value1").Print("with field")
 	output := buf.String()
-	assertContains(t, output, "key1")
-	assertContains(t, output, "value1")
+	core.AssertContains(t, output, "key1", "key1")
+	core.AssertContains(t, output, "value1", "value1")
 
 	// Test WithFields
 	buf.Reset()
@@ -151,8 +150,8 @@ func testWithFields(t *testing.T) {
 	}
 	logger.Info().WithFields(fields).Print("with fields")
 	output = buf.String()
-	assertContains(t, output, "key2")
-	assertContains(t, output, "key3")
+	core.AssertContains(t, output, "key2", "key2")
+	core.AssertContains(t, output, "key3", "key3")
 }
 
 // testEnabled tests the Enabled() method
@@ -185,23 +184,13 @@ func testEnabled(t *testing.T) {
 // testPanic tests panic functionality
 func testPanic(t *testing.T) {
 	t.Helper()
-	var buf bytes.Buffer
-	logrLogger := createTestLogger(&buf)
-	logger := New(logrLogger)
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic")
-		} else {
-			// core.Panic wraps the message in a PanicError
-			errStr := fmt.Sprintf("%v", r)
-			if !strings.Contains(errStr, "panic message") {
-				t.Errorf("unexpected panic value: %v", r)
-			}
-		}
-	}()
-
-	logger.Panic().Print("panic message")
+	core.AssertPanic(t, func() {
+		var buf bytes.Buffer
+		logrLogger := createTestLogger(&buf)
+		logger := New(logrLogger)
+		logger.Panic().Print("panic message")
+	}, nil, "panic")
 }
 
 // TestSink tests the Sink adapter (slog.Logger as logr)
@@ -213,7 +202,7 @@ func TestSink(t *testing.T) {
 		logrLogger := NewLogr(slogLogger)
 
 		logrLogger.Info("test message")
-		assertContains(t, buf.String(), "test message")
+		core.AssertContains(t, buf.String(), "test message", "test message")
 	})
 
 	t.Run("V-Levels", func(t *testing.T) {
@@ -224,17 +213,17 @@ func TestSink(t *testing.T) {
 
 		// V(0) should map to Info (not Warn any more)
 		logrLogger.V(0).Info("info level")
-		assertContains(t, buf.String(), "info level")
+		core.AssertContains(t, buf.String(), "info level", "info level")
 
 		buf.Reset()
 		// V(1) should map to Debug
 		logrLogger.V(1).Info("debug level")
-		assertContains(t, buf.String(), "debug level")
+		core.AssertContains(t, buf.String(), "debug level", "debug level")
 
 		buf.Reset()
 		// V(2) should also map to Debug
 		logrLogger.V(2).Info("debug level 2")
-		assertContains(t, buf.String(), "debug level 2")
+		core.AssertContains(t, buf.String(), "debug level 2", "debug level 2")
 	})
 
 	t.Run("Error", func(t *testing.T) {
@@ -247,8 +236,8 @@ func TestSink(t *testing.T) {
 		logrLogger.Error(err, "error occurred")
 
 		output := buf.String()
-		assertContains(t, output, "error occurred")
-		assertContains(t, output, "test error")
+		core.AssertContains(t, output, "error occurred", "error occurred")
+		core.AssertContains(t, output, "test error", "test error")
 	})
 
 	t.Run("WithValues", func(t *testing.T) {
@@ -260,10 +249,10 @@ func TestSink(t *testing.T) {
 		logrLogger.WithValues("key1", "value1", "key2", 42).Info("with values")
 
 		output := buf.String()
-		assertContains(t, output, "key1")
-		assertContains(t, output, "value1")
-		assertContains(t, output, "key2")
-		assertContains(t, output, "42")
+		core.AssertContains(t, output, "key1", "key1")
+		core.AssertContains(t, output, "value1", "value1")
+		core.AssertContains(t, output, "key2", "key2")
+		core.AssertContains(t, output, "42", "42")
 	})
 
 	t.Run("WithName", func(t *testing.T) {
@@ -274,7 +263,8 @@ func TestSink(t *testing.T) {
 
 		logrLogger.WithName("component").WithName("subcomponent").Info("named logger")
 
-		assertContains(t, buf.String(), "component.subcomponent")
+		output := buf.String()
+		core.AssertContains(t, output, "component.subcomponent", "component.subcomponent")
 	})
 
 	t.Run("Enabled", func(t *testing.T) {
@@ -455,8 +445,8 @@ func TestRoundTrip(t *testing.T) {
 	backToSlog.Info().WithField("round", "trip").Print("test message")
 
 	output := buf.String()
-	assertContains(t, output, "test message")
-	assertContains(t, output, "round")
+	core.AssertContains(t, output, "test message", "test message")
+	core.AssertContains(t, output, "round", "round")
 }
 
 // testLogger is a simple slog.Logger implementation for testing
@@ -698,10 +688,16 @@ func TestLevelMappingConsistency(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testSlogToLogrMapping(t, tt.slogLevel, tt.logrLevel)
-			testLogrToSlogMapping(t, tt.logrLevel, tt.expected)
+			testBothMappings(t, tt.slogLevel, tt.logrLevel, tt.expected)
 		})
 	}
+}
+
+// testBothMappings tests both slog->logr and logr->slog mappings
+func testBothMappings(t *testing.T, slogLevel slog.LogLevel, logrLevel int, expected slog.LogLevel) {
+	t.Helper()
+	testSlogToLogrMapping(t, slogLevel, logrLevel)
+	testLogrToSlogMapping(t, logrLevel, expected)
 }
 
 func testSlogToLogrMapping(t *testing.T, slogLevel slog.LogLevel, expected int) {
@@ -789,14 +785,16 @@ func TestSinkWithEmptyValues(t *testing.T) {
 	// Test with empty key-value pairs
 	sink.Info(0, "test message")
 	messages := recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
+	slogtest.AssertMustMessageCount(t, messages, 1)
+
 	slogtest.AssertMessage(t, messages[0], slog.Info, "test message")
 
 	// Test with odd number of key-value pairs
 	recorder.Clear()
 	sink.Info(0, "test message", "key1", "value1", "incomplete")
 	messages = recorder.GetMessages()
-	slogtest.AssertMessageCount(t, messages, 1)
+	slogtest.AssertMustMessageCount(t, messages, 1)
+
 	slogtest.AssertMessage(t, messages[0], slog.Info, "test message")
 	slogtest.AssertField(t, messages[0], "key1", "value1")
 	slogtest.AssertNoField(t, messages[0], "incomplete")
@@ -863,16 +861,10 @@ func TestLoggerUnwrap(t *testing.T) {
 
 // TestInvalidLogLevel tests behaviour with invalid log levels
 func TestInvalidLogLevel(t *testing.T) {
-	var buf bytes.Buffer
-	logrLogger := createTestLogger(&buf)
-	logger := New(logrLogger)
-
-	// Test that invalid level triggers panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic for invalid log level")
-		}
-	}()
-
-	logger.WithLevel(slog.UndefinedLevel)
+	core.AssertPanic(t, func() {
+		var buf bytes.Buffer
+		logrLogger := createTestLogger(&buf)
+		logger := New(logrLogger)
+		logger.WithLevel(slog.UndefinedLevel)
+	}, nil, "invalid level panic")
 }

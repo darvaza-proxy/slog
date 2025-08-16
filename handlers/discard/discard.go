@@ -32,7 +32,7 @@ func (nl *Logger) Enabled() bool {
 // WithEnabled passes the logger, but also indicates if it's enabled or not.
 // This logger is only enabled for Fatal entries
 func (nl *Logger) WithEnabled() (slog.Logger, bool) {
-	return nl, nl.Enabled()
+	return nl, nl.Enabled() // skipcq: GO-W4006
 }
 
 // Print pretends to add a log entry with arguments handled in the manner of fmt.Print
@@ -125,22 +125,12 @@ func (nl *Logger) WithStack(skip int) slog.Logger {
 }
 
 // WithField pretends to add a fields to the Logger
-func (nl *Logger) WithField(label string, value any) slog.Logger {
-	if label != "" {
-		return &Logger{
-			Loglet: nl.Loglet.WithField(label, value),
-		}
-	}
+func (nl *Logger) WithField(_ string, _ any) slog.Logger {
 	return nl
 }
 
 // WithFields pretends to add fields to the Logger
-func (nl *Logger) WithFields(fields map[string]any) slog.Logger {
-	if internal.HasFields(fields) {
-		return &Logger{
-			Loglet: nl.Loglet.WithFields(fields),
-		}
-	}
+func (nl *Logger) WithFields(_ map[string]any) slog.Logger {
 	return nl
 }
 

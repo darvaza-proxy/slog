@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	slogzap "darvaza.org/slog/handlers/zap"
 	slogtest "darvaza.org/slog/internal/testing"
@@ -88,15 +89,9 @@ func TestLevelValidation(t *testing.T) {
 	logger, _ := slogzap.New(nil)
 
 	// Test that WithLevel panics for invalid level
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic for invalid log level")
-			}
-		}()
-		// This should panic
+	core.AssertPanic(t, func() {
 		logger.WithLevel(slog.UndefinedLevel)
-	}()
+	}, nil, "invalid level panic")
 
 	// Ensure test continues after the panic test
 }
@@ -256,22 +251,17 @@ func TestMapToZapLevel_InvalidLevel(t *testing.T) {
 	// by creating a logger with an invalid level through reflection
 	// or by testing the Enabled() method with such a logger
 
-	logger, _ := slogzap.New(nil)
-	zapLogger := logger.(*slogzap.Logger)
+	core.AssertPanic(t, func() {
+		logger, _ := slogzap.New(nil)
+		zapLogger := logger.(*slogzap.Logger)
 
-	// Test that invalid level causes panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic for invalid log level")
-		}
-	}()
+		// Create a logger with an invalid level (100 is not a valid slog level)
+		invalidLogger := &slogzap.Logger{}
+		// Copy the internal logger but set an invalid level
+		*invalidLogger = *zapLogger
+		invalidLogger.Loglet = zapLogger.Loglet.WithLevel(slog.LogLevel(100))
 
-	// Create a logger with an invalid level (100 is not a valid slog level)
-	invalidLogger := &slogzap.Logger{}
-	// Copy the internal logger but set an invalid level
-	*invalidLogger = *zapLogger
-	invalidLogger.Loglet = zapLogger.Loglet.WithLevel(slog.LogLevel(100))
-
-	// This should panic
-	invalidLogger.Enabled()
+		// This should panic
+		invalidLogger.Enabled()
+	}, nil, "invalid level panic")
 }

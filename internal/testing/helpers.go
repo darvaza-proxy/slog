@@ -1,61 +1,118 @@
 package testing
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
-// AssertMessage verifies that a message matches expected properties.
-func AssertMessage(t *testing.T, msg Message, level slog.LogLevel, text string) {
+// Run executes a test function with the provided name, adapting to different test interfaces.
+// It automatically handles both *testing.T and core.MockT implementations.
+func Run(t core.T, name string, fn func(core.T)) {
 	t.Helper()
-	if msg.Level != level {
-		t.Errorf("expected level %v, got %v", level, msg.Level)
+
+	switch tt := t.(type) {
+	case interface {
+		Run(name string, fn func(*testing.T)) bool
+	}:
+		tt.Run(name, func(t *testing.T) { fn(t) })
+	case interface {
+		Run(name string, fn func(core.T)) bool
+	}:
+		tt.Run(name, fn)
+	default:
+		fn(t)
 	}
-	if msg.Message != text {
-		t.Errorf("expected message %q, got %q", text, msg.Message)
+}
+
+// AssertMessage verifies that a message matches expected properties.
+// Returns true if all assertions pass, false otherwise.
+func AssertMessage(t core.T, msg Message, level slog.LogLevel, text string) bool {
+	t.Helper()
+	ok := true
+	if !core.AssertEqual(t, level, msg.Level, "message level") {
+		ok = false
+	}
+	if !core.AssertEqual(t, text, msg.Message, "message text") {
+		ok = false
+	}
+	return ok
+}
+
+// AssertMustMessage verifies that a message matches expected properties.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+func AssertMustMessage(t core.T, msg Message, level slog.LogLevel, text string) {
+	t.Helper()
+	if !AssertMessage(t, msg, level, text) {
+		t.FailNow()
 	}
 }
 
 // AssertField verifies that a message contains a field with the expected value.
-func AssertField(t *testing.T, msg Message, key string, value any) {
+// Returns true if the field exists and has the expected value, false otherwise.
+func AssertField(t core.T, msg Message, key string, value any) bool {
 	t.Helper()
 	got, exists := msg.Fields[key]
-	if !exists {
-		t.Errorf("expected field %q not found", key)
-		return
+	if !core.AssertTrue(t, exists, "field %q exists", key) {
+		return false
 	}
-	if got != value {
-		t.Errorf("field %q: expected %v, got %v", key, value, got)
+	return core.AssertEqual(t, value, got, "field %q value", key)
+}
+
+// AssertMustField verifies that a message contains a field with the expected value.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+func AssertMustField(t core.T, msg Message, key string, value any) {
+	t.Helper()
+	if !AssertField(t, msg, key, value) {
+		t.FailNow()
 	}
 }
 
 // AssertNoField verifies that a message does not contain a specific field.
-func AssertNoField(t *testing.T, msg Message, key string) {
+// Returns true if the field does not exist, false if it exists.
+func AssertNoField(t core.T, msg Message, key string) bool {
 	t.Helper()
-	if value, exists := msg.Fields[key]; exists {
-		t.Errorf("unexpected field %q with value %v", key, value)
+	_, exists := msg.Fields[key]
+	return core.AssertFalse(t, exists, "field %q should not exist", key)
+}
+
+// AssertMustNoField verifies that a message does not contain a specific field.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+func AssertMustNoField(t core.T, msg Message, key string) {
+	t.Helper()
+	if !AssertNoField(t, msg, key) {
+		t.FailNow()
 	}
 }
 
 // AssertMessageCount verifies the expected number of messages were recorded.
-func AssertMessageCount(t *testing.T, messages []Message, expected int) {
+// Returns true if the count matches, false otherwise. On failure, logs all messages for debugging.
+func AssertMessageCount(t core.T, messages []Message, expected int) bool {
 	t.Helper()
-	if len(messages) != expected {
-		t.Errorf("expected %d messages, got %d", expected, len(messages))
+	ok := core.AssertEqual(t, expected, len(messages), "message count")
+	if !ok {
 		for i, msg := range messages {
 			t.Logf("  [%d] level=%v, message=%q", i, msg.Level, msg.Message)
 		}
 	}
+	return ok
+}
+
+// AssertMustMessageCount verifies the expected number of messages were recorded.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+func AssertMustMessageCount(t core.T, messages []Message, expected int) {
+	t.Helper()
+	if !AssertMessageCount(t, messages, expected) {
+		t.FailNow()
+	}
 }
 
 // RunWithLogger is a helper that runs a test function with a given logger instance.
-func RunWithLogger(t *testing.T, name string, logger slog.Logger, fn func(*testing.T, slog.Logger)) {
-	t.Run(name, func(t *testing.T) {
-		t.Helper()
-		fn(t, logger)
-	})
+func RunWithLogger(t core.T, name string, logger slog.Logger, fn func(core.T, slog.Logger)) {
+	Run(t, name, func(subT core.T) { fn(subT, logger) })
 }
 
 // TransformMessages applies transformations to a slice of messages based on options.
@@ -116,11 +173,8 @@ func sliceIntersectFn[T any](a, b []T, eq func(T, T) bool) []T {
 }
 
 // RunWithLoggerFactory is a helper that runs a test function with a fresh logger instance.
-func RunWithLoggerFactory(t *testing.T, name string, newLogger func() slog.Logger, fn func(*testing.T, slog.Logger)) {
-	t.Run(name, func(t *testing.T) {
-		t.Helper()
-		fn(t, newLogger())
-	})
+func RunWithLoggerFactory(t core.T, name string, newLogger func() slog.Logger, fn func(core.T, slog.Logger)) {
+	Run(t, name, func(subT core.T) { fn(subT, newLogger()) })
 }
 
 // logLevels returns all log levels for testing.
@@ -144,27 +198,25 @@ func logLevels() []struct {
 }
 
 // TestLevelMethods runs standard tests for all log level methods.
-func TestLevelMethods(t *testing.T, newLogger func() slog.Logger) {
+func TestLevelMethods(t core.T, newLogger func() slog.Logger) {
 	levels := logLevels()
 
 	for _, tc := range levels {
-		t.Run(tc.name, func(t *testing.T) {
+		Run(t, tc.name, func(t core.T) {
 			testLevelMethod(t, newLogger, tc.method, tc.level)
 		})
 	}
 }
 
 // testLevelMethod tests a single level method.
-func testLevelMethod(t *testing.T, newLogger func() slog.Logger,
+func testLevelMethod(t core.T, newLogger func() slog.Logger,
 	method func(slog.Logger) slog.Logger, expectedLevel slog.LogLevel) {
 	t.Helper()
 	logger := newLogger()
 	levelLogger := method(logger)
 
 	// Test that we get a logger back
-	if levelLogger == nil {
-		t.Fatal("level method returned nil")
-	}
+	core.AssertMustNotNil(t, levelLogger, "level method")
 
 	// For testable loggers, verify the level
 	if tl, ok := logger.(*Logger); ok {
@@ -178,42 +230,34 @@ func testLevelMethod(t *testing.T, newLogger func() slog.Logger,
 }
 
 // TestFieldMethods runs standard tests for field handling.
-func TestFieldMethods(t *testing.T, newLogger func() slog.Logger) {
+func TestFieldMethods(t core.T, newLogger func() slog.Logger) {
 	RunWithLogger(t, "WithField", newLogger(), TestWithField)
 	RunWithLogger(t, "WithFields", newLogger(), TestWithFields)
 }
 
 // TestWithField tests the WithField method.
-func TestWithField(t *testing.T, logger slog.Logger) {
+func TestWithField(t core.T, logger slog.Logger) {
 	t.Helper()
 
 	// Test single field
 	l1 := logger.WithField("key1", "value1")
-	if l1 == nil {
-		t.Fatal("WithField returned nil")
-	}
+	core.AssertMustNotNil(t, l1, "WithField")
 
 	// Test empty key (should return same logger)
 	l2 := logger.WithField("", "value")
-	if l2 != logger {
-		t.Error("WithField with empty key should return same logger")
-	}
+	core.AssertEqual(t, logger, l2, "WithField empty key")
 
 	// Test nil value (should work)
 	l3 := logger.WithField("nil", nil)
-	if l3 == nil {
-		t.Fatal("WithField with nil value returned nil")
-	}
+	core.AssertMustNotNil(t, l3, "WithField nil value")
 
 	// Test chaining
 	l4 := logger.WithField("a", 1).WithField("b", 2).WithField("c", 3)
-	if l4 == nil {
-		t.Fatal("chained WithField returned nil")
-	}
+	core.AssertMustNotNil(t, l4, "WithField chaining")
 }
 
 // TestWithFields tests the WithFields method.
-func TestWithFields(t *testing.T, logger slog.Logger) {
+func TestWithFields(t core.T, logger slog.Logger) {
 	t.Helper()
 
 	// Test multiple fields
@@ -224,47 +268,134 @@ func TestWithFields(t *testing.T, logger slog.Logger) {
 		"key4": nil,
 	}
 	l1 := logger.WithFields(fields)
-	if l1 == nil {
-		t.Fatal("WithFields returned nil")
-	}
+	core.AssertMustNotNil(t, l1, "WithFields")
 
 	// Test empty map (should return same logger)
 	l2 := logger.WithFields(nil)
-	if l2 != logger {
-		t.Error("WithFields with nil should return same logger")
-	}
+	core.AssertEqual(t, logger, l2, "WithFields nil")
 
 	l3 := logger.WithFields(map[string]any{})
-	if l3 != logger {
-		t.Error("WithFields with empty map should return same logger")
-	}
+	core.AssertEqual(t, logger, l3, "WithFields empty")
 
 	// Test empty keys are filtered
 	l4 := logger.WithFields(map[string]any{
 		"":     "ignored",
 		"kept": "value",
 	})
-	if l4 == nil {
-		t.Fatal("WithFields with mixed keys returned nil")
-	}
+	core.AssertMustNotNil(t, l4, "WithFields mixed keys")
 }
 
 // TestWithStack tests the WithStack method with various skip values.
-func TestWithStack(t *testing.T, logger slog.Logger) {
+func TestWithStack(t core.T, logger slog.Logger) {
 	t.Helper()
 
 	skipValues := []int{0, 1, 5, -1}
 
 	for _, skip := range skipValues {
 		l := logger.WithStack(skip)
-		if l == nil {
-			t.Fatalf("WithStack(%d) returned nil", skip)
-		}
+		core.AssertMustNotNil(t, l, "WithStack %d", skip)
 
 		// Test chaining
 		l2 := l.WithField("test", "value")
-		if l2 == nil {
-			t.Fatal("chaining after WithStack returned nil")
-		}
+		core.AssertMustNotNil(t, l2, "WithStack chaining")
 	}
+}
+
+// AssertSame verifies that two values are the same instance using reflection.
+// This checks pointer equality for reference types and value equality for value types.
+func AssertSame(t core.T, expected, actual any, name string, args ...any) bool {
+	t.Helper()
+
+	ok := IsSame(expected, actual)
+	if !ok {
+		doError(t, name, args, "expected same value or reference, got different")
+	}
+	return ok
+}
+
+// AssertNotSame verifies that two values are not the same instance using reflection.
+// This checks that values are not pointer-equal for reference types and not value-equal for value types.
+func AssertNotSame(t core.T, expected, actual any, name string, args ...any) bool {
+	t.Helper()
+
+	ok := !IsSame(expected, actual)
+	if !ok {
+		doError(t, name, args, "expected different values or references, got same")
+	}
+	return ok
+}
+
+// AssertMustNotSame verifies that two values are not the same instance using reflection.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+func AssertMustNotSame(t core.T, expected, actual any, name string, args ...any) {
+	t.Helper()
+	if !AssertNotSame(t, expected, actual, name, args...) {
+		t.FailNow()
+	}
+}
+
+// IsSame checks if two values are the same instance using reflection.
+// Returns true if the values are the same instance for reference types,
+// or equal for value types.
+func IsSame(expected, actual any) bool {
+	// Handle untyped nil cases first
+	if expected == nil && actual == nil {
+		return true
+	}
+	if expected == nil || actual == nil {
+		return false
+	}
+
+	expectedVal := reflect.ValueOf(expected)
+	actualVal := reflect.ValueOf(actual)
+
+	// Different types are never the same
+	if expectedVal.Type() != actualVal.Type() {
+		return false
+	}
+
+	return isSameReflectValue(expectedVal, actualVal)
+}
+
+// isSameReflectValue compares two reflect values for sameness
+func isSameReflectValue(va, vb reflect.Value) bool {
+	switch va.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func:
+		// For reference types, compare pointers
+		return va.Pointer() == vb.Pointer()
+	case reflect.Interface:
+		return isSameInterface(va, vb)
+	default:
+		// For value types, they're never the same instance
+		return false
+	}
+}
+
+// isSameInterface compares two interface values for sameness
+func isSameInterface(va, vb reflect.Value) bool {
+	if va.IsNil() && vb.IsNil() {
+		return true
+	}
+	if va.IsNil() || vb.IsNil() {
+		return false
+	}
+	return isSameReflectValue(va.Elem(), vb.Elem())
+}
+
+// doError reports a test error with optional prefix formatting
+func doError(t core.T, name string, args []any, messageFormat string, messageArgs ...any) {
+	t.Helper()
+	// Format the message
+	msg := fmt.Sprintf(messageFormat, messageArgs...)
+	// Add prefix if provided
+	if name != "" {
+		var prefix string
+		if len(args) > 0 {
+			prefix = fmt.Sprintf(name, args...)
+		} else {
+			prefix = name
+		}
+		msg = fmt.Sprintf("%s: %s", prefix, msg)
+	}
+	t.Error(msg)
 }

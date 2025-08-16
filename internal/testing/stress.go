@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 )
 
@@ -78,17 +79,17 @@ type StressTestOptions struct {
 	PostStressFunc func()
 
 	// Custom verification function
-	VerifyFunc func(t *testing.T, messages []Message, test StressTest)
+	VerifyFunc func(t core.T, messages []Message, test StressTest)
 }
 
 // RunStressTest executes a stress test against a logger.
-func RunStressTest(t *testing.T, logger slog.Logger, test StressTest) {
+func RunStressTest(t core.T, logger slog.Logger, test StressTest) {
 	t.Helper()
 	RunStressTestWithOptions(t, logger, test, nil)
 }
 
 // RunStressTestWithOptions executes a stress test with custom options.
-func RunStressTestWithOptions(t *testing.T, logger slog.Logger, test StressTest, opts *StressTestOptions) {
+func RunStressTestWithOptions(t core.T, logger slog.Logger, test StressTest, opts *StressTestOptions) {
 	t.Helper()
 
 	// Execute pre-stress function if provided
@@ -129,7 +130,7 @@ func executePostStress(opts *StressTestOptions) {
 }
 
 // verifyStressTestResults performs result verification if configured.
-func verifyStressTestResults(t *testing.T, test StressTest, opts *StressTestOptions) {
+func verifyStressTestResults(t core.T, test StressTest, opts *StressTestOptions) {
 	t.Helper()
 
 	if !shouldVerifyResults(opts) {
@@ -252,7 +253,7 @@ func generateLargeMessage(prefix string, size int) string {
 }
 
 // reportStressMetrics reports performance metrics from the stress test.
-func reportStressMetrics(t *testing.T, test StressTest, duration time.Duration) {
+func reportStressMetrics(t core.T, test StressTest, duration time.Duration) {
 	t.Helper()
 
 	var totalOps int
@@ -273,7 +274,7 @@ func reportStressMetrics(t *testing.T, test StressTest, duration time.Duration) 
 }
 
 // verifyStressResults performs basic verification of stress test results.
-func verifyStressResults(t *testing.T, messages []Message, test StressTest) {
+func verifyStressResults(t core.T, messages []Message, test StressTest) {
 	t.Helper()
 
 	// Verify message count
@@ -284,7 +285,7 @@ func verifyStressResults(t *testing.T, messages []Message, test StressTest) {
 }
 
 // verifyMessageCount checks if the correct number of messages were generated.
-func verifyMessageCount(t *testing.T, messages []Message, test StressTest) {
+func verifyMessageCount(t core.T, messages []Message, test StressTest) {
 	t.Helper()
 
 	if test.Duration > 0 {
@@ -295,7 +296,7 @@ func verifyMessageCount(t *testing.T, messages []Message, test StressTest) {
 }
 
 // verifyDurationBasedCount verifies message count for duration-based tests.
-func verifyDurationBasedCount(t *testing.T, messages []Message) {
+func verifyDurationBasedCount(t core.T, messages []Message) {
 	t.Helper()
 
 	if len(messages) == 0 {
@@ -305,7 +306,7 @@ func verifyDurationBasedCount(t *testing.T, messages []Message) {
 }
 
 // verifyOperationBasedCount verifies message count for operation-based tests.
-func verifyOperationBasedCount(t *testing.T, messages []Message, test StressTest) {
+func verifyOperationBasedCount(t core.T, messages []Message, test StressTest) {
 	t.Helper()
 
 	expected := test.Goroutines * test.Operations
@@ -315,7 +316,7 @@ func verifyOperationBasedCount(t *testing.T, messages []Message, test StressTest
 }
 
 // verifyMessageStructure checks that all messages have required fields.
-func verifyMessageStructure(t *testing.T, messages []Message) {
+func verifyMessageStructure(t core.T, messages []Message) {
 	t.Helper()
 
 	requiredFields := []string{"goroutine", "operation"}
@@ -346,9 +347,9 @@ type StressTestSuite struct {
 
 // stressTestCase defines a stress test case.
 type stressTestCase struct {
-	name     string
-	skip     bool
-	testFunc func(*testing.T)
+	name              string
+	skip              bool
+	stressTestFactory func() StressTest
 }
 
 // Run executes the stress test suite.
@@ -359,7 +360,9 @@ func (sts StressTestSuite) Run(t *testing.T) {
 	// Run each test case
 	for _, tc := range tests {
 		if !tc.skip {
-			t.Run(tc.name, tc.testFunc)
+			t.Run(tc.name, func(t *testing.T) {
+				sts.runStressTest(t, tc.stressTestFactory())
+			})
 		}
 	}
 
@@ -371,31 +374,25 @@ func (sts StressTestSuite) Run(t *testing.T) {
 func (sts StressTestSuite) getStressTestCases() []stressTestCase {
 	return []stressTestCase{
 		{
-			name: "BasicStress",
-			skip: false,
-			testFunc: func(t *testing.T) {
-				sts.runStressTest(t, DefaultStressTest())
-			},
+			name:              "BasicStress",
+			skip:              false,
+			stressTestFactory: DefaultStressTest,
 		},
 		{
-			name: "HighVolumeStress",
-			skip: sts.SkipHighVolume,
-			testFunc: func(t *testing.T) {
-				sts.runStressTest(t, HighVolumeStressTest())
-			},
+			name:              "HighVolumeStress",
+			skip:              sts.SkipHighVolume,
+			stressTestFactory: HighVolumeStressTest,
 		},
 		{
-			name: "MemoryPressureStress",
-			skip: sts.SkipMemoryPressure,
-			testFunc: func(t *testing.T) {
-				sts.runStressTest(t, MemoryPressureStressTest())
-			},
+			name:              "MemoryPressureStress",
+			skip:              sts.SkipMemoryPressure,
+			stressTestFactory: MemoryPressureStressTest,
 		},
 		{
 			name: "DurationBasedStress",
 			skip: sts.SkipDurationBased,
-			testFunc: func(t *testing.T) {
-				sts.runStressTest(t, DurationBasedStressTest(100*time.Millisecond))
+			stressTestFactory: func() StressTest {
+				return DurationBasedStressTest(100 * time.Millisecond)
 			},
 		},
 	}

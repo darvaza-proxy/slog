@@ -9,6 +9,21 @@ import (
 
 // TestRecorderExample demonstrates using the test recorder for handler testing
 func TestRecorderExample(t *testing.T) {
+	testRecorderExample(t)
+}
+
+// TestComplianceExample demonstrates running the compliance test suite
+func TestComplianceExample(t *testing.T) {
+	testComplianceExample(t)
+}
+
+// TestCustomHandlerExample demonstrates testing a custom handler
+func TestCustomHandlerExample(t *testing.T) {
+	testCustomHandlerExample(t)
+}
+
+func testRecorderExample(t *testing.T) {
+	t.Helper()
 	// Create a test logger that records messages
 	recorder := slogtest.NewLogger()
 
@@ -20,9 +35,7 @@ func TestRecorderExample(t *testing.T) {
 
 	// Verify the recorded messages
 	messages := recorder.GetMessages()
-	if len(messages) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(messages))
-	}
+	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	// Use helper assertions
 	msg := messages[0]
@@ -31,8 +44,8 @@ func TestRecorderExample(t *testing.T) {
 	slogtest.AssertField(t, msg, "action", "login")
 }
 
-// TestComplianceExample demonstrates running the compliance test suite
-func TestComplianceExample(t *testing.T) {
+func testComplianceExample(t *testing.T) {
+	t.Helper()
 	// Define how to create your logger
 	compliance := slogtest.ComplianceTest{
 		FactoryOptions: slogtest.FactoryOptions{
@@ -59,8 +72,8 @@ func TestComplianceExample(t *testing.T) {
 	compliance.Run(t)
 }
 
-// TestCustomHandlerExample demonstrates testing a custom handler
-func TestCustomHandlerExample(t *testing.T) {
+func testCustomHandlerExample(t *testing.T) {
+	t.Helper()
 	// Test level methods with a fresh logger each time
 	slogtest.TestLevelMethods(t, func() slog.Logger {
 		return slogtest.NewLogger()
@@ -80,7 +93,7 @@ func TestCustomHandlerExample(t *testing.T) {
 	testLogger.Info().WithField("test", "value").Print("message")
 
 	msgs := testLogger.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, 1)
+	slogtest.AssertMustMessageCount(t, msgs, 1)
 	slogtest.AssertMessage(t, msgs[0], slog.Info, "message")
 	slogtest.AssertField(t, msgs[0], "test", "value")
 }
