@@ -51,58 +51,58 @@ func assertAnySliceField(t *testing.T, fields map[string]any, key string, expect
 }
 
 func TestSlogCore(t *testing.T) {
-	t.Run("BasicFunctionality", testSlogCoreBasic)
-	t.Run("WithFields", testSlogCoreWithFields)
-	t.Run("With", testSlogCoreWith)
-	t.Run("WithEmpty", testSlogCoreWithEmpty)
-	t.Run("Levels", testSlogCoreLevels)
-	t.Run("Enabled", testSlogCoreEnabled)
+	t.Run("BasicFunctionality", runTestSlogCoreBasic)
+	t.Run("WithFields", runTestSlogCoreWithFields)
+	t.Run("With", runTestSlogCoreWith)
+	t.Run("WithEmpty", runTestSlogCoreWithEmpty)
+	t.Run("Levels", runTestSlogCoreLevels)
+	t.Run("Enabled", runTestSlogCoreEnabled)
 }
 
 func TestNewZapLogger(t *testing.T) {
-	t.Run("ConvenienceConstructor", testNewZapLogger)
+	t.Run("ConvenienceConstructor", runTestNewZapLogger)
 }
 
 func TestSlogCoreCaller(t *testing.T) {
-	t.Run("WithCaller", testSlogCoreWithCaller)
-	t.Run("CallerUndefined", testSlogCoreCallerUndefined)
+	t.Run("WithCaller", runTestSlogCoreWithCaller)
+	t.Run("CallerUndefined", runTestSlogCoreCallerUndefined)
 }
 
 func TestSlogCoreStack(t *testing.T) {
-	t.Run("WithStack", testSlogCoreWithStack)
+	t.Run("WithStack", runTestSlogCoreWithStack)
 }
 
 func TestSlogCoreFields(t *testing.T) {
-	t.Run("ComplexFields", testSlogCoreComplexFields)
-	t.Run("ConvertFieldsEmpty", testConvertFieldsEmpty)
+	t.Run("ComplexFields", runTestSlogCoreComplexFields)
+	t.Run("ConvertFieldsEmpty", runTestConvertFieldsEmpty)
 }
 
 func TestSlogCoreErrorCases(t *testing.T) {
-	t.Run("NilLogger", testSlogCoreNilLogger)
-	t.Run("NilLevel", testSlogCoreNilLevel)
+	t.Run("NilLogger", runTestSlogCoreNilLogger)
+	t.Run("NilLevel", runTestSlogCoreNilLevel)
 }
 
 func TestSlogCoreSync(t *testing.T) {
-	t.Run("Sync", testSlogCoreSync)
+	t.Run("Sync", runTestSlogCoreSync)
 }
 
 func TestBidirectionalIntegration(t *testing.T) {
-	t.Run("slog_to_zap_direction", testBidirectionalSlogToZap)
-	t.Run("zap_to_slog_direction", testBidirectionalZapToSlog)
-	t.Run("both_directions_compatibility", testBidirectionalCompatibility)
+	t.Run("slog_to_zap_direction", runTestBidirectionalSlogToZap)
+	t.Run("zap_to_slog_direction", runTestBidirectionalZapToSlog)
+	t.Run("both_directions_compatibility", runTestBidirectionalCompatibility)
 }
 
 func TestSlogCoreConcurrent(t *testing.T) {
-	t.Run("ConcurrentAccess", testSlogCoreConcurrent)
+	t.Run("ConcurrentAccess", runTestSlogCoreConcurrent)
 }
 
 func TestSlogCoreCheck(t *testing.T) {
-	t.Run("CheckDisabled", testSlogCoreCheckDisabled)
+	t.Run("CheckDisabled", runTestSlogCoreCheckDisabled)
 }
 
 func TestSlogCoreWrite(t *testing.T) {
-	t.Run("FatalWrite", testSlogCoreFatalWrite)
-	t.Run("PanicWrite", testSlogCorePanicWrite)
+	t.Run("FatalWrite", runTestSlogCoreFatalWrite)
+	t.Run("PanicWrite", runTestSlogCorePanicWrite)
 }
 
 func newMapTestCase(
@@ -148,7 +148,8 @@ func TestSlogCoreWithConfigurations(t *testing.T) {
 
 // Test functions
 
-func testSlogCoreBasic(t *testing.T) {
+func runTestSlogCoreBasic(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	// Create a zap logger using our SlogCore
@@ -167,7 +168,8 @@ func testSlogCoreBasic(t *testing.T) {
 	core.AssertEqual(t, "test message", msg.Message, "message")
 }
 
-func testSlogCoreWithFields(t *testing.T) {
+func runTestSlogCoreWithFields(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
@@ -188,7 +190,8 @@ func testSlogCoreWithFields(t *testing.T) {
 	assertField(t, msg.Fields, "key2", int64(42))
 }
 
-func testSlogCoreWith(t *testing.T) {
+func runTestSlogCoreWith(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
@@ -213,7 +216,8 @@ func testSlogCoreWith(t *testing.T) {
 	assertField(t, msg.Fields, "extra", "value")
 }
 
-func testSlogCoreWithEmpty(t *testing.T) {
+func runTestSlogCoreWithEmpty(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
@@ -272,11 +276,13 @@ func levelTestCases() []levelTestCase {
 	}
 }
 
-func testSlogCoreLevels(t *testing.T) {
+func runTestSlogCoreLevels(t *testing.T) {
+	t.Helper()
 	core.RunTestCases(t, levelTestCases())
 }
 
-func testSlogCoreEnabled(t *testing.T) {
+func runTestSlogCoreEnabled(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	// Create core with Info level
@@ -291,7 +297,8 @@ func testSlogCoreEnabled(t *testing.T) {
 	core.AssertTrue(t, zapCore.Enabled(zap.ErrorLevel), "error enabled")
 }
 
-func testNewZapLogger(t *testing.T) {
+func runTestNewZapLogger(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	// Create zap logger using convenience function
@@ -310,7 +317,8 @@ func testNewZapLogger(t *testing.T) {
 	core.AssertEqual(t, "info message", messages[0].Message, "message")
 }
 
-func testSlogCoreWithCaller(t *testing.T) {
+func runTestSlogCoreWithCaller(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	// Create zap logger with caller info
@@ -328,7 +336,8 @@ func testSlogCoreWithCaller(t *testing.T) {
 	core.AssertContains(t, callerStr, "core_test", "caller filename")
 }
 
-func testSlogCoreCallerUndefined(t *testing.T) {
+func runTestSlogCoreCallerUndefined(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
@@ -350,7 +359,8 @@ func testSlogCoreCallerUndefined(t *testing.T) {
 	core.AssertFalse(t, hasCaller, "Should not have caller field when undefined")
 }
 
-func testSlogCoreWithStack(t *testing.T) {
+func runTestSlogCoreWithStack(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
@@ -374,7 +384,8 @@ func testSlogCoreWithStack(t *testing.T) {
 	core.AssertContains(t, stackStr, "goroutine 1", "goroutine info")
 }
 
-func testSlogCoreComplexFields(t *testing.T) {
+func runTestSlogCoreComplexFields(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	zapLogger := slogzap.NewZapLogger(recorder)
@@ -420,13 +431,15 @@ func testSlogCoreComplexFields(t *testing.T) {
 	}
 }
 
-func testSlogCoreNilLogger(t *testing.T) {
+func runTestSlogCoreNilLogger(t *testing.T) {
+	t.Helper()
 	core.AssertPanic(t, func() {
 		slogzap.NewCore(nil, zap.InfoLevel)
 	}, nil, "NewCore nil logger panic")
 }
 
-func testSlogCoreNilLevel(t *testing.T) {
+func runTestSlogCoreNilLevel(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	// Should default to InfoLevel
@@ -439,7 +452,7 @@ func testSlogCoreNilLevel(t *testing.T) {
 	core.AssertTrue(t, zapCore.Enabled(zap.InfoLevel), "Info default level")
 }
 
-func testSlogCoreSync(t *testing.T) {
+func runTestSlogCoreSync(t *testing.T) {
 	recorder := slogtest.NewLogger()
 
 	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
@@ -448,7 +461,8 @@ func testSlogCoreSync(t *testing.T) {
 	core.AssertNil(t, zapCore.Sync(), "Sync() returned error")
 }
 
-func testBidirectionalSlogToZap(t *testing.T) {
+func runTestBidirectionalSlogToZap(t *testing.T) {
+	t.Helper()
 	// Test slog → zap: Use slog backend with zap API
 	baseRecorder := slogtest.NewLogger()
 	zapLogger := slogzap.NewZapLogger(baseRecorder)
@@ -469,7 +483,8 @@ func testBidirectionalSlogToZap(t *testing.T) {
 	assertField(t, msg.Fields, "test_id", int64(1))
 }
 
-func testBidirectionalZapToSlog(t *testing.T) {
+func runTestBidirectionalZapToSlog(t *testing.T) {
+	t.Helper()
 	// Test zap → slog: Use zap backend with slog API
 	zapConfig := slogzap.NewDefaultConfig()
 	slogLogger, err := slogzap.New(zapConfig)
@@ -485,7 +500,8 @@ func testBidirectionalZapToSlog(t *testing.T) {
 	// but we can verify it doesn't panic or error
 }
 
-func testBidirectionalCompatibility(t *testing.T) {
+func runTestBidirectionalCompatibility(t *testing.T) {
+	t.Helper()
 	// Verify both directions work with the same field types
 	baseRecorder := slogtest.NewLogger()
 	zapLogger := slogzap.NewZapLogger(baseRecorder)
@@ -509,7 +525,7 @@ func testBidirectionalCompatibility(t *testing.T) {
 	assertField(t, fields, "bool", true)
 }
 
-func testSlogCoreConcurrent(t *testing.T) {
+func runTestSlogCoreConcurrent(t *testing.T) {
 	recorder := slogtest.NewLogger()
 	zapLogger := slogzap.NewZapLogger(recorder)
 
@@ -552,7 +568,8 @@ func testSlogCoreConcurrent(t *testing.T) {
 	}
 }
 
-func testSlogCoreCheckDisabled(t *testing.T) {
+func runTestSlogCoreCheckDisabled(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 
 	// Create core with Info level
@@ -578,7 +595,8 @@ func testSlogCoreCheckDisabled(t *testing.T) {
 	}
 }
 
-func testSlogCoreFatalWrite(t *testing.T) {
+func runTestSlogCoreFatalWrite(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
@@ -617,7 +635,8 @@ func testSlogCoreFatalWrite(t *testing.T) {
 	core.AssertTrue(t, foundExit, "zap fatal exit message")
 }
 
-func testPanicLevel(t *testing.T, zapCore zapcore.Core) {
+func runTestPanicLevel(t *testing.T, zapCore zapcore.Core) {
+	t.Helper()
 	core.AssertPanic(t, func() {
 		entry := zapcore.Entry{
 			Level:   zapcore.PanicLevel,
@@ -627,7 +646,8 @@ func testPanicLevel(t *testing.T, zapCore zapcore.Core) {
 	}, "zap panic: panic message", "PanicLevel panic")
 }
 
-func testDPanicLevel(t *testing.T, zapCore zapcore.Core) {
+func runTestDPanicLevel(t *testing.T, zapCore zapcore.Core) {
+	t.Helper()
 	core.AssertPanic(t, func() {
 		entry := zapcore.Entry{
 			Level:   zapcore.DPanicLevel,
@@ -637,20 +657,22 @@ func testDPanicLevel(t *testing.T, zapCore zapcore.Core) {
 	}, "zap panic: development panic", "DPanicLevel panic")
 }
 
-func testSlogCorePanicWrite(t *testing.T) {
+func runTestSlogCorePanicWrite(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	t.Run("PanicLevel", func(t *testing.T) {
-		testPanicLevel(t, zapCore)
+		runTestPanicLevel(t, zapCore)
 	})
 
 	t.Run("DPanicLevel", func(t *testing.T) {
-		testDPanicLevel(t, zapCore)
+		runTestDPanicLevel(t, zapCore)
 	})
 }
 
-func testConvertFieldsEmpty(t *testing.T) {
+func runTestConvertFieldsEmpty(t *testing.T) {
+	t.Helper()
 	recorder := slogtest.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
 	zapLogger := zap.New(zapCore)
