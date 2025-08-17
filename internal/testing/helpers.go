@@ -32,10 +32,7 @@ func Run(t core.T, name string, fn func(core.T)) {
 // Returns true if all assertions pass, false otherwise.
 func AssertMessage(t core.T, msg Message, level slog.LogLevel, text string) bool {
 	t.Helper()
-	ok := true
-	if !core.AssertEqual(t, level, msg.Level, "message level") {
-		ok = false
-	}
+	ok := core.AssertEqual(t, level, msg.Level, "message level")
 	if !core.AssertEqual(t, text, msg.Message, "message text") {
 		ok = false
 	}

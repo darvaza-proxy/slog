@@ -26,7 +26,7 @@ type ComplianceTest struct {
 // Run executes the full compliance test suite.
 func (ct ComplianceTest) Run(t *testing.T) {
 	t.Run("Interface", func(t *testing.T) {
-		var logger slog.Logger = ct.NewLogger()
+		logger := ct.NewLogger()
 
 		// Verify it's not nil
 		core.AssertNotNil(t, logger, "NewLogger")

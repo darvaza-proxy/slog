@@ -192,6 +192,6 @@ func newLogger(ch chan LogMsg) *cblog {
 	l := &cblog{
 		ch: ch,
 	}
-	l.Logger.l = l
+	l.l = l
 	return l
 }

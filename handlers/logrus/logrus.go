@@ -8,7 +8,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/slog/internal"
 )
@@ -87,11 +86,10 @@ func (rl *Logger) msg(msg string) {
 
 	// Add stack trace if present
 	if stack := rl.CallStack(); len(stack) > 0 {
-		var frames core.Stack = stack
-		caller := frames[0]
+		caller := stack[0]
 		entry = entry.WithFields(logrus.Fields{
 			CallerFieldName: fmt.Sprintf("%+n", caller),
-			StackFieldName:  fmt.Sprintf("%+n", frames),
+			StackFieldName:  fmt.Sprintf("%+n", stack),
 		})
 	}
 
