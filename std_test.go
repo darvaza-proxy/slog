@@ -7,7 +7,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
-	slogtest "darvaza.org/slog/internal/testing"
+	"darvaza.org/slog/handlers/mock"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -26,7 +26,7 @@ func TestNewStdLogger(t *testing.T) {
 
 func testNewStdLoggerBasic(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", 0)
 
 	core.AssertMustNotNil(t, stdLog, "std logger")
@@ -41,7 +41,7 @@ func testNewStdLoggerBasic(t *testing.T) {
 
 func testNewStdLoggerPrefix(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	prefix := "TEST"
 	stdLog := slog.NewStdLogger(logger, prefix, 0)
 
@@ -66,7 +66,7 @@ func (tc stdLoggerFlagsTestCase) Name() string {
 
 func (tc stdLoggerFlagsTestCase) Test(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", tc.flags)
 
 	core.AssertMustNotNil(t, stdLog, "std logger with flags")
@@ -102,7 +102,7 @@ func testNewStdLoggerFlags(t *testing.T) {
 
 func testNewStdLoggerEmptyPrefix(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", 0)
 
 	stdLog.Print("no prefix")
@@ -114,7 +114,7 @@ func testNewStdLoggerEmptyPrefix(t *testing.T) {
 
 func testNewStdLoggerIntegration(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "APP", 0)
 
 	// Test multiple logging methods
@@ -155,7 +155,7 @@ func (tc stdLogSinkPrefixTestCase) Name() string {
 
 func (tc stdLogSinkPrefixTestCase) Test(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "PREFIX", 0)
 
 	stdLog.Print(tc.input)
@@ -198,7 +198,7 @@ func (tc stdLogSinkNoPrefixTestCase) Name() string {
 
 func (tc stdLogSinkNoPrefixTestCase) Test(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", 0)
 
 	tc.action(stdLog)
@@ -243,7 +243,7 @@ func (tc stdLogSinkFlagsTestCase) Name() string {
 
 func (tc stdLogSinkFlagsTestCase) Test(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "TEST", tc.flags)
 
 	// Should not panic with any flag combination
@@ -288,7 +288,7 @@ func TestStdLoggerCompatibility(t *testing.T) {
 
 func testStdLoggerInterface(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "", 0)
 
 	// Verify it implements the standard logger interface
@@ -309,7 +309,7 @@ func testStdLoggerInterface(t *testing.T) {
 
 func testStdLoggerConcurrent(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	stdLog := slog.NewStdLogger(logger, "CONCURRENT", 0)
 
 	// Simple concurrent usage test
