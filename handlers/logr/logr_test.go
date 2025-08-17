@@ -17,6 +17,83 @@ import (
 	slogtest "darvaza.org/slog/internal/testing"
 )
 
+// TestCase interface validations
+var _ core.TestCase = logLevelTestCase{}
+var _ core.TestCase = levelMappingConsistencyTestCase{}
+
+// logLevelTestCase tests different log levels functionality.
+type logLevelTestCase struct {
+	buf   *bytes.Buffer
+	fn    func() slog.Logger
+	level slog.LogLevel
+	name  string
+}
+
+// Name returns the test case name.
+func (tc logLevelTestCase) Name() string {
+	return tc.name
+}
+
+// Test executes the log level test.
+func (tc logLevelTestCase) Test(t *testing.T) {
+	t.Helper()
+	tc.buf.Reset()
+	l := tc.fn()
+	l.Printf("test %s message", tc.name)
+	expected := fmt.Sprintf("test %s message", tc.name)
+	core.AssertContains(t, tc.buf.String(), expected, "test message")
+}
+
+// newLogLevelTestCase creates a new log level test case.
+func newLogLevelTestCase(name string, buf *bytes.Buffer, level slog.LogLevel,
+	fn func() slog.Logger) logLevelTestCase {
+	return logLevelTestCase{
+		name:  name,
+		buf:   buf,
+		level: level,
+		fn:    fn,
+	}
+}
+
+// levelMappingConsistencyTestCase tests level mapping consistency between Logger and Sink.
+type levelMappingConsistencyTestCase struct {
+	slogLevel slog.LogLevel
+	logrLevel int
+	expected  slog.LogLevel
+	name      string
+}
+
+// Name returns the test case name.
+func (tc levelMappingConsistencyTestCase) Name() string {
+	return tc.name
+}
+
+// Test executes the level mapping consistency test.
+func (tc levelMappingConsistencyTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	// Test slog to logr mapping
+	mapped := mapToLogrLevel(tc.slogLevel)
+	core.AssertEqual(t, tc.logrLevel, mapped, "slog to logr mapping")
+
+	// Test logr to slog mapping (only for valid levels)
+	if tc.logrLevel >= 0 {
+		reversed := mapFromLogrLevel(tc.logrLevel)
+		core.AssertEqual(t, tc.expected, reversed, "logr to slog mapping")
+	}
+}
+
+// newLevelMappingConsistencyTestCase creates a new level mapping consistency test case.
+func newLevelMappingConsistencyTestCase(name string, slogLevel slog.LogLevel,
+	logrLevel int, expected slog.LogLevel) levelMappingConsistencyTestCase {
+	return levelMappingConsistencyTestCase{
+		name:      name,
+		slogLevel: slogLevel,
+		logrLevel: logrLevel,
+		expected:  expected,
+	}
+}
+
 // levelString returns the string representation of a LogLevel
 func levelString(level slog.LogLevel) string {
 	switch level {
@@ -70,32 +147,14 @@ func testLogLevels(t *testing.T) {
 	logrLogger := createTestLogger(&buf)
 	logger := New(logrLogger)
 
-	tests := []struct {
-		name  string
-		level slog.LogLevel
-		fn    func() slog.Logger
-	}{
-		{"Debug", slog.Debug, logger.Debug},
-		{"Info", slog.Info, logger.Info},
-		{"Warn", slog.Warn, logger.Warn},
-		{"Error", slog.Error, logger.Error},
+	tests := []logLevelTestCase{
+		newLogLevelTestCase("Debug", &buf, slog.Debug, logger.Debug),
+		newLogLevelTestCase("Info", &buf, slog.Info, logger.Info),
+		newLogLevelTestCase("Warn", &buf, slog.Warn, logger.Warn),
+		newLogLevelTestCase("Error", &buf, slog.Error, logger.Error),
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testSingleLogLevel(t, &buf, tt.fn, tt.name)
-		})
-	}
-}
-
-// testSingleLogLevel tests a single log level
-func testSingleLogLevel(t *testing.T, buf *bytes.Buffer, fn func() slog.Logger, name string) {
-	t.Helper()
-	buf.Reset()
-	l := fn()
-	l.Printf("test %s message", name)
-	expected := fmt.Sprintf("test %s message", name)
-	core.AssertContains(t, buf.String(), expected, "test message")
+	core.RunTestCases(t, tests)
 }
 
 // TestLogger tests the Logger adapter (logr as slog.Logger)
@@ -674,48 +733,14 @@ func TestBidirectionalAdapter(t *testing.T) {
 
 // TestLevelMappingConsistency tests that level mappings are consistent between Logger and Sink
 func TestLevelMappingConsistency(t *testing.T) {
-	tests := []struct {
-		name      string
-		slogLevel slog.LogLevel
-		logrLevel int
-		expected  slog.LogLevel
-	}{
-		{"Debug", slog.Debug, 1, slog.Debug},
-		{"Info", slog.Info, 0, slog.Info},
-		{"Warn", slog.Warn, 0, slog.Info}, // logr has no warn, maps to info
-		{"Error", slog.Error, -1, slog.Error},
+	tests := []levelMappingConsistencyTestCase{
+		newLevelMappingConsistencyTestCase("Debug", slog.Debug, 1, slog.Debug),
+		newLevelMappingConsistencyTestCase("Info", slog.Info, 0, slog.Info),
+		newLevelMappingConsistencyTestCase("Warn", slog.Warn, 0, slog.Info), // logr has no warn, maps to info
+		newLevelMappingConsistencyTestCase("Error", slog.Error, -1, slog.Error),
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testBothMappings(t, tt.slogLevel, tt.logrLevel, tt.expected)
-		})
-	}
-}
-
-// testBothMappings tests both slog->logr and logr->slog mappings
-func testBothMappings(t *testing.T, slogLevel slog.LogLevel, logrLevel int, expected slog.LogLevel) {
-	t.Helper()
-	testSlogToLogrMapping(t, slogLevel, logrLevel)
-	testLogrToSlogMapping(t, logrLevel, expected)
-}
-
-func testSlogToLogrMapping(t *testing.T, slogLevel slog.LogLevel, expected int) {
-	t.Helper()
-	mapped := mapToLogrLevel(slogLevel)
-	if mapped != expected {
-		t.Errorf("mapToLogrLevel(%v) = %d, want %d", slogLevel, mapped, expected)
-	}
-}
-
-func testLogrToSlogMapping(t *testing.T, logrLevel int, expected slog.LogLevel) {
-	t.Helper()
-	if logrLevel >= 0 {
-		backMapped := mapFromLogrLevel(logrLevel)
-		if backMapped != expected {
-			t.Errorf("mapFromLogrLevel(%d) = %v, want %v", logrLevel, backMapped, expected)
-		}
-	}
+	core.RunTestCases(t, tests)
 }
 
 // Type assertion helpers for better testability
@@ -861,10 +886,37 @@ func TestLoggerUnwrap(t *testing.T) {
 
 // TestInvalidLogLevel tests behaviour with invalid log levels
 func TestInvalidLogLevel(t *testing.T) {
-	core.AssertPanic(t, func() {
-		var buf bytes.Buffer
-		logrLogger := createTestLogger(&buf)
-		logger := New(logrLogger)
-		logger.WithLevel(slog.UndefinedLevel)
-	}, nil, "invalid level panic")
+	t.Run("UndefinedLevel", func(t *testing.T) {
+		core.AssertPanic(t, func() {
+			var buf bytes.Buffer
+			logrLogger := createTestLogger(&buf)
+			logger := New(logrLogger)
+			logger.WithLevel(slog.UndefinedLevel)
+		}, nil, "undefined level panic")
+	})
+
+	t.Run("NegativeLevel", func(t *testing.T) {
+		core.AssertPanic(t, func() {
+			var buf bytes.Buffer
+			logrLogger := createTestLogger(&buf)
+			logger := New(logrLogger)
+			logger.WithLevel(slog.LogLevel(-1))
+		}, nil, "negative level panic")
+	})
+}
+
+// TestWithLevelSameLevel tests WithLevel when called with the same level
+func TestWithLevelSameLevel(t *testing.T) {
+	var buf bytes.Buffer
+	logrLogger := createTestLogger(&buf)
+	logger := New(logrLogger)
+
+	// Create an Info level logger
+	infoLogger := logger.Info()
+
+	// Call WithLevel with the same level (Info)
+	sameLogger := infoLogger.WithLevel(slog.Info)
+
+	// Should return the same logger instance
+	slogtest.AssertSame(t, infoLogger, sameLogger, "same level logger")
 }
