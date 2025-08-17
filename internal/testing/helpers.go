@@ -9,6 +9,22 @@ import (
 	"darvaza.org/slog"
 )
 
+// logLevelInfo holds information about a log level for testing purposes.
+type logLevelInfo struct {
+	method func(slog.Logger) slog.Logger
+	level  slog.LogLevel
+	name   string
+}
+
+// newLogLevelInfo creates a new log level info instance.
+func newLogLevelInfo(name string, method func(slog.Logger) slog.Logger, level slog.LogLevel) logLevelInfo {
+	return logLevelInfo{
+		name:   name,
+		method: method,
+		level:  level,
+	}
+}
+
 // Run executes a test function with the provided name, adapting to different test interfaces.
 // It automatically handles both *testing.T and core.MockT implementations.
 func Run(t core.T, name string, fn func(core.T)) {
@@ -175,22 +191,14 @@ func RunWithLoggerFactory(t core.T, name string, newLogger func() slog.Logger, f
 }
 
 // logLevels returns all log levels for testing.
-func logLevels() []struct {
-	name   string
-	method func(slog.Logger) slog.Logger
-	level  slog.LogLevel
-} {
-	return []struct {
-		name   string
-		method func(slog.Logger) slog.Logger
-		level  slog.LogLevel
-	}{
-		{"Debug", func(l slog.Logger) slog.Logger { return l.Debug() }, slog.Debug},
-		{"Info", func(l slog.Logger) slog.Logger { return l.Info() }, slog.Info},
-		{"Warn", func(l slog.Logger) slog.Logger { return l.Warn() }, slog.Warn},
-		{"Error", func(l slog.Logger) slog.Logger { return l.Error() }, slog.Error},
-		{"Fatal", func(l slog.Logger) slog.Logger { return l.Fatal() }, slog.Fatal},
-		{"Panic", func(l slog.Logger) slog.Logger { return l.Panic() }, slog.Panic},
+func logLevels() []logLevelInfo {
+	return []logLevelInfo{
+		newLogLevelInfo("Debug", (slog.Logger).Debug, slog.Debug),
+		newLogLevelInfo("Info", (slog.Logger).Info, slog.Info),
+		newLogLevelInfo("Warn", (slog.Logger).Warn, slog.Warn),
+		newLogLevelInfo("Error", (slog.Logger).Error, slog.Error),
+		newLogLevelInfo("Fatal", (slog.Logger).Fatal, slog.Fatal),
+		newLogLevelInfo("Panic", (slog.Logger).Panic, slog.Panic),
 	}
 }
 

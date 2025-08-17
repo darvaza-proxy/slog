@@ -10,6 +10,48 @@ import (
 	"darvaza.org/slog"
 )
 
+// TestCase interface validation
+var _ core.TestCase = printMethodTestCase{}
+
+// printMethodTestCase tests different print methods functionality.
+type printMethodTestCase struct {
+	ct     *ComplianceTest
+	method func(slog.Logger, ...any)
+	name   string
+}
+
+// Name returns the test case name.
+func (tc printMethodTestCase) Name() string {
+	return tc.name
+}
+
+// Test executes the print method test.
+func (tc printMethodTestCase) Test(t *testing.T) {
+	t.Helper()
+	logger := tc.ct.NewLogger()
+
+	// Test with no args
+	tc.method(logger.Info())
+
+	// Test with single arg
+	tc.method(logger.Info(), "test")
+
+	// Test with multiple args
+	tc.method(logger.Info(), "test", 123, true)
+
+	// Test with nil arg
+	tc.method(logger.Info(), nil)
+}
+
+// newPrintMethodTestCase creates a new print method test case.
+func newPrintMethodTestCase(name string, ct *ComplianceTest, method func(slog.Logger, ...any)) printMethodTestCase {
+	return printMethodTestCase{
+		name:   name,
+		ct:     ct,
+		method: method,
+	}
+}
+
 // ComplianceTest runs a comprehensive test suite to verify that a logger
 // implementation correctly implements the slog.Logger interface.
 type ComplianceTest struct {
@@ -89,57 +131,23 @@ func (ct ComplianceTest) testFieldMethods(t *testing.T) {
 
 func (ct ComplianceTest) testPrintMethods(t *testing.T) {
 	t.Helper()
-	tests := []struct {
-		name   string
-		method func(slog.Logger, ...any)
-	}{
-		{
-			name: "Print",
-			method: func(l slog.Logger, args ...any) {
-				l.Print(args...)
-			},
-		},
-		{
-			name: "Println",
-			method: func(l slog.Logger, args ...any) {
-				l.Println(args...)
-			},
-		},
-		{
-			name: "Printf",
-			method: func(l slog.Logger, args ...any) {
-				if len(args) > 0 {
-					l.Printf("%v", args[0])
-				} else {
-					l.Printf("test")
-				}
-			},
-		},
+	tests := []printMethodTestCase{
+		newPrintMethodTestCase("Print", &ct, func(l slog.Logger, args ...any) {
+			l.Print(args...)
+		}),
+		newPrintMethodTestCase("Println", &ct, func(l slog.Logger, args ...any) {
+			l.Println(args...)
+		}),
+		newPrintMethodTestCase("Printf", &ct, func(l slog.Logger, args ...any) {
+			if len(args) > 0 {
+				l.Printf("%v", args[0])
+			} else {
+				l.Printf("test")
+			}
+		}),
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ct.testPrintMethod(t, tc.method)
-		})
-	}
-}
-
-// testPrintMethod tests a single print method with various arguments
-func (ct ComplianceTest) testPrintMethod(t *testing.T, method func(slog.Logger, ...any)) {
-	t.Helper()
-	logger := ct.NewLogger()
-
-	// Test with no args
-	method(logger.Info())
-
-	// Test with single arg
-	method(logger.Info(), "test")
-
-	// Test with multiple args
-	method(logger.Info(), "test", 123, true)
-
-	// Test with nil arg
-	method(logger.Info(), nil)
+	core.RunTestCases(t, tests)
 }
 
 func (ct ComplianceTest) testEnabledMethod(t *testing.T) {
