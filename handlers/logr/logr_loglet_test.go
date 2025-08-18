@@ -7,8 +7,47 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/handlers/mock"
 	slogtest "darvaza.org/slog/internal/testing"
 )
+
+// TestCase interface validation
+var _ core.TestCase = levelMappingTestCase{}
+
+// levelMappingTestCase tests level mapping between slog and logr levels.
+type levelMappingTestCase struct {
+	level    slog.LogLevel
+	expected slog.LogLevel
+	name     string
+}
+
+// Name returns the test case name.
+func (tc levelMappingTestCase) Name() string {
+	return tc.name
+}
+
+// Test executes the level mapping test.
+func (tc levelMappingTestCase) Test(t *testing.T) {
+	t.Helper()
+	recorder := mock.NewLogger()
+	logrLogger := NewLogr(recorder)
+	testLogger := New(logrLogger)
+
+	testLogger.WithLevel(tc.level).Print("test message")
+
+	messages := recorder.GetMessages()
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	slogtest.AssertMessage(t, messages[0], tc.expected, "test message")
+}
+
+// newLevelMappingTestCase creates a new level mapping test case.
+func newLevelMappingTestCase(name string, level, expected slog.LogLevel) levelMappingTestCase {
+	return levelMappingTestCase{
+		name:     name,
+		level:    level,
+		expected: expected,
+	}
+}
 
 // createTestLoggerWithBuffer creates a test logger with the given buffer
 func createTestLoggerWithBuffer(buf *bytes.Buffer) *Logger {
@@ -225,46 +264,24 @@ func testFieldPreservation(t *testing.T, logger slog.Logger, recorder *slogtest.
 	slogtest.AssertField(t, messages[0], "key2", 42)
 }
 
-// testLevelMapping tests level mapping functionality with recorder
-func testLevelMapping(t *testing.T, logger slog.Logger, recorder *slogtest.Logger) {
+// testLevelMapping tests level mapping functionality
+func testLevelMapping(t *testing.T) {
 	t.Helper()
-	testCases := []struct {
-		name     string
-		level    slog.LogLevel
-		expected slog.LogLevel
-	}{
-		{"Debug", slog.Debug, slog.Debug},
-		{"Info", slog.Info, slog.Info},
-		{"Warn", slog.Warn, slog.Info}, // logr maps Warn to Info
-		{"Error", slog.Error, slog.Error},
+	testCases := []levelMappingTestCase{
+		newLevelMappingTestCase("Debug", slog.Debug, slog.Debug),
+		newLevelMappingTestCase("Info", slog.Info, slog.Info),
+		newLevelMappingTestCase("Warn", slog.Warn, slog.Info), // logr maps Warn to Info
+		newLevelMappingTestCase("Error", slog.Error, slog.Error),
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			testSingleLevelMapping(t, logger, recorder, tc.level, tc.expected)
-		})
-	}
-}
-
-// testSingleLevelMapping tests a single level mapping
-func testSingleLevelMapping(
-	t *testing.T, logger slog.Logger, recorder *slogtest.Logger,
-	level slog.LogLevel, expected slog.LogLevel,
-) {
-	t.Helper()
-	recorder.Clear()
-	logger.WithLevel(level).Print("test message")
-
-	messages := recorder.GetMessages()
-	slogtest.AssertMustMessageCount(t, messages, 1)
-	slogtest.AssertMessage(t, messages[0], expected, "test message")
+	core.RunTestCases(t, testCases)
 }
 
 // TestLoggerWithRecorder tests Logger using test recorder for better verification
 func TestLoggerWithRecorder(t *testing.T) {
 	RunWithRecorder("BasicLogging", t, testBasicLoggingWithRecorder)
 	RunWithRecorder("FieldPreservation", t, testFieldPreservation)
-	RunWithRecorder("LevelMapping", t, testLevelMapping)
+	t.Run("LevelMapping", testLevelMapping)
 }
 
 // TestLoggerFieldIsolation tests that field modifications don't affect other loggers

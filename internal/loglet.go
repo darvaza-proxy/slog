@@ -47,8 +47,8 @@ func (ll *Loglet) IsZero() bool {
 // GetParent returns the parent loglet with circular reference protection.
 // Returns nil if parent points to self, preventing infinite loops during traversal.
 func (ll *Loglet) GetParent() *Loglet {
-	switch {
-	case ll == nil, ll == ll.parent:
+	switch ll {
+	case nil, ll.parent:
 		return nil
 	default:
 		return ll.parent

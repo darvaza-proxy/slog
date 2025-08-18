@@ -11,6 +11,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/handlers/mock"
 	slogzap "darvaza.org/slog/handlers/zap"
 	slogtest "darvaza.org/slog/internal/testing"
 )
@@ -80,6 +81,7 @@ func TestSlogCoreFields(t *testing.T) {
 func TestSlogCoreErrorCases(t *testing.T) {
 	t.Run("NilLogger", runTestSlogCoreNilLogger)
 	t.Run("NilLevel", runTestSlogCoreNilLevel)
+	t.Run("InvalidLevel", runTestZapLoggerInvalidLevel)
 }
 
 func TestSlogCoreSync(t *testing.T) {
@@ -150,7 +152,7 @@ func TestSlogCoreWithConfigurations(t *testing.T) {
 
 func runTestSlogCoreBasic(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	// Create a zap logger using our SlogCore
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
@@ -170,7 +172,7 @@ func runTestSlogCoreBasic(t *testing.T) {
 
 func runTestSlogCoreWithFields(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 	zapLogger := zap.New(zapCore)
@@ -192,7 +194,7 @@ func runTestSlogCoreWithFields(t *testing.T) {
 
 func runTestSlogCoreWith(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 	zapLogger := zap.New(zapCore)
@@ -218,7 +220,7 @@ func runTestSlogCoreWith(t *testing.T) {
 
 func runTestSlogCoreWithEmpty(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// With() should return the same core when no fields are provided
@@ -240,7 +242,7 @@ func (tc levelTestCase) Name() string {
 
 func (tc levelTestCase) Test(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, tc.zapLevel)
 	zapLogger := zap.New(zapCore)
 
@@ -283,7 +285,7 @@ func runTestSlogCoreLevels(t *testing.T) {
 
 func runTestSlogCoreEnabled(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	// Create core with Info level
 	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
@@ -299,7 +301,7 @@ func runTestSlogCoreEnabled(t *testing.T) {
 
 func runTestNewZapLogger(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	// Create zap logger using convenience function
 	zapLogger := slogzap.NewZapLogger(recorder)
@@ -319,7 +321,7 @@ func runTestNewZapLogger(t *testing.T) {
 
 func runTestSlogCoreWithCaller(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	// Create zap logger with caller info
 	zapLogger := slogzap.NewZapLogger(recorder, zap.AddCaller())
@@ -338,7 +340,7 @@ func runTestSlogCoreWithCaller(t *testing.T) {
 
 func runTestSlogCoreCallerUndefined(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// Create entry without caller info
@@ -361,7 +363,7 @@ func runTestSlogCoreCallerUndefined(t *testing.T) {
 
 func runTestSlogCoreWithStack(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// Create an entry with stack trace
@@ -386,7 +388,7 @@ func runTestSlogCoreWithStack(t *testing.T) {
 
 func runTestSlogCoreComplexFields(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	zapLogger := slogzap.NewZapLogger(recorder)
 
@@ -440,7 +442,7 @@ func runTestSlogCoreNilLogger(t *testing.T) {
 
 func runTestSlogCoreNilLevel(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	// Should default to InfoLevel
 	zapCore := slogzap.NewCore(recorder, nil)
@@ -453,7 +455,7 @@ func runTestSlogCoreNilLevel(t *testing.T) {
 }
 
 func runTestSlogCoreSync(t *testing.T) {
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
 
@@ -464,7 +466,7 @@ func runTestSlogCoreSync(t *testing.T) {
 func runTestBidirectionalSlogToZap(t *testing.T) {
 	t.Helper()
 	// Test slog → zap: Use slog backend with zap API
-	baseRecorder := slogtest.NewLogger()
+	baseRecorder := mock.NewLogger()
 	zapLogger := slogzap.NewZapLogger(baseRecorder)
 
 	// Use zap API
@@ -503,7 +505,7 @@ func runTestBidirectionalZapToSlog(t *testing.T) {
 func runTestBidirectionalCompatibility(t *testing.T) {
 	t.Helper()
 	// Verify both directions work with the same field types
-	baseRecorder := slogtest.NewLogger()
+	baseRecorder := mock.NewLogger()
 	zapLogger := slogzap.NewZapLogger(baseRecorder)
 
 	// Test complex field types through the adapter
@@ -526,7 +528,7 @@ func runTestBidirectionalCompatibility(t *testing.T) {
 }
 
 func runTestSlogCoreConcurrent(t *testing.T) {
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapLogger := slogzap.NewZapLogger(recorder)
 
 	const goroutines = 10
@@ -570,7 +572,7 @@ func runTestSlogCoreConcurrent(t *testing.T) {
 
 func runTestSlogCoreCheckDisabled(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 
 	// Create core with Info level
 	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
@@ -597,7 +599,7 @@ func runTestSlogCoreCheckDisabled(t *testing.T) {
 
 func runTestSlogCoreFatalWrite(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	// We can't actually test os.Exit, but we can verify the Fatal log is written
@@ -659,7 +661,7 @@ func runTestDPanicLevel(t *testing.T, zapCore zapcore.Core) {
 
 func runTestSlogCorePanicWrite(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
 	t.Run("PanicLevel", func(t *testing.T) {
@@ -673,7 +675,7 @@ func runTestSlogCorePanicWrite(t *testing.T) {
 
 func runTestConvertFieldsEmpty(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.InfoLevel)
 	zapLogger := zap.New(zapCore)
 
@@ -701,6 +703,19 @@ func runTestConvertFieldsEmpty(t *testing.T) {
 		"Expected empty fields map for empty field slice, got %v", messages[0].Fields)
 }
 
+// runTestZapLoggerInvalidLevel tests invalid level handling in zap logger
+func runTestZapLoggerInvalidLevel(t *testing.T) {
+	t.Helper()
+	zapConfig := slogzap.NewDefaultConfig()
+	logger, err := slogzap.New(zapConfig)
+	core.AssertMustNil(t, err, "create logger")
+
+	// Test invalid level panic - use a value above normal range but within int8
+	core.AssertPanic(t, func() {
+		logger.WithLevel(slog.LogLevel(100)).Print("invalid level")
+	}, nil, "invalid level panic")
+}
+
 // mapTestCase represents a test case for zap to slog level mapping
 type mapTestCase struct {
 	name              string
@@ -715,7 +730,7 @@ func (tc mapTestCase) Name() string {
 
 func (tc mapTestCase) Test(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zapcore.DebugLevel)
 
 	if tc.shouldPanic {
@@ -758,7 +773,7 @@ func (tc configTestCase) Name() string {
 
 func (tc configTestCase) Test(t *testing.T) {
 	t.Helper()
-	recorder := slogtest.NewLogger()
+	recorder := mock.NewLogger()
 	// Create zap logger with specific config
 	zapLogger, err := tc.config.Build(zap.WrapCore(func(_ zapcore.Core) zapcore.Core {
 		return slogzap.NewCore(recorder, zap.InfoLevel)

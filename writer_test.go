@@ -7,7 +7,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
-	slogtest "darvaza.org/slog/internal/testing"
+	"darvaza.org/slog/handlers/mock"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -22,7 +22,7 @@ func TestNewLogWriter(t *testing.T) {
 
 func testNewLogWriterBasic(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	core.AssertNotNil(t, writer, "log writer")
@@ -37,7 +37,7 @@ func testNewLogWriterNilLogger(t *testing.T) {
 
 func testNewLogWriterNilHandler(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	// Should use default handler
@@ -55,7 +55,7 @@ func testNewLogWriterNilHandler(t *testing.T) {
 
 func testNewLogWriterCustomHandler(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	called := false
 
 	customHandler := func(l slog.Logger, s string) error {
@@ -87,7 +87,7 @@ func TestLogWriterWrite(t *testing.T) {
 
 func testLogWriterWriteBasic(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	message := "basic test message"
@@ -114,7 +114,7 @@ func (tc logWriterNewlineTestCase) Name() string {
 
 func (tc logWriterNewlineTestCase) Test(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	n, err := writer.Write([]byte(tc.input))
@@ -150,7 +150,7 @@ func testLogWriterWriteNewlines(t *testing.T) {
 
 func testLogWriterWriteEmpty(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	n, err := writer.Write([]byte(""))
@@ -164,7 +164,7 @@ func testLogWriterWriteEmpty(t *testing.T) {
 
 func testLogWriterWriteError(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	expectedErr := errors.New("handler error")
 
 	errorHandler := func(slog.Logger, string) error {
@@ -180,7 +180,7 @@ func testLogWriterWriteError(t *testing.T) {
 
 func testLogWriterWriteMultiple(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	messages := []string{"first", "second", "third"}
@@ -207,7 +207,7 @@ func TestLogWriterHandlerTypes(t *testing.T) {
 
 func testLogWriterDefaultHandler(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	writer := slog.NewLogWriter(logger, nil)
 
 	// Test that default handler just calls Print
@@ -221,7 +221,7 @@ func testLogWriterDefaultHandler(t *testing.T) {
 
 func testLogWriterCustomTransform(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 
 	transformHandler := func(l slog.Logger, s string) error {
 		// Transform message to uppercase with prefix
@@ -242,7 +242,7 @@ func testLogWriterCustomTransform(t *testing.T) {
 
 func testLogWriterFilteringHandler(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	filtered := 0
 
 	filteringHandler := func(l slog.Logger, s string) error {

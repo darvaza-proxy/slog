@@ -6,7 +6,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
-	slogtest "darvaza.org/slog/internal/testing"
+	"darvaza.org/slog/handlers/mock"
 )
 
 func TestWithLogger(t *testing.T) {
@@ -17,7 +17,7 @@ func TestWithLogger(t *testing.T) {
 
 func testWithLoggerStore(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	ctx := context.Background()
 
 	// Store logger in context
@@ -50,8 +50,8 @@ func testWithLoggerNil(t *testing.T) {
 
 func testWithLoggerPropagation(t *testing.T) {
 	t.Helper()
-	logger1 := slogtest.NewLogger()
-	logger2 := slogtest.NewLogger()
+	logger1 := mock.NewLogger()
+	logger2 := mock.NewLogger()
 
 	ctx := context.Background()
 
@@ -91,7 +91,7 @@ func testGetLoggerEmpty(t *testing.T) {
 
 func testGetLoggerWithLogger(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	ctx := slog.WithLogger(context.Background(), logger)
 
 	// Should retrieve the stored logger
@@ -102,8 +102,8 @@ func testGetLoggerWithLogger(t *testing.T) {
 
 func testGetLoggerChain(t *testing.T) {
 	t.Helper()
-	logger1 := slogtest.NewLogger()
-	logger2 := slogtest.NewLogger()
+	logger1 := mock.NewLogger()
+	logger2 := mock.NewLogger()
 
 	// Create context chain
 	ctx := context.Background()
@@ -132,7 +132,7 @@ func testGetLoggerChain(t *testing.T) {
 
 func TestContextKeyIsolation(t *testing.T) {
 	t.Helper()
-	logger := slogtest.NewLogger()
+	logger := mock.NewLogger()
 	ctx := context.Background()
 
 	// Store logger
