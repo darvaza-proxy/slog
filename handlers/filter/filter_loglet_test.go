@@ -8,6 +8,24 @@ import (
 	"darvaza.org/slog/handlers/filter"
 )
 
+func TestLevel(t *testing.T) {
+	// Test nil receiver for LogEntry.Level()
+	var nilEntry *filter.LogEntry
+	core.AssertEqual(t, slog.UndefinedLevel, nilEntry.Level(), "nil log entry level")
+
+	// Test normal functionality
+	parent := &mockLogger{enabled: true}
+	logger := filter.New(parent, slog.Info)
+
+	infoEntry := logger.Info()
+	filterEntry := core.AssertMustTypeIs[*filter.LogEntry](t, infoEntry, "info entry type")
+	core.AssertEqual(t, slog.Info, filterEntry.Level(), "info level")
+
+	errorEntry := logger.Error()
+	filterError := core.AssertMustTypeIs[*filter.LogEntry](t, errorEntry, "error entry type")
+	core.AssertEqual(t, slog.Error, filterError.Level(), "error level")
+}
+
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = filterLogletTestCase{}
 

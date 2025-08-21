@@ -12,7 +12,7 @@ var (
 
 // Logger implements a factory for level filtered loggers
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	// Parent is the Logger to used as backend when conditions are met
 	Parent slog.Logger
@@ -89,7 +89,7 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	}
 
 	return &LogEntry{
-		Loglet: l.Loglet.WithLevel(level),
+		loglet: l.loglet.WithLevel(level),
 		logger: l,
 		entry:  entry,
 	}
@@ -98,7 +98,7 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 // WithStack does nothing
 func (l *Logger) WithStack(skip int) slog.Logger {
 	return &Logger{
-		Loglet:         l.Loglet.WithStack(skip + 1),
+		loglet:         l.loglet.WithStack(skip + 1),
 		Parent:         l.Parent,
 		Threshold:      l.Threshold,
 		FieldFilter:    l.FieldFilter,
@@ -112,7 +112,7 @@ func (l *Logger) WithStack(skip int) slog.Logger {
 func (l *Logger) WithField(label string, value any) slog.Logger {
 	if label != "" {
 		return &Logger{
-			Loglet:         l.Loglet.WithField(label, value),
+			loglet:         l.loglet.WithField(label, value),
 			Parent:         l.Parent,
 			Threshold:      l.Threshold,
 			FieldFilter:    l.FieldFilter,
@@ -128,7 +128,7 @@ func (l *Logger) WithField(label string, value any) slog.Logger {
 func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
 		return &Logger{
-			Loglet:         l.Loglet.WithFields(fields),
+			loglet:         l.loglet.WithFields(fields),
 			Parent:         l.Parent,
 			Threshold:      l.Threshold,
 			FieldFilter:    l.FieldFilter,

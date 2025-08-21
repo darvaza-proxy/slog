@@ -16,10 +16,18 @@ var (
 
 // LogEntry implements a level filtered logger
 type LogEntry struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	logger *Logger
 	entry  slog.Logger
+}
+
+// Level returns the current log level. Exposed for testing only.
+func (l *LogEntry) Level() slog.LogLevel {
+	if l == nil {
+		return slog.UndefinedLevel
+	}
+	return l.loglet.Level()
 }
 
 // Enabled tells this logger would record logs
@@ -27,7 +35,7 @@ func (l *LogEntry) Enabled() bool {
 	if l == nil || l.logger == nil {
 		return false
 	}
-	level := l.Level()
+	level := l.loglet.Level()
 	if level <= slog.UndefinedLevel || level > l.logger.Threshold {
 		return false
 	}
@@ -79,7 +87,7 @@ func (l *LogEntry) msg(msg string) {
 		// parentless is either Fatal or Panic
 		_ = log.Output(3, msg)
 
-		if l.Level() != slog.Fatal {
+		if l.loglet.Level() != slog.Fatal {
 			panic(msg)
 		}
 
@@ -128,7 +136,7 @@ func (l *LogEntry) WithLevel(level slog.LogLevel) slog.Logger {
 // WithStack would, if conditions are met, attach a call stack to the log entry
 func (l *LogEntry) WithStack(skip int) slog.Logger {
 	out := &LogEntry{
-		Loglet: l.Loglet.WithStack(skip + 1),
+		loglet: l.loglet.WithStack(skip + 1),
 		logger: l.logger,
 		entry:  l.entry,
 	}
@@ -144,7 +152,7 @@ func (l *LogEntry) WithStack(skip int) slog.Logger {
 func (l *LogEntry) WithField(label string, value any) slog.Logger {
 	if label != "" {
 		out := &LogEntry{
-			Loglet: l.Loglet.WithField(label, value),
+			loglet: l.loglet.WithField(label, value),
 			logger: l.logger,
 			entry:  l.entry,
 		}
@@ -188,7 +196,7 @@ func (l *LogEntry) addField(label string, value any) {
 func (l *LogEntry) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
 		out := &LogEntry{
-			Loglet: l.Loglet.WithFields(fields),
+			loglet: l.loglet.WithFields(fields),
 			logger: l.logger,
 			entry:  l.entry,
 		}
