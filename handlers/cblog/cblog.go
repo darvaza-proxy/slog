@@ -30,9 +30,17 @@ type LogMsg struct {
 
 // Logger is a slog.Logger using a channel as backend
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	l *cblog
+}
+
+// Level returns the current log level. Exposed for testing only.
+func (l *Logger) Level() slog.LogLevel {
+	if l == nil {
+		return slog.UndefinedLevel
+	}
+	return l.loglet.Level()
 }
 
 type cblog struct {
@@ -69,8 +77,8 @@ func (l *Logger) Printf(format string, args ...any) {
 func (l *Logger) sendMsg(msg string) {
 	var m map[string]any
 
-	if n := l.FieldsCount(); n > 0 {
-		iter := l.Fields()
+	if n := l.loglet.FieldsCount(); n > 0 {
+		iter := l.loglet.Fields()
 
 		m = make(map[string]any, n)
 
@@ -83,9 +91,9 @@ func (l *Logger) sendMsg(msg string) {
 
 	l.l.ch <- LogMsg{
 		Message: strings.TrimSpace(msg),
-		Level:   l.Level(),
+		Level:   l.loglet.Level(),
 		Fields:  m,
-		Stack:   l.CallStack(),
+		Stack:   l.loglet.CallStack(),
 	}
 }
 
@@ -124,12 +132,12 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
 		// fix your code
 		l.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if level == l.Level() {
+	} else if level == l.loglet.Level() {
 		return l
 	}
 
 	out := &Logger{
-		Loglet: l.Loglet.WithLevel(level),
+		loglet: l.loglet.WithLevel(level),
 		l:      l.l,
 	}
 	return out
@@ -138,7 +146,7 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 // WithStack attaches a call stack to a new logger
 func (l *Logger) WithStack(skip int) slog.Logger {
 	out := &Logger{
-		Loglet: l.Loglet.WithStack(skip + 1),
+		loglet: l.loglet.WithStack(skip + 1),
 		l:      l.l,
 	}
 	return out
@@ -148,7 +156,7 @@ func (l *Logger) WithStack(skip int) slog.Logger {
 func (l *Logger) WithField(label string, value any) slog.Logger {
 	if label != "" {
 		out := &Logger{
-			Loglet: l.Loglet.WithField(label, value),
+			loglet: l.loglet.WithField(label, value),
 			l:      l.l,
 		}
 		return out
@@ -160,7 +168,7 @@ func (l *Logger) WithField(label string, value any) slog.Logger {
 func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
 		out := &Logger{
-			Loglet: l.Loglet.WithFields(fields),
+			loglet: l.loglet.WithFields(fields),
 			l:      l.l,
 		}
 		return out
