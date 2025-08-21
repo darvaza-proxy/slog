@@ -14,6 +14,16 @@ import (
 	slogzerolog "darvaza.org/slog/handlers/zerolog"
 )
 
+func TestLevel(t *testing.T) {
+	zl := zerolog.New(bytes.NewBuffer(nil))
+	logger := slogzerolog.New(&zl)
+	zlLogger := core.AssertMustTypeIs[*slogzerolog.Logger](t, logger, "logger type")
+	core.AssertEqual(t, slog.UndefinedLevel, zlLogger.Level(), "default level")
+
+	debugLogger := core.AssertMustTypeIs[*slogzerolog.Logger](t, logger.Debug(), "debug logger type")
+	core.AssertEqual(t, slog.Debug, debugLogger.Level(), "debug level")
+}
+
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = zerologLogletTestCase{}
 
