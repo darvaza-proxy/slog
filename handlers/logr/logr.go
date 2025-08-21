@@ -160,14 +160,6 @@ func (ll *Logger) Panic() slog.Logger {
 	return ll.WithLevel(slog.Panic)
 }
 
-// withLoglet creates a new Logger with the given Loglet
-func (ll *Logger) withLoglet(loglet internal.Loglet) *Logger {
-	return &Logger{
-		loglet: loglet,
-		logger: ll.logger,
-	}
-}
-
 // WithLevel returns a new logger set to add entries to the specified level
 func (ll *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
@@ -177,18 +169,27 @@ func (ll *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 		return ll
 	}
 
-	return ll.withLoglet(ll.loglet.WithLevel(level))
+	return &Logger{
+		loglet: ll.loglet.WithLevel(level),
+		logger: ll.logger,
+	}
 }
 
 // WithStack attaches a call stack to a new logger
 func (ll *Logger) WithStack(skip int) slog.Logger {
-	return ll.withLoglet(ll.loglet.WithStack(skip + 1))
+	return &Logger{
+		loglet: ll.loglet.WithStack(skip + 1),
+		logger: ll.logger,
+	}
 }
 
 // WithField returns a new logger with a field attached
 func (ll *Logger) WithField(label string, value any) slog.Logger {
 	if label != "" {
-		return ll.withLoglet(ll.loglet.WithField(label, value))
+		return &Logger{
+			loglet: ll.loglet.WithField(label, value),
+			logger: ll.logger,
+		}
 	}
 	return ll
 }
@@ -196,7 +197,10 @@ func (ll *Logger) WithField(label string, value any) slog.Logger {
 // WithFields returns a new logger with a set of fields attached
 func (ll *Logger) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
-		return ll.withLoglet(ll.loglet.WithFields(fields))
+		return &Logger{
+			loglet: ll.loglet.WithFields(fields),
+			logger: ll.logger,
+		}
 	}
 	return ll
 }
