@@ -12,6 +12,22 @@ import (
 	slogrus "darvaza.org/slog/handlers/logrus"
 )
 
+func TestLevel(t *testing.T) {
+	// Test nil receiver
+	var nilLogger *slogrus.Logger
+	core.AssertEqual(t, slog.UndefinedLevel, nilLogger.Level(), "nil logger level")
+
+	// Test normal logger
+	logrusLogger := logrus.New()
+	logger := slogrus.New(logrusLogger)
+	rlLogger := core.AssertMustTypeIs[*slogrus.Logger](t, logger, "logger type")
+	core.AssertEqual(t, slog.UndefinedLevel, rlLogger.Level(), "default level")
+
+	// Test level-specific logger
+	warnLogger := core.AssertMustTypeIs[*slogrus.Logger](t, logger.Warn(), "warn logger type")
+	core.AssertEqual(t, slog.Warn, warnLogger.Level(), "warn level")
+}
+
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = logrusLevelTestCase{}
 

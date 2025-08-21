@@ -23,7 +23,7 @@ var (
 
 // Logger is an adaptor using go.uber.org/zap as slog.Logger
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	logger *zap.Logger
 	config *zap.Config
@@ -34,15 +34,23 @@ func (zpl *Logger) Unwrap() (*zap.Logger, *zap.Config) {
 	return zpl.logger, zpl.config
 }
 
+// Level returns the current log level. Exposed for testing only.
+func (zpl *Logger) Level() slog.LogLevel {
+	if zpl == nil {
+		return slog.UndefinedLevel
+	}
+	return zpl.loglet.Level()
+}
+
 // Enabled tells this logger is enabled
 func (zpl *Logger) Enabled() bool {
 	if zpl == nil || zpl.logger == nil {
 		return false
 	}
 
-	level := mapToZapLevel(zpl.Level())
+	level := mapToZapLevel(zpl.loglet.Level())
 	if level == zapcore.InvalidLevel {
-		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.Level())
+		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.loglet.Level())
 	}
 
 	return zpl.logger.Core().Enabled(level)
@@ -76,17 +84,17 @@ func (zpl *Logger) Printf(format string, args ...any) {
 
 func (zpl *Logger) logMessage(msg string) {
 	msg = strings.TrimSpace(msg)
-	level := mapToZapLevel(zpl.Level())
+	level := mapToZapLevel(zpl.loglet.Level())
 	if level == zapcore.InvalidLevel {
-		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.Level())
+		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.loglet.Level())
 	}
 
 	// Check if we can log at this level
 	if ce := zpl.logger.Check(level, msg); ce != nil {
 		// Add fields from Loglet chain
-		if n := zpl.FieldsCount(); n > 0 {
+		if n := zpl.loglet.FieldsCount(); n > 0 {
 			fields := make([]zap.Field, 0, n)
-			iter := zpl.Fields()
+			iter := zpl.loglet.Fields()
 			for iter.Next() {
 				k, v := iter.Field()
 				fields = append(fields, zap.Any(k, v))
@@ -133,12 +141,12 @@ func (zpl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
 		// fix your code
 		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if level == zpl.Level() {
+	} else if level == zpl.loglet.Level() {
 		return zpl
 	}
 
 	return &Logger{
-		Loglet: zpl.Loglet.WithLevel(level),
+		loglet: zpl.loglet.WithLevel(level),
 		logger: zpl.logger,
 		config: zpl.config,
 	}
@@ -147,7 +155,7 @@ func (zpl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 // WithStack attaches a call stack to a new logger
 func (zpl *Logger) WithStack(skip int) slog.Logger {
 	return &Logger{
-		Loglet: zpl.Loglet.WithStack(skip + 1),
+		loglet: zpl.loglet.WithStack(skip + 1),
 		logger: zpl.logger,
 		config: zpl.config,
 	}
@@ -157,7 +165,7 @@ func (zpl *Logger) WithStack(skip int) slog.Logger {
 func (zpl *Logger) WithField(label string, value any) slog.Logger {
 	if label != "" {
 		return &Logger{
-			Loglet: zpl.Loglet.WithField(label, value),
+			loglet: zpl.loglet.WithField(label, value),
 			logger: zpl.logger,
 			config: zpl.config,
 		}
@@ -169,7 +177,7 @@ func (zpl *Logger) WithField(label string, value any) slog.Logger {
 func (zpl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
 		return &Logger{
-			Loglet: zpl.Loglet.WithFields(fields),
+			loglet: zpl.loglet.WithFields(fields),
 			logger: zpl.logger,
 			config: zpl.config,
 		}
@@ -187,7 +195,7 @@ func New(cfg *zap.Config, zapOptions ...zap.Option) (slog.Logger, error) {
 func (zpl *Logger) NewWithCallback(fn func(lv zapcore.Entry) error) *Logger {
 	if fn != nil && zpl != nil {
 		return &Logger{
-			Loglet: zpl.Loglet,
+			loglet: zpl.loglet.Copy(),
 			logger: zpl.logger.WithOptions(zap.Hooks(fn)),
 			config: zpl.config,
 		}
@@ -217,7 +225,7 @@ func newLogger(cfg *zap.Config, zapOptions ...zap.Option) (*Logger, error) {
 
 	loglet := &internal.Loglet{}
 	return &Logger{
-		Loglet: loglet.WithLevel(getConfigLevel(cfg)),
+		loglet: loglet.WithLevel(getConfigLevel(cfg)),
 		logger: lg,
 		config: cfg,
 	}, nil

@@ -27,10 +27,18 @@ const (
 
 // Logger is an adaptor for using github.com/sirupsen/logrus as slog.Logger
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	logger *logrus.Logger
 	entry  *logrus.Entry
+}
+
+// Level returns the current log level. Exposed for testing only.
+func (rl *Logger) Level() slog.LogLevel {
+	if rl == nil {
+		return slog.UndefinedLevel
+	}
+	return rl.loglet.Level()
 }
 
 // Enabled tells if the logger is enabled
@@ -39,7 +47,7 @@ func (rl *Logger) Enabled() bool {
 		// invalid
 		return false
 	}
-	level := mapToLogrusLevel(rl.Level())
+	level := mapToLogrusLevel(rl.loglet.Level())
 	return rl.logger.IsLevelEnabled(level)
 }
 
@@ -70,13 +78,13 @@ func (rl *Logger) Printf(format string, args ...any) {
 }
 
 func (rl *Logger) msg(msg string) {
-	level := mapToLogrusLevel(rl.Level())
+	level := mapToLogrusLevel(rl.loglet.Level())
 
 	// Build entry with fields from Loglet chain
 	entry := rl.entry
-	if n := rl.FieldsCount(); n > 0 {
+	if n := rl.loglet.FieldsCount(); n > 0 {
 		fields := make(logrus.Fields, n)
-		iter := rl.Fields()
+		iter := rl.loglet.Fields()
 		for iter.Next() {
 			k, v := iter.Field()
 			fields[k] = v
@@ -85,7 +93,7 @@ func (rl *Logger) msg(msg string) {
 	}
 
 	// Add stack trace if present
-	if stack := rl.CallStack(); len(stack) > 0 {
+	if stack := rl.loglet.CallStack(); len(stack) > 0 {
 		caller := stack[0]
 		entry = entry.WithFields(logrus.Fields{
 			CallerFieldName: fmt.Sprintf("%+n", caller),
@@ -131,12 +139,12 @@ func (rl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
 		// fix your code
 		rl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if level == rl.Level() {
+	} else if level == rl.loglet.Level() {
 		return rl
 	}
 
 	return &Logger{
-		Loglet: rl.Loglet.WithLevel(level),
+		loglet: rl.loglet.WithLevel(level),
 		logger: rl.logger,
 		entry:  rl.entry,
 	}
@@ -145,7 +153,7 @@ func (rl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 // WithStack attaches a call stack to the log entry
 func (rl *Logger) WithStack(skip int) slog.Logger {
 	return &Logger{
-		Loglet: rl.Loglet.WithStack(skip + 1),
+		loglet: rl.loglet.WithStack(skip + 1),
 		logger: rl.logger,
 		entry:  rl.entry,
 	}
@@ -155,7 +163,7 @@ func (rl *Logger) WithStack(skip int) slog.Logger {
 func (rl *Logger) WithField(label string, value any) slog.Logger {
 	if label != "" {
 		return &Logger{
-			Loglet: rl.Loglet.WithField(label, value),
+			loglet: rl.loglet.WithField(label, value),
 			logger: rl.logger,
 			entry:  rl.entry,
 		}
@@ -167,7 +175,7 @@ func (rl *Logger) WithField(label string, value any) slog.Logger {
 func (rl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
 		return &Logger{
-			Loglet: rl.Loglet.WithFields(fields),
+			loglet: rl.loglet.WithFields(fields),
 			logger: rl.logger,
 			entry:  rl.entry,
 		}

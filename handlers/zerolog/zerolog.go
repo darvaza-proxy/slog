@@ -19,9 +19,17 @@ var (
 
 // Logger is an adaptor for using github.com/rs/zerolog as slog.Logger.
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	logger *zerolog.Logger
+}
+
+// Level returns the current log level. Exposed for testing only.
+func (zl *Logger) Level() slog.LogLevel {
+	if zl == nil {
+		return slog.UndefinedLevel
+	}
+	return zl.loglet.Level()
 }
 
 // Enabled tells if the underlying logger is enabled or not.
@@ -31,7 +39,7 @@ func (zl *Logger) Enabled() bool {
 		return false
 	}
 
-	level := mapToZerologLevel(zl.Level())
+	level := mapToZerologLevel(zl.loglet.Level())
 	return zl.logger.GetLevel() <= level
 }
 
@@ -62,16 +70,14 @@ func (zl *Logger) Printf(format string, args ...any) {
 }
 
 func (zl *Logger) msg(msg string) {
-	level := mapToZerologLevel(zl.Level())
+	level := mapToZerologLevel(zl.loglet.Level())
 	event := zl.logger.WithLevel(level)
 
 	// Add fields from Loglet chain
 	zl.addFields(event)
 
 	// Add stack trace if present
-	if stack := zl.CallStack(); len(stack) > 0 {
-		event.CallerSkipFrame(1).Stack()
-	}
+	zl.addStackTrace(event)
 
 	event.Msg(strings.TrimSpace(msg))
 
@@ -80,11 +86,11 @@ func (zl *Logger) msg(msg string) {
 }
 
 func (zl *Logger) addFields(event *zerolog.Event) {
-	if zl.FieldsCount() == 0 {
+	if zl.loglet.FieldsCount() == 0 {
 		return
 	}
 
-	iter := zl.Fields()
+	iter := zl.loglet.Fields()
 	for iter.Next() {
 		k, v := iter.Field()
 		zl.addField(event, k, v)
@@ -101,8 +107,32 @@ func (*Logger) addField(event *zerolog.Event, k string, v any) {
 	event.Interface(k, v)
 }
 
+// addStackTrace adds stack trace information to the zerolog event if present.
+// Uses zerolog's native field names and formats the stack with numbered frames.
+func (zl *Logger) addStackTrace(event *zerolog.Event) {
+	if stack := zl.loglet.CallStack(); len(stack) > 0 {
+		caller := stack[0]
+
+		// Add caller field with full function name
+		event.Str(zerolog.CallerFieldName, fmt.Sprintf("%+n", caller))
+
+		// Build custom numbered stack format
+		var stackBuilder strings.Builder
+		total := len(stack)
+		for i, frame := range stack {
+			if i > 0 {
+				_, _ = stackBuilder.WriteString("\n")
+			}
+			_, _ = fmt.Fprintf(&stackBuilder, "[%d/%d] %#v", i, total, frame)
+		}
+
+		// Add stack field
+		event.Str(zerolog.ErrorStackFieldName, stackBuilder.String())
+	}
+}
+
 func (zl *Logger) handleTerminalLevels(msg string) {
-	switch zl.Level() {
+	switch zl.loglet.Level() {
 	case slog.Fatal:
 		// revive:disable:deep-exit
 		os.Exit(1)
@@ -154,12 +184,12 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
 		// fix your code
 		zl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if level == zl.Level() {
+	} else if level == zl.loglet.Level() {
 		return zl
 	}
 
 	return &Logger{
-		Loglet: zl.Loglet.WithLevel(level),
+		loglet: zl.loglet.WithLevel(level),
 		logger: zl.logger,
 	}
 }
@@ -167,7 +197,7 @@ func (zl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 // WithStack attaches a call stack to the Event Context
 func (zl *Logger) WithStack(skip int) slog.Logger {
 	return &Logger{
-		Loglet: zl.Loglet.WithStack(skip + 1),
+		loglet: zl.loglet.WithStack(skip + 1),
 		logger: zl.logger,
 	}
 }
@@ -176,7 +206,7 @@ func (zl *Logger) WithStack(skip int) slog.Logger {
 func (zl *Logger) WithField(label string, value any) slog.Logger {
 	if label != "" {
 		return &Logger{
-			Loglet: zl.Loglet.WithField(label, value),
+			loglet: zl.loglet.WithField(label, value),
 			logger: zl.logger,
 		}
 	}
@@ -187,7 +217,7 @@ func (zl *Logger) WithField(label string, value any) slog.Logger {
 func (zl *Logger) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
 		return &Logger{
-			Loglet: zl.Loglet.WithFields(fields),
+			loglet: zl.loglet.WithFields(fields),
 			logger: zl.logger,
 		}
 	}

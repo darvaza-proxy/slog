@@ -19,6 +19,21 @@ const (
 	testValue      = "value"
 )
 
+func TestLevel(t *testing.T) {
+	// Test nil receiver
+	var nilLogger *cblog.Logger
+	core.AssertEqual(t, slog.UndefinedLevel, nilLogger.Level(), "nil logger level")
+
+	// Test normal logger
+	logger, _ := cblog.New(nil)
+	cblogLogger := core.AssertMustTypeIs[*cblog.Logger](t, logger, "logger type")
+	core.AssertEqual(t, slog.UndefinedLevel, cblogLogger.Level(), "default level")
+
+	// Test level-specific logger
+	infoLogger := core.AssertMustTypeIs[*cblog.Logger](t, logger.Info(), "info logger type")
+	core.AssertEqual(t, slog.Info, infoLogger.Level(), "info level")
+}
+
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = messageVerificationTestCase{}
 var _ core.TestCase = callbackMessageTestCase{}

@@ -86,11 +86,46 @@ func (r *Recorder) Clear() {
 
 // Logger implements slog.Logger for testing purposes.
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	recorder  *Recorder
 	enabled   bool
 	threshold slog.LogLevel // Zero value (UndefinedLevel) = always enabled (backward compat)
+}
+
+// Level returns the current log level. Exposed for testing only.
+func (l *Logger) Level() slog.LogLevel {
+	if l == nil {
+		return slog.UndefinedLevel
+	}
+	return l.loglet.Level()
+}
+
+// CallStack returns the call stack associated with this logger.
+// This method is exposed for testing purposes.
+func (l *Logger) CallStack() core.Stack {
+	if l == nil {
+		return nil
+	}
+	return l.loglet.CallStack()
+}
+
+// FieldsCount returns the total number of fields in the logger chain.
+// This method is exposed for testing purposes.
+func (l *Logger) FieldsCount() int {
+	if l == nil {
+		return 0
+	}
+	return l.loglet.FieldsCount()
+}
+
+// Fields returns an iterator over all fields in the logger chain.
+// This method is exposed for testing purposes.
+func (l *Logger) Fields() *internal.FieldsIterator {
+	if l == nil {
+		return nil
+	}
+	return l.loglet.Fields()
 }
 
 // NewLogger creates a new test logger with a recorder.
@@ -144,7 +179,7 @@ func (l *Logger) Enabled() bool {
 	}
 
 	// Check if current level meets threshold
-	level := l.Level()
+	level := l.loglet.Level()
 	// If no specific level is set, treat as enabled (consistent with existing behaviour)
 	if level == slog.UndefinedLevel {
 		return true
@@ -158,7 +193,7 @@ func (l *Logger) WithEnabled() (slog.Logger, bool) {
 	if l == nil {
 		return nil, false
 	}
-	return l, l.enabled
+	return l, l.Enabled()
 }
 
 // Print implements slog.Logger.
@@ -193,7 +228,7 @@ func (l *Logger) record(msg string) {
 
 	// Collect all fields from the loglet chain
 	fields := make(map[string]any)
-	iter := l.Fields()
+	iter := l.loglet.Fields()
 	for iter.Next() {
 		k, v := iter.Field()
 		fields[k] = v
@@ -201,9 +236,9 @@ func (l *Logger) record(msg string) {
 
 	l.recorder.Record(Message{
 		Message: msg,
-		Level:   l.Level(),
+		Level:   l.loglet.Level(),
 		Fields:  fields,
-		Stack:   l.CallStack() != nil,
+		Stack:   l.loglet.CallStack() != nil,
 	})
 }
 
@@ -260,7 +295,12 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if l == nil {
 		return nil
 	}
-	return l.withLoglet(l.Loglet.WithLevel(level))
+	return &Logger{
+		loglet:    l.loglet.WithLevel(level),
+		recorder:  l.recorder,
+		enabled:   l.enabled,
+		threshold: l.threshold,
+	}
 }
 
 // WithStack implements slog.Logger.
@@ -268,7 +308,12 @@ func (l *Logger) WithStack(skip int) slog.Logger {
 	if l == nil {
 		return nil
 	}
-	return l.withLoglet(l.Loglet.WithStack(skip + 1))
+	return &Logger{
+		loglet:    l.loglet.WithStack(skip + 1),
+		recorder:  l.recorder,
+		enabled:   l.enabled,
+		threshold: l.threshold,
+	}
 }
 
 // WithField implements slog.Logger.
@@ -279,7 +324,12 @@ func (l *Logger) WithField(label string, value any) slog.Logger {
 	if label == "" {
 		return l
 	}
-	return l.withLoglet(l.Loglet.WithField(label, value))
+	return &Logger{
+		loglet:    l.loglet.WithField(label, value),
+		recorder:  l.recorder,
+		enabled:   l.enabled,
+		threshold: l.threshold,
+	}
 }
 
 // WithFields implements slog.Logger.
@@ -290,13 +340,8 @@ func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 	if !internal.HasFields(fields) {
 		return l
 	}
-	return l.withLoglet(l.Loglet.WithFields(fields))
-}
-
-// withLoglet creates a new Logger with the given loglet.
-func (l *Logger) withLoglet(loglet internal.Loglet) *Logger {
 	return &Logger{
-		Loglet:    loglet,
+		loglet:    l.loglet.WithFields(fields),
 		recorder:  l.recorder,
 		enabled:   l.enabled,
 		threshold: l.threshold,

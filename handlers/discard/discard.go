@@ -17,7 +17,15 @@ var (
 
 // Logger implements slog.Logger but doesn't log anything
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
+}
+
+// Level returns the current log level. Exposed for testing only.
+func (nl *Logger) Level() slog.LogLevel {
+	if nl == nil {
+		return slog.UndefinedLevel
+	}
+	return nl.loglet.Level()
 }
 
 // Enabled tells that we only handle Fatal and Panic.
@@ -25,7 +33,7 @@ func (nl *Logger) Enabled() bool {
 	if nl == nil {
 		return false
 	}
-	level := nl.Level()
+	level := nl.loglet.Level()
 	return level >= slog.Panic && level <= slog.Fatal
 }
 
@@ -61,7 +69,7 @@ func (nl *Logger) print(msg string) {
 	msg = strings.TrimSpace(msg)
 	_ = log.Output(3, msg)
 
-	if nl.Level() != slog.Fatal {
+	if nl.loglet.Level() != slog.Fatal {
 		panic(msg)
 	}
 	// revive:disable:deep-exit
@@ -106,12 +114,12 @@ func (nl *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
 		// fix your code
 		nl.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if level == nl.Level() {
+	} else if level == nl.loglet.Level() {
 		return nl
 	}
 
 	return &Logger{
-		Loglet: nl.Loglet.WithLevel(level),
+		loglet: nl.loglet.WithLevel(level),
 	}
 }
 
@@ -120,7 +128,7 @@ func (nl *Logger) WithStack(skip int) slog.Logger {
 	// For discard logger, we don't really need to maintain the stack
 	// but we'll use Loglet for consistency
 	return &Logger{
-		Loglet: nl.Loglet.WithStack(skip + 1),
+		loglet: nl.loglet.WithStack(skip + 1),
 	}
 }
 

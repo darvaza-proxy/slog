@@ -8,6 +8,21 @@ import (
 	"darvaza.org/slog/handlers/discard"
 )
 
+func TestLevel(t *testing.T) {
+	// Test nil receiver
+	var nilLogger *discard.Logger
+	core.AssertEqual(t, slog.UndefinedLevel, nilLogger.Level(), "nil logger level")
+
+	// Test normal logger
+	logger := discard.New()
+	discardLogger := core.AssertMustTypeIs[*discard.Logger](t, logger, "logger type")
+	core.AssertEqual(t, slog.UndefinedLevel, discardLogger.Level(), "default level")
+
+	// Test level-specific logger
+	panicLogger := core.AssertMustTypeIs[*discard.Logger](t, logger.Panic(), "panic logger type")
+	core.AssertEqual(t, slog.Panic, panicLogger.Level(), "panic level")
+}
+
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = discardLogletTestCase{}
 
@@ -125,7 +140,7 @@ func TestDiscardLevelValidation(t *testing.T) {
 func TestDiscardPrintMethods(t *testing.T) {
 	logger := discard.New()
 
-	// Test that non-fatal print methods don't panic
+	// Test that non-fatal print methods don't panic (disabled path)
 	core.AssertNoPanic(t, func() {
 		logger.Debug().Print("test")
 	}, "Debug Print")
@@ -141,4 +156,13 @@ func TestDiscardPrintMethods(t *testing.T) {
 	core.AssertNoPanic(t, func() {
 		logger.Error().Print("test")
 	}, "Error Print")
+
+	// Test enabled path - Panic level should panic
+	core.AssertPanic(t, func() {
+		logger.Panic().Print("test panic")
+	}, "test panic", "Panic Print should panic")
+
+	core.AssertPanic(t, func() {
+		logger.Panic().Println("test panic")
+	}, "test panic", "Panic Println should panic")
 }

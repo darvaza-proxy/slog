@@ -19,7 +19,7 @@ var (
 
 // Logger is an adaptor using go-logr/logr as slog.Logger
 type Logger struct {
-	internal.Loglet
+	loglet internal.Loglet
 
 	logger logr.Logger
 }
@@ -29,13 +29,21 @@ func (ll *Logger) Unwrap() logr.Logger {
 	return ll.logger
 }
 
+// Level returns the current log level. Exposed for testing only.
+func (ll *Logger) Level() slog.LogLevel {
+	if ll == nil {
+		return slog.UndefinedLevel
+	}
+	return ll.loglet.Level()
+}
+
 // Enabled tells if this logger is enabled
 func (ll *Logger) Enabled() bool {
 	if ll == nil || ll.logger.GetSink() == nil {
 		return false
 	}
 
-	level := mapToLogrLevel(ll.Level())
+	level := mapToLogrLevel(ll.loglet.Level())
 	if level < 0 {
 		// Error levels are always enabled in logr
 		return true
@@ -74,10 +82,10 @@ func (ll *Logger) collectKeysAndValues() []any {
 	var keysAndValues []any
 
 	// Collect fields from Loglet chain
-	if n := ll.FieldsCount(); n > 0 {
+	if n := ll.loglet.FieldsCount(); n > 0 {
 		// Collect fields into a map first for sorting
 		fields := make(map[string]any, n)
-		iter := ll.Fields()
+		iter := ll.loglet.Fields()
 		for iter.Next() {
 			k, v := iter.Field()
 			fields[k] = v
@@ -92,7 +100,7 @@ func (ll *Logger) collectKeysAndValues() []any {
 	}
 
 	// Add stack trace if present
-	if stack := ll.CallStack(); len(stack) > 0 {
+	if stack := ll.loglet.CallStack(); len(stack) > 0 {
 		keysAndValues = append(keysAndValues, "stack", fmt.Sprintf("%+v", stack))
 	}
 
@@ -101,7 +109,7 @@ func (ll *Logger) collectKeysAndValues() []any {
 
 func (ll *Logger) doPrint(msg string) {
 	msg = strings.TrimSpace(msg)
-	level := ll.Level()
+	level := ll.loglet.Level()
 	keysAndValues := ll.collectKeysAndValues()
 
 	// Log based on level
@@ -152,35 +160,36 @@ func (ll *Logger) Panic() slog.Logger {
 	return ll.WithLevel(slog.Panic)
 }
 
-// withLoglet creates a new Logger with the given Loglet
-func (ll *Logger) withLoglet(loglet internal.Loglet) *Logger {
-	return &Logger{
-		Loglet: loglet,
-		logger: ll.logger,
-	}
-}
-
 // WithLevel returns a new logger set to add entries to the specified level
 func (ll *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if level <= slog.UndefinedLevel {
 		// fix your code
 		ll.Panic().WithStack(1).Printf("slog: invalid log level %v", level)
-	} else if level == ll.Level() {
+	} else if level == ll.loglet.Level() {
 		return ll
 	}
 
-	return ll.withLoglet(ll.Loglet.WithLevel(level))
+	return &Logger{
+		loglet: ll.loglet.WithLevel(level),
+		logger: ll.logger,
+	}
 }
 
 // WithStack attaches a call stack to a new logger
 func (ll *Logger) WithStack(skip int) slog.Logger {
-	return ll.withLoglet(ll.Loglet.WithStack(skip + 1))
+	return &Logger{
+		loglet: ll.loglet.WithStack(skip + 1),
+		logger: ll.logger,
+	}
 }
 
 // WithField returns a new logger with a field attached
 func (ll *Logger) WithField(label string, value any) slog.Logger {
 	if label != "" {
-		return ll.withLoglet(ll.Loglet.WithField(label, value))
+		return &Logger{
+			loglet: ll.loglet.WithField(label, value),
+			logger: ll.logger,
+		}
 	}
 	return ll
 }
@@ -188,7 +197,10 @@ func (ll *Logger) WithField(label string, value any) slog.Logger {
 // WithFields returns a new logger with a set of fields attached
 func (ll *Logger) WithFields(fields map[string]any) slog.Logger {
 	if internal.HasFields(fields) {
-		return ll.withLoglet(ll.Loglet.WithFields(fields))
+		return &Logger{
+			loglet: ll.loglet.WithFields(fields),
+			logger: ll.logger,
+		}
 	}
 	return ll
 }

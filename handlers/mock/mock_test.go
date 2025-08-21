@@ -7,6 +7,45 @@ import (
 	"darvaza.org/slog"
 )
 
+func TestNewPublicMethods(t *testing.T) {
+	// Test nil receiver for Loglet shortcut methods
+	var nilLogger *Logger
+	core.AssertEqual(t, slog.UndefinedLevel, nilLogger.Level(), "nil logger level")
+	core.AssertNil(t, nilLogger.CallStack(), "nil logger call stack")
+	core.AssertEqual(t, 0, nilLogger.FieldsCount(), "nil logger fields count")
+	core.AssertNil(t, nilLogger.Fields(), "nil logger fields iterator")
+
+	// Test normal logger
+	logger := NewLogger()
+
+	// Test Level method
+	core.AssertEqual(t, slog.UndefinedLevel, logger.Level(), "default level")
+	infoLogger := core.AssertMustTypeIs[*Logger](t, logger.Info(), "info logger type")
+	core.AssertEqual(t, slog.Info, infoLogger.Level(), "info level")
+
+	// Test CallStack method
+	core.AssertEqual(t, 0, len(logger.CallStack()), "empty stack")
+	stackLogger := core.AssertMustTypeIs[*Logger](t, logger.WithStack(0), "stack logger type")
+	core.AssertTrue(t, len(stackLogger.CallStack()) > 0, "has stack")
+
+	// Test FieldsCount method
+	core.AssertEqual(t, 0, logger.FieldsCount(), "no fields")
+	fieldLogger := core.AssertMustTypeIs[*Logger](t, logger.WithField("key", "value"), "field logger type")
+	core.AssertEqual(t, 1, fieldLogger.FieldsCount(), "one field")
+
+	// Test Fields method
+	iter := logger.Fields()
+	core.AssertNotNil(t, iter, "fields iterator")
+	core.AssertFalse(t, iter.Next(), "no fields to iterate")
+
+	iter2 := fieldLogger.Fields()
+	core.AssertNotNil(t, iter2, "has fields iterator")
+	core.AssertTrue(t, iter2.Next(), "iterator has next")
+	k, v := iter2.Field()
+	core.AssertEqual(t, "key", k, "field key")
+	core.AssertEqual(t, "value", v, "field value")
+}
+
 // Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = levelTestCase{}
 var _ core.TestCase = printTestCase{}

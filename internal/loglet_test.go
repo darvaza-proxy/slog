@@ -573,3 +573,73 @@ func testWithFieldsNonZeroLogletParent(t *testing.T) {
 	// Should set parent for non-zero loglet
 	core.AssertEqual(t, 1, newLoglet.FieldsCount(), "non-zero loglet parent field count")
 }
+
+func TestLogletCopy(t *testing.T) {
+	t.Run("NilLoglet", testLogletCopyNil)
+	t.Run("EmptyLoglet", testLogletCopyEmpty)
+	t.Run("WithFields", testLogletCopyWithFields)
+	t.Run("IndependentCopies", testLogletCopyIndependent)
+}
+
+func testLogletCopyNil(t *testing.T) {
+	var ll *Loglet
+	copied := ll.Copy()
+
+	// Should return zero Loglet for nil input
+	core.AssertTrue(t, copied.IsZero(), "nil loglet copy should be zero")
+}
+
+func testLogletCopyEmpty(t *testing.T) {
+	var ll Loglet
+	copied := ll.Copy()
+
+	// Should be equal but independent
+	core.AssertTrue(t, copied.IsZero(), "zero loglet copy should be zero")
+	core.AssertEqual(t, ll.Level(), copied.Level(), "copy level")
+}
+
+func testLogletCopyWithFields(t *testing.T) {
+	t.Helper()
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithField("key2", "value2")
+	original := l2.WithLevel(slog.Info)
+	copied := original.Copy()
+
+	// Verify all fields are preserved
+	core.AssertEqual(t, original.Level(), copied.Level(), "level")
+	core.AssertEqual(t, original.FieldsCount(), copied.FieldsCount(), "field count")
+}
+
+func testLogletCopyIndependent(t *testing.T) {
+	var base Loglet
+	original := base.WithField("original", "value")
+	copied := original.Copy()
+
+	// Create new loglets from each
+	originalChild := original.WithField("child", "original")
+	copyChild := copied.WithField("child", "copy")
+
+	// They should be independent - verify field counts
+	core.AssertEqual(t, 2, originalChild.FieldsCount(), "original child field count")
+	core.AssertEqual(t, 2, copyChild.FieldsCount(), "copy child field count")
+
+	// Verify fields via iterator
+	originalIter := originalChild.Fields()
+	originalFields := make(map[string]any)
+	for originalIter.Next() {
+		k, v := originalIter.Field()
+		originalFields[k] = v
+	}
+
+	copyIter := copyChild.Fields()
+	copyFields := make(map[string]any)
+	for copyIter.Next() {
+		k, v := copyIter.Field()
+		copyFields[k] = v
+	}
+
+	core.AssertNotEqual(t, originalFields["child"], copyFields["child"], "independent children")
+	core.AssertEqual(t, "original", originalFields["child"], "original child value")
+	core.AssertEqual(t, "copy", copyFields["child"], "copy child value")
+}

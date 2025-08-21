@@ -17,6 +17,26 @@ import (
 	slogtest "darvaza.org/slog/internal/testing"
 )
 
+func TestLevel(t *testing.T) {
+	// Test nil receiver
+	var nilLogger *Logger
+	core.AssertEqual(t, slog.UndefinedLevel, nilLogger.Level(), "nil logger level")
+
+	// Test normal logger
+	var buf bytes.Buffer
+	logrLogger := funcr.New(func(prefix, args string) {
+		_, _ = buf.WriteString(prefix + args + "\n")
+	}, funcr.Options{})
+
+	logger := New(logrLogger)
+	llLogger := core.AssertMustTypeIs[*Logger](t, logger, "logger type")
+	core.AssertEqual(t, slog.UndefinedLevel, llLogger.Level(), "default level")
+
+	// Test level-specific logger
+	errorLogger := core.AssertMustTypeIs[*Logger](t, logger.Error(), "error logger type")
+	core.AssertEqual(t, slog.Error, errorLogger.Level(), "error level")
+}
+
 // TestCase interface validations
 var _ core.TestCase = logLevelTestCase{}
 var _ core.TestCase = levelMappingConsistencyTestCase{}
