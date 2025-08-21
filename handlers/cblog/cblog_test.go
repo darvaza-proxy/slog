@@ -332,7 +332,7 @@ func testCblogValidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
 func testCblogSameLevel(t core.T, logger slog.Logger) {
 	l1 := logger.Info()
 	l2 := l1.WithLevel(slog.Info)
-	slogtest.AssertSame(t, l1, l2, "WithLevel same level")
+	core.AssertSame(t, l1, l2, "WithLevel same level")
 }
 
 func testCblogInvalidLevel(t core.T, logger slog.Logger, ch <-chan cblog.LogMsg) {
