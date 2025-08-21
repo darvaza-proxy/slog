@@ -295,7 +295,12 @@ func (l *Logger) WithLevel(level slog.LogLevel) slog.Logger {
 	if l == nil {
 		return nil
 	}
-	return l.withLoglet(l.loglet.WithLevel(level))
+	return &Logger{
+		loglet:    l.loglet.WithLevel(level),
+		recorder:  l.recorder,
+		enabled:   l.enabled,
+		threshold: l.threshold,
+	}
 }
 
 // WithStack implements slog.Logger.
@@ -303,7 +308,12 @@ func (l *Logger) WithStack(skip int) slog.Logger {
 	if l == nil {
 		return nil
 	}
-	return l.withLoglet(l.loglet.WithStack(skip + 1))
+	return &Logger{
+		loglet:    l.loglet.WithStack(skip + 1),
+		recorder:  l.recorder,
+		enabled:   l.enabled,
+		threshold: l.threshold,
+	}
 }
 
 // WithField implements slog.Logger.
@@ -314,7 +324,12 @@ func (l *Logger) WithField(label string, value any) slog.Logger {
 	if label == "" {
 		return l
 	}
-	return l.withLoglet(l.loglet.WithField(label, value))
+	return &Logger{
+		loglet:    l.loglet.WithField(label, value),
+		recorder:  l.recorder,
+		enabled:   l.enabled,
+		threshold: l.threshold,
+	}
 }
 
 // WithFields implements slog.Logger.
@@ -325,13 +340,8 @@ func (l *Logger) WithFields(fields map[string]any) slog.Logger {
 	if !internal.HasFields(fields) {
 		return l
 	}
-	return l.withLoglet(l.loglet.WithFields(fields))
-}
-
-// withLoglet creates a new Logger with the given loglet.
-func (l *Logger) withLoglet(loglet internal.Loglet) *Logger {
 	return &Logger{
-		loglet:    loglet,
+		loglet:    l.loglet.WithFields(fields),
 		recorder:  l.recorder,
 		enabled:   l.enabled,
 		threshold: l.threshold,
