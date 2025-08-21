@@ -443,3 +443,154 @@ func TestDeprecatedAssertFunctions(t *testing.T) {
 func TestMessageString(t *testing.T) {
 	core.RunTestCases(t, messageStringTestCases())
 }
+
+func TestAssertMustField(t *testing.T) {
+	t.Run("success case", runTestAssertMustFieldSuccess)
+	t.Run("failure case", runTestAssertMustFieldFailure)
+}
+
+func runTestAssertMustFieldSuccess(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"existing": "value"}}
+	AssertMustField(t, msg, "existing", "value")
+}
+
+func runTestAssertMustFieldFailure(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"existing": "value"}}
+	mock := &core.MockT{}
+	mock.Run("subtest", func(subT core.T) {
+		AssertMustField(subT, msg, "missing", "value")
+	})
+	core.AssertTrue(t, mock.Failed(), "should have failed")
+}
+
+func TestAssertMustNoField(t *testing.T) {
+	t.Run("success case", runTestAssertMustNoFieldSuccess)
+	t.Run("failure case", runTestAssertMustNoFieldFailure)
+}
+
+func runTestAssertMustNoFieldSuccess(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"existing": "value"}}
+	AssertMustNoField(t, msg, "missing")
+}
+
+func runTestAssertMustNoFieldFailure(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"existing": "value"}}
+	mock := &core.MockT{}
+	mock.Run("subtest", func(subT core.T) {
+		AssertMustNoField(subT, msg, "existing")
+	})
+	core.AssertTrue(t, mock.Failed(), "should have failed")
+}
+
+func TestAssertMustMessage(t *testing.T) {
+	t.Run("success case", runTestAssertMustMessageSuccess)
+	t.Run("failure case", runTestAssertMustMessageFailure)
+}
+
+func runTestAssertMustMessageSuccess(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test"}
+	AssertMustMessage(t, msg, slog.Info, "test")
+}
+
+func runTestAssertMustMessageFailure(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test"}
+	mock := &core.MockT{}
+	mock.Run("subtest", func(subT core.T) {
+		AssertMustMessage(subT, msg, slog.Error, "wrong")
+	})
+	core.AssertTrue(t, mock.Failed(), "should have failed")
+}
+
+func TestRunFunction(t *testing.T) {
+	t.Run("with testing.T", runTestRunWithTestingT)
+	t.Run("with core.MockT", runTestRunWithCoreMockT)
+	t.Run("with interface without matching Run method", runTestRunWithoutMatchingRun)
+}
+
+func runTestRunWithTestingT(t *testing.T) {
+	t.Helper()
+	called := false
+	Run(t, "subtest", func(subT core.T) {
+		called = true
+		core.AssertNotNil(subT, subT, "subT should not be nil")
+	})
+	core.AssertTrue(t, called, "function should have been called")
+}
+
+func runTestRunWithCoreMockT(t *testing.T) {
+	t.Helper()
+	mock := &core.MockT{}
+	called := false
+	Run(mock, "subtest", func(subT core.T) {
+		called = true
+		core.AssertNotNil(subT, subT, "subT should not be nil")
+	})
+	core.AssertTrue(t, called, "function should have been called")
+}
+
+func runTestRunWithoutMatchingRun(t *testing.T) {
+	t.Helper()
+	mockWithoutRun := &mockTWithoutRun{}
+	called := false
+	Run(mockWithoutRun, "subtest", func(subT core.T) {
+		called = true
+		core.AssertNotNil(t, subT, "should receive interface")
+	})
+	core.AssertTrue(t, called, "function should have been called")
+}
+
+func TestFailurePaths(t *testing.T) {
+	t.Run("AssertMessage failure paths", runTestAssertMessageFailurePaths)
+	t.Run("AssertField failure paths", runTestAssertFieldFailurePaths)
+	t.Run("AssertMessageCount failure path", runTestAssertMessageCountFailurePath)
+}
+
+func runTestAssertMessageFailurePaths(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"key": "value"}}
+	mock := &core.MockT{}
+
+	result := AssertMessage(mock, msg, slog.Error, "test")
+	core.AssertFalse(t, result, "should fail on wrong level")
+
+	result = AssertMessage(mock, msg, slog.Info, "wrong")
+	core.AssertFalse(t, result, "should fail on wrong message")
+}
+
+func runTestAssertFieldFailurePaths(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"key": "value"}}
+	mock := &core.MockT{}
+
+	result := AssertField(mock, msg, "missing", "value")
+	core.AssertFalse(t, result, "should fail on missing field")
+
+	result = AssertField(mock, msg, "key", "wrong")
+	core.AssertFalse(t, result, "should fail on wrong value")
+}
+
+func runTestAssertMessageCountFailurePath(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"key": "value"}}
+	mock := &core.MockT{}
+	messages := []Message{msg}
+
+	result := AssertMessageCount(mock, messages, 2)
+	core.AssertFalse(t, result, "should fail on wrong count")
+}
+
+// mockTWithoutRun wraps core.MockT but shadows the Run method to test the default case
+type mockTWithoutRun struct {
+	core.MockT
+}
+
+// Run shadows the embedded MockT.Run method with a different signature to test the default case
+func (*mockTWithoutRun) Run(_ string) {
+	// This method has a different signature than the interfaces being checked
+}
