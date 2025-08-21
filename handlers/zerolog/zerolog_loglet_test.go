@@ -225,3 +225,111 @@ func TestZerologLevelValidation(t *testing.T) {
 		logger.WithLevel(slog.UndefinedLevel)
 	}, nil, "invalid level panic")
 }
+
+func TestZerologStackTrace(t *testing.T) {
+	var buf bytes.Buffer
+	zl := zerolog.New(&buf).Level(zerolog.DebugLevel)
+	logger := slogzerolog.New(&zl)
+
+	// Test WithStack adds stack trace fields
+	buf.Reset()
+	l := logger.Info().WithStack(0)
+	l.Print("test with stack")
+
+	var result map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
+
+	// Check for stack trace fields using zerolog's native field names
+	caller, hasCaller := result[zerolog.CallerFieldName]
+	core.AssertTrue(t, hasCaller, "caller field present")
+	core.AssertNotNil(t, caller, "caller field not nil")
+
+	stack, hasStack := result[zerolog.ErrorStackFieldName]
+	core.AssertTrue(t, hasStack, "stack field present")
+	core.AssertNotNil(t, stack, "stack field not nil")
+
+	// Verify caller field contains function name
+	callerStr, ok := caller.(string)
+	core.AssertTrue(t, ok, "caller is string")
+	core.AssertContains(t, callerStr, "TestZerologStackTrace", "caller contains test function name")
+
+	// Verify stack field has numbered format
+	stackStr, ok := stack.(string)
+	core.AssertTrue(t, ok, "stack is string")
+	core.AssertContains(t, stackStr, "[0/", "stack has numbered format")
+	core.AssertContains(t, stackStr, "zerolog_loglet_test.go:", "stack contains test file")
+}
+
+func TestZerologStackTraceFormat(t *testing.T) {
+	var buf bytes.Buffer
+	zl := zerolog.New(&buf).Level(zerolog.DebugLevel)
+	logger := slogzerolog.New(&zl)
+
+	// Create a longer stack by calling through helper functions
+	testStackHelper1 := func() {
+		testStackHelper2 := func() {
+			l := logger.Error().WithStack(0)
+			l.Print("nested stack test")
+		}
+		testStackHelper2()
+	}
+
+	buf.Reset()
+	testStackHelper1()
+
+	var result map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
+
+	// Verify stack formatting
+	stack, hasStack := result[zerolog.ErrorStackFieldName]
+	core.AssertTrue(t, hasStack, "stack field present")
+
+	stackStr, ok := stack.(string)
+	core.AssertTrue(t, ok, "stack is string")
+
+	// Check for multiple frames with proper numbering
+	core.AssertContains(t, stackStr, "[0/", "first frame numbered")
+	core.AssertContains(t, stackStr, "[1/", "second frame numbered")
+
+	// Check newline separation between frames
+	frames := strings.Split(stackStr, "\n")
+	core.AssertTrue(t, len(frames) > 1, "multiple frames separated by newlines")
+
+	// Each frame should have the format: [index/total] package/file.go:line
+	for i, frame := range frames {
+		if frame != "" {
+			core.AssertContains(t, frame, fmt.Sprintf("[%d/", i), "frame %d has correct index", i)
+			// Check for file extension (Go files or assembly files)
+			hasGoFile := strings.Contains(frame, ".go:")
+			hasAsmFile := strings.Contains(frame, ".s:")
+			core.AssertTrue(t, hasGoFile || hasAsmFile, "frame %d contains file:line with .go: or .s:", i)
+		}
+	}
+}
+
+func TestZerologNoStackTrace(t *testing.T) {
+	var buf bytes.Buffer
+	zl := zerolog.New(&buf).Level(zerolog.DebugLevel)
+	logger := slogzerolog.New(&zl)
+
+	// Test without WithStack - should not have stack fields
+	buf.Reset()
+	l := logger.Info()
+	l.Print("test without stack")
+
+	var result map[string]interface{}
+	err := json.Unmarshal(buf.Bytes(), &result)
+	core.AssertMustNil(t, err, "parse log output")
+
+	// Should not have stack trace fields
+	_, hasCaller := result[zerolog.CallerFieldName]
+	core.AssertFalse(t, hasCaller, "no caller field without WithStack")
+
+	_, hasStack := result[zerolog.ErrorStackFieldName]
+	core.AssertFalse(t, hasStack, "no stack field without WithStack")
+
+	// Should still have basic log content
+	core.AssertEqual(t, "test without stack", result["message"], "message content")
+}

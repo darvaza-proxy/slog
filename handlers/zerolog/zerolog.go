@@ -77,9 +77,7 @@ func (zl *Logger) msg(msg string) {
 	zl.addFields(event)
 
 	// Add stack trace if present
-	if stack := zl.loglet.CallStack(); len(stack) > 0 {
-		event.CallerSkipFrame(1).Stack()
-	}
+	zl.addStackTrace(event)
 
 	event.Msg(strings.TrimSpace(msg))
 
@@ -107,6 +105,30 @@ func (*Logger) addField(event *zerolog.Event, k string, v any) {
 		}
 	}
 	event.Interface(k, v)
+}
+
+// addStackTrace adds stack trace information to the zerolog event if present.
+// Uses zerolog's native field names and formats the stack with numbered frames.
+func (zl *Logger) addStackTrace(event *zerolog.Event) {
+	if stack := zl.loglet.CallStack(); len(stack) > 0 {
+		caller := stack[0]
+
+		// Add caller field with full function name
+		event.Str(zerolog.CallerFieldName, fmt.Sprintf("%+n", caller))
+
+		// Build custom numbered stack format
+		var stackBuilder strings.Builder
+		total := len(stack)
+		for i, frame := range stack {
+			if i > 0 {
+				_, _ = stackBuilder.WriteString("\n")
+			}
+			_, _ = fmt.Fprintf(&stackBuilder, "[%d/%d] %#v", i, total, frame)
+		}
+
+		// Add stack field
+		event.Str(zerolog.ErrorStackFieldName, stackBuilder.String())
+	}
 }
 
 func (zl *Logger) handleTerminalLevels(msg string) {
