@@ -55,6 +55,20 @@ func (ll *Loglet) GetParent() *Loglet {
 	}
 }
 
+// Copy creates a shallow copy of the Loglet, preserving all fields.
+func (ll *Loglet) Copy() Loglet {
+	if ll == nil {
+		return Loglet{}
+	}
+	return Loglet{
+		parent: ll.parent,
+		level:  ll.level,
+		keys:   ll.keys,
+		values: ll.values,
+		stack:  ll.stack,
+	}
+}
+
 // Level returns the LogLevel of a Loglet
 func (ll *Loglet) Level() slog.LogLevel {
 	return ll.level
@@ -64,7 +78,7 @@ func (ll *Loglet) Level() slog.LogLevel {
 // Returns the same loglet if the level is unchanged.
 func (ll *Loglet) WithLevel(level slog.LogLevel) Loglet {
 	if level == ll.level {
-		return *ll
+		return ll.Copy()
 	}
 
 	return Loglet{
@@ -94,7 +108,7 @@ func (ll *Loglet) WithStack(skip int) Loglet {
 // Only sets parent if current loglet has meaningful content.
 func (ll *Loglet) WithField(label string, value any) Loglet {
 	if label == "" {
-		return *ll
+		return ll.Copy()
 	}
 
 	var parent *Loglet
@@ -117,7 +131,7 @@ func (ll *Loglet) WithField(label string, value any) Loglet {
 func (ll *Loglet) WithFields(fields map[string]any) Loglet {
 	keys, values, count := filterFields(fields)
 	if count == 0 {
-		return *ll
+		return ll.Copy()
 	}
 
 	var parent *Loglet
