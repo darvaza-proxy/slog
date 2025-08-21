@@ -195,7 +195,7 @@ func New(cfg *zap.Config, zapOptions ...zap.Option) (slog.Logger, error) {
 func (zpl *Logger) NewWithCallback(fn func(lv zapcore.Entry) error) *Logger {
 	if fn != nil && zpl != nil {
 		return &Logger{
-			loglet: zpl.loglet,
+			loglet: zpl.loglet.Copy(),
 			logger: zpl.logger.WithOptions(zap.Hooks(fn)),
 			config: zpl.config,
 		}
