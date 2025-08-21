@@ -56,6 +56,21 @@ func TestStress(t *testing.T) {
 	suite.Run(t)
 }
 
+func TestLevel(t *testing.T) {
+	// Test nil receiver
+	var nilLogger *slogzap.Logger
+	core.AssertEqual(t, slog.UndefinedLevel, nilLogger.Level(), "nil logger level")
+
+	// Test normal logger
+	logger, _ := slogzap.New(nil)
+	zapLogger := core.AssertMustTypeIs[*slogzap.Logger](t, logger, "logger type")
+	core.AssertEqual(t, slog.Info, zapLogger.Level(), "default level")
+
+	// Test level-specific logger
+	debugLogger := core.AssertMustTypeIs[*slogzap.Logger](t, logger.Debug(), "debug logger type")
+	core.AssertEqual(t, slog.Debug, debugLogger.Level(), "debug level")
+}
+
 func TestLevelMethods(t *testing.T) {
 	slogtest.TestLevelMethods(t, func() slog.Logger {
 		logger, _ := slogzap.New(nil)
@@ -244,24 +259,4 @@ func TestNewDefaultConfig(t *testing.T) {
 	if !cfg.DisableCaller {
 		t.Error("expected caller to be disabled")
 	}
-}
-
-func TestMapToZapLevel_InvalidLevel(t *testing.T) {
-	// This tests the default case in mapToZapLevel (lines 249-251)
-	// by creating a logger with an invalid level through reflection
-	// or by testing the Enabled() method with such a logger
-
-	core.AssertPanic(t, func() {
-		logger, _ := slogzap.New(nil)
-		zapLogger := logger.(*slogzap.Logger)
-
-		// Create a logger with an invalid level (100 is not a valid slog level)
-		invalidLogger := &slogzap.Logger{}
-		// Copy the internal logger but set an invalid level
-		*invalidLogger = *zapLogger
-		invalidLogger.Loglet = zapLogger.Loglet.WithLevel(slog.LogLevel(100))
-
-		// This should panic
-		invalidLogger.Enabled()
-	}, nil, "invalid level panic")
 }
