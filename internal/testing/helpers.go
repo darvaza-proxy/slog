@@ -308,6 +308,8 @@ func TestWithStack(t core.T, logger slog.Logger) {
 
 // AssertSame verifies that two values are the same instance using reflection.
 // This checks pointer equality for reference types and value equality for value types.
+//
+// Deprecated: Use core.AssertSame instead. This function will be removed in a future version.
 func AssertSame(t core.T, expected, actual any, name string, args ...any) bool {
 	t.Helper()
 
@@ -320,6 +322,8 @@ func AssertSame(t core.T, expected, actual any, name string, args ...any) bool {
 
 // AssertNotSame verifies that two values are not the same instance using reflection.
 // This checks that values are not pointer-equal for reference types and not value-equal for value types.
+//
+// Deprecated: Use core.AssertNotSame instead. This function will be removed in a future version.
 func AssertNotSame(t core.T, expected, actual any, name string, args ...any) bool {
 	t.Helper()
 
@@ -332,6 +336,8 @@ func AssertNotSame(t core.T, expected, actual any, name string, args ...any) boo
 
 // AssertMustNotSame verifies that two values are not the same instance using reflection.
 // If the assertion fails, the test is terminated immediately with t.FailNow().
+//
+// Deprecated: Use core.AssertMustNotSame instead. This function will be removed in a future version.
 func AssertMustNotSame(t core.T, expected, actual any, name string, args ...any) {
 	t.Helper()
 	if !AssertNotSame(t, expected, actual, name, args...) {
@@ -342,6 +348,8 @@ func AssertMustNotSame(t core.T, expected, actual any, name string, args ...any)
 // IsSame checks if two values are the same instance using reflection.
 // Returns true if the values are the same instance for reference types,
 // or equal for value types.
+//
+// Deprecated: Use core.IsSame instead. This function will be removed in a future version.
 func IsSame(expected, actual any) bool {
 	// Handle untyped nil cases first
 	if expected == nil && actual == nil {
