@@ -6,7 +6,6 @@ import (
 	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/slog/handlers/discard"
-	slogtest "darvaza.org/slog/internal/testing"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -67,27 +66,27 @@ func TestDiscardWithFields(t *testing.T) {
 	logger := discard.New()
 
 	l1 := logger.WithField("key1", "value1")
-	slogtest.AssertSame(t, logger, l1, "WithField should return same instance")
+	core.AssertSame(t, logger, l1, "WithField should return same instance")
 
 	l2 := logger.WithField("", "value")
-	slogtest.AssertSame(t, logger, l2, "WithField empty key")
+	core.AssertSame(t, logger, l2, "WithField empty key")
 
 	fields := map[string]any{
 		"key2": "value2",
 		"key3": 123,
 	}
 	l3 := logger.WithFields(fields)
-	slogtest.AssertSame(t, logger, l3, "WithFields should return same instance")
+	core.AssertSame(t, logger, l3, "WithFields should return same instance")
 
 	l4 := logger.WithFields(map[string]any{})
-	slogtest.AssertSame(t, logger, l4, "WithFields empty map")
+	core.AssertSame(t, logger, l4, "WithFields empty map")
 
 	fieldsWithEmpty := map[string]any{
 		"":     "should be removed",
 		"key4": "value4",
 	}
 	l5 := logger.WithFields(fieldsWithEmpty)
-	slogtest.AssertSame(t, logger, l5, "WithFields should return same instance")
+	core.AssertSame(t, logger, l5, "WithFields should return same instance")
 }
 
 func TestDiscardWithStack(t *testing.T) {
@@ -105,7 +104,7 @@ func TestDiscardChaining(t *testing.T) {
 		WithField("key2", "value2").
 		Info()
 
-	slogtest.AssertNotSame(t, logger, l1, "Chain with level change should create new instance")
+	core.AssertNotSame(t, logger, l1, "Chain with level change should create new instance")
 	core.AssertFalse(t, l1.Enabled(), "Info logger should not be enabled")
 
 	// Branch with more fields should return same instance
@@ -113,7 +112,7 @@ func TestDiscardChaining(t *testing.T) {
 		WithField("key3", "value3").
 		WithField("key4", "value4")
 
-	slogtest.AssertSame(t, l1, l2, "Chain with only fields should return same instance")
+	core.AssertSame(t, l1, l2, "Chain with only fields should return same instance")
 }
 
 func TestDiscardLevelValidation(t *testing.T) {
