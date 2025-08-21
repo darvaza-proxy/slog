@@ -1,8 +1,6 @@
 package testing
 
 import (
-	"fmt"
-	"reflect"
 	"testing"
 
 	"darvaza.org/core"
@@ -312,12 +310,7 @@ func TestWithStack(t core.T, logger slog.Logger) {
 // Deprecated: Use core.AssertSame instead. This function will be removed in a future version.
 func AssertSame(t core.T, expected, actual any, name string, args ...any) bool {
 	t.Helper()
-
-	ok := IsSame(expected, actual)
-	if !ok {
-		doError(t, name, args, "expected same value or reference, got different")
-	}
-	return ok
+	return core.AssertSame(t, expected, actual, name, args...)
 }
 
 // AssertNotSame verifies that two values are not the same instance using reflection.
@@ -326,12 +319,7 @@ func AssertSame(t core.T, expected, actual any, name string, args ...any) bool {
 // Deprecated: Use core.AssertNotSame instead. This function will be removed in a future version.
 func AssertNotSame(t core.T, expected, actual any, name string, args ...any) bool {
 	t.Helper()
-
-	ok := !IsSame(expected, actual)
-	if !ok {
-		doError(t, name, args, "expected different values or references, got same")
-	}
-	return ok
+	return core.AssertNotSame(t, expected, actual, name, args...)
 }
 
 // AssertMustNotSame verifies that two values are not the same instance using reflection.
@@ -340,9 +328,16 @@ func AssertNotSame(t core.T, expected, actual any, name string, args ...any) boo
 // Deprecated: Use core.AssertMustNotSame instead. This function will be removed in a future version.
 func AssertMustNotSame(t core.T, expected, actual any, name string, args ...any) {
 	t.Helper()
-	if !AssertNotSame(t, expected, actual, name, args...) {
-		t.FailNow()
-	}
+	core.AssertMustNotSame(t, expected, actual, name, args...)
+}
+
+// AssertMustSame verifies that two values are the same instance using reflection.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+//
+// Deprecated: Use core.AssertMustSame instead. This function will be removed in a future version.
+func AssertMustSame(t core.T, expected, actual any, name string, args ...any) {
+	t.Helper()
+	core.AssertMustSame(t, expected, actual, name, args...)
 }
 
 // IsSame checks if two values are the same instance using reflection.
@@ -351,64 +346,5 @@ func AssertMustNotSame(t core.T, expected, actual any, name string, args ...any)
 //
 // Deprecated: Use core.IsSame instead. This function will be removed in a future version.
 func IsSame(expected, actual any) bool {
-	// Handle untyped nil cases first
-	if expected == nil && actual == nil {
-		return true
-	}
-	if expected == nil || actual == nil {
-		return false
-	}
-
-	expectedVal := reflect.ValueOf(expected)
-	actualVal := reflect.ValueOf(actual)
-
-	// Different types are never the same
-	if expectedVal.Type() != actualVal.Type() {
-		return false
-	}
-
-	return isSameReflectValue(expectedVal, actualVal)
-}
-
-// isSameReflectValue compares two reflect values for sameness
-func isSameReflectValue(va, vb reflect.Value) bool {
-	switch va.Kind() {
-	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func:
-		// For reference types, compare pointers
-		return va.Pointer() == vb.Pointer()
-	case reflect.Interface:
-		return isSameInterface(va, vb)
-	default:
-		// For value types, they're never the same instance
-		return false
-	}
-}
-
-// isSameInterface compares two interface values for sameness
-func isSameInterface(va, vb reflect.Value) bool {
-	if va.IsNil() && vb.IsNil() {
-		return true
-	}
-	if va.IsNil() || vb.IsNil() {
-		return false
-	}
-	return isSameReflectValue(va.Elem(), vb.Elem())
-}
-
-// doError reports a test error with optional prefix formatting
-func doError(t core.T, name string, args []any, messageFormat string, messageArgs ...any) {
-	t.Helper()
-	// Format the message
-	msg := fmt.Sprintf(messageFormat, messageArgs...)
-	// Add prefix if provided
-	if name != "" {
-		var prefix string
-		if len(args) > 0 {
-			prefix = fmt.Sprintf(name, args...)
-		} else {
-			prefix = name
-		}
-		msg = fmt.Sprintf("%s: %s", prefix, msg)
-	}
-	t.Error(msg)
+	return core.IsSame(expected, actual)
 }
