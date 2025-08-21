@@ -813,3 +813,65 @@ func testFieldsMapSharedWarning(t *testing.T) {
 	//     modifiableFields[k] = transformValue(v)  // safe to modify
 	// }
 }
+
+// TestFieldsMapParentDelegation tests the new parent delegation optimization
+func TestFieldsMapParentDelegation(t *testing.T) {
+	t.Helper()
+	var base Loglet
+	parent := base.WithField("parent_key", "parent_value")
+	child := parent.WithLevel(slog.Info) // No fields, only level change
+
+	parentMap := parent.FieldsMap()
+	childMap := child.FieldsMap()
+
+	// Should return same map reference (delegation, not copy)
+	core.AssertMustSame(t, parentMap, childMap, "child delegation")
+	core.AssertEqual(t, "parent_value", childMap["parent_key"], "delegated value")
+}
+
+// TestFieldsMapMultiLevelDelegation tests delegation through multiple levels
+func TestFieldsMapMultiLevelDelegation(t *testing.T) {
+	t.Helper()
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithLevel(slog.Info)        // No fields, delegates
+	l3 := l2.WithStack(1)                // No fields, delegates
+	l4 := l3.WithField("key2", "value2") // Has fields, builds map
+
+	// l2 and l3 should delegate to l1
+	map1 := l1.FieldsMap()
+	map2 := l2.FieldsMap()
+	map3 := l3.FieldsMap()
+
+	// l2 and l3 should delegate to l1 (same map instance)
+	core.AssertMustSame(t, map1, map2, "l2 delegates to l1")
+	core.AssertMustSame(t, map1, map3, "l3 delegates to l1")
+
+	// l4 should have its own map with both keys
+	map4 := l4.FieldsMap()
+	core.AssertNotSame(t, map1, map4, "l4 has own map")
+	core.AssertEqual(t, 2, len(map4), "l4 field count")
+	core.AssertEqual(t, "value1", map4["key1"], "l4 key1 value")
+	core.AssertEqual(t, "value2", map4["key2"], "l4 key2 value")
+}
+
+// TestFieldsMapDelegationCaching tests caching behaviour with delegation
+func TestFieldsMapDelegationCaching(t *testing.T) {
+	t.Helper()
+	var base Loglet
+	parent := base.WithField("key", "value")
+	child := parent.WithLevel(slog.Info)
+
+	// First call should delegate
+	map1 := child.FieldsMap()
+
+	// Second call should still delegate (not cache the delegated result)
+	map2 := child.FieldsMap()
+
+	// Should be same reference (delegates each time)
+	core.AssertMustSame(t, map1, map2, "delegation consistency")
+
+	// Should delegate to parent
+	parentMap := parent.FieldsMap()
+	core.AssertMustSame(t, parentMap, map1, "child delegates to parent")
+}

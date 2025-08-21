@@ -1,6 +1,10 @@
 package internal
 
-import "testing"
+import (
+	"testing"
+
+	"darvaza.org/slog"
+)
 
 // BenchmarkFieldsIteration benchmarks the traditional iterator pattern
 func BenchmarkFieldsIteration(b *testing.B) {
@@ -100,4 +104,58 @@ func BenchmarkFieldsMapFirstCall(b *testing.B) {
 		fields := freshLoglet.FieldsMap()
 		_ = fields
 	}
+}
+
+// BenchmarkFieldsMapDelegation benchmarks delegation vs iteration for field-less loglets
+func BenchmarkFieldsMapDelegation(b *testing.B) {
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithField("key2", "value2")
+	child := l2.WithLevel(slog.Info) // No fields, should delegate
+
+	b.ResetTimer()
+	for range b.N {
+		_ = child.FieldsMap()
+	}
+}
+
+// BenchmarkFieldsMapMultiLevelDelegation benchmarks delegation through multiple intermediate loglets
+func BenchmarkFieldsMapMultiLevelDelegation(b *testing.B) {
+	var base Loglet
+	l1 := base.WithField("service", "api")
+	l2 := l1.WithField("version", "1.0")
+	intermediate1 := l2.WithLevel(slog.Info)    // No fields, delegates
+	intermediate2 := intermediate1.WithStack(1) // No fields, delegates
+	child := intermediate2.Copy()               // Final loglet that should delegate
+
+	b.ResetTimer()
+	for range b.N {
+		_ = child.FieldsMap()
+	}
+}
+
+// benchmarkFieldsMapIterationHelper benchmarks traditional iteration
+func benchmarkFieldsMapIterationHelper(b *testing.B) {
+	var base Loglet
+	l1 := base.WithField("key1", "value1")
+	l2 := l1.WithField("key2", "value2")
+	child := l2.WithLevel(slog.Info) // No fields, should delegate
+
+	b.ResetTimer()
+	for range b.N {
+		// Simulate the old behaviour (without delegation)
+		fields := make(map[string]any, child.FieldsCount())
+		iter := child.Fields()
+		for iter.Next() {
+			k, v := iter.Field()
+			fields[k] = v
+		}
+		_ = fields
+	}
+}
+
+// BenchmarkFieldsMapDelegationVsIteration compares delegation performance vs traditional iteration
+func BenchmarkFieldsMapDelegationVsIteration(b *testing.B) {
+	b.Run("Delegation", BenchmarkFieldsMapDelegation)
+	b.Run("Iteration", benchmarkFieldsMapIterationHelper)
 }

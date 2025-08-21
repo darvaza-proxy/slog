@@ -215,22 +215,40 @@ func (ll *Loglet) Fields() (iter *FieldsIterator) {
 // Any attempt to modify it may cause undefined behaviour in concurrent
 // environments and break the caching mechanism.
 func (ll *Loglet) FieldsMap() map[string]any {
-	if ll == nil {
-		return nil
+	fieldsMap, _ := ll.getFieldsMap()
+	return fieldsMap
+}
+
+// getFieldsMap returns the fields map and whether it was freshly computed
+func (ll *Loglet) getFieldsMap() (fields map[string]any, fresh bool) {
+	if ll != nil {
+		ll.fieldsOnce.Do(func() {
+			if ll.fieldsMap == nil {
+				ll.fieldsMap, fresh = ll.buildFieldsMap()
+			}
+		})
+		fields = ll.fieldsMap
+	}
+	return fields, fresh
+}
+
+// buildFieldsMap builds the fields map for the first time
+func (ll *Loglet) buildFieldsMap() (map[string]any, bool) {
+	// If we have fields, build the map
+	if len(ll.keys) > 0 {
+		count := ll.FieldsCount()
+		fields := make(map[string]any, count)
+		ll.populateFieldMap(fields)
+		return fields, true
 	}
 
-	ll.fieldsOnce.Do(func() {
-		if ll.fieldsMap == nil {
-			count := ll.FieldsCount()
-			fields := make(map[string]any, count)
-			if count > 0 {
-				ll.populateFieldMap(fields)
-			}
-			ll.fieldsMap = fields
-		}
-	})
+	// Delegate to parent if we have no fields but have a parent
+	if parent := ll.GetParent(); parent != nil {
+		return parent.FieldsMap(), false
+	}
 
-	return ll.fieldsMap
+	// Return empty map if no fields and no parent
+	return make(map[string]any), true
 }
 
 func (ll *Loglet) populateFieldMap(fields map[string]any) {
