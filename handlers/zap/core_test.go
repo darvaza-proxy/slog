@@ -225,7 +225,7 @@ func runTestSlogCoreWithEmpty(t *testing.T) {
 
 	// With() should return the same core when no fields are provided
 	sameCore := zapCore.With([]zapcore.Field{})
-	slogtest.AssertSame(t, zapCore, sameCore, "With() no fields")
+	core.AssertSame(t, zapCore, sameCore, "With() no fields")
 }
 
 // levelTestCase represents a test case for level mapping

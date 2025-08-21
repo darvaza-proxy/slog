@@ -918,5 +918,5 @@ func TestWithLevelSameLevel(t *testing.T) {
 	sameLogger := infoLogger.WithLevel(slog.Info)
 
 	// Should return the same logger instance
-	slogtest.AssertSame(t, infoLogger, sameLogger, "same level logger")
+	core.AssertSame(t, infoLogger, sameLogger, "same level logger")
 }
