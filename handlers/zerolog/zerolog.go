@@ -45,7 +45,7 @@ func (zl *Logger) Enabled() bool {
 
 // WithEnabled tells if the logger would log or not
 func (zl *Logger) WithEnabled() (slog.Logger, bool) {
-	return zl, zl.Enabled()
+	return zl, zl.Enabled() // skipcq: GO-W4006
 }
 
 // Print adds a log entry with arguments handled in the manner of fmt.Print.
@@ -86,14 +86,10 @@ func (zl *Logger) msg(msg string) {
 }
 
 func (zl *Logger) addFields(event *zerolog.Event) {
-	if zl.loglet.FieldsCount() == 0 {
-		return
-	}
-
-	iter := zl.loglet.Fields()
-	for iter.Next() {
-		k, v := iter.Field()
-		zl.addField(event, k, v)
+	if fields := zl.loglet.FieldsMap(); fields != nil {
+		for k, v := range fields {
+			zl.addField(event, k, v)
+		}
 	}
 }
 

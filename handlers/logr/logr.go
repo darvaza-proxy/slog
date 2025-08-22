@@ -82,17 +82,9 @@ func (ll *Logger) collectKeysAndValues() []any {
 	var keysAndValues []any
 
 	// Collect fields from Loglet chain
-	if n := ll.loglet.FieldsCount(); n > 0 {
-		// Collect fields into a map first for sorting
-		fields := make(map[string]any, n)
-		iter := ll.loglet.Fields()
-		for iter.Next() {
-			k, v := iter.Field()
-			fields[k] = v
-		}
-
+	if fields := ll.loglet.FieldsMap(); fields != nil {
 		// Add fields in sorted order for consistent output
-		keysAndValues = make([]any, 0, n*2)
+		keysAndValues = make([]any, 0, len(fields)*2)
 		sortedKeys := core.SortedKeys(fields)
 		for _, k := range sortedKeys {
 			keysAndValues = append(keysAndValues, k, fields[k])
