@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	darvaza.org/core v0.18.2
-	darvaza.org/slog v0.7.9
+	darvaza.org/slog v0.8.0
 )
 
 require github.com/go-logr/logr v1.4.3
