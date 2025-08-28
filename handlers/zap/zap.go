@@ -92,11 +92,9 @@ func (zpl *Logger) logMessage(msg string) {
 	// Check if we can log at this level
 	if ce := zpl.logger.Check(level, msg); ce != nil {
 		// Add fields from Loglet chain
-		if n := zpl.loglet.FieldsCount(); n > 0 {
-			fields := make([]zap.Field, 0, n)
-			iter := zpl.loglet.Fields()
-			for iter.Next() {
-				k, v := iter.Field()
+		if fieldsMap := zpl.loglet.FieldsMap(); len(fieldsMap) > 0 {
+			fields := make([]zap.Field, 0, len(fieldsMap))
+			for k, v := range fieldsMap {
 				fields = append(fields, zap.Any(k, v))
 			}
 			ce.Write(fields...)

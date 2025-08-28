@@ -82,14 +82,8 @@ func (rl *Logger) msg(msg string) {
 
 	// Build entry with fields from Loglet chain
 	entry := rl.entry
-	if n := rl.loglet.FieldsCount(); n > 0 {
-		fields := make(logrus.Fields, n)
-		iter := rl.loglet.Fields()
-		for iter.Next() {
-			k, v := iter.Field()
-			fields[k] = v
-		}
-		entry = entry.WithFields(fields)
+	if fields := rl.loglet.FieldsMap(); fields != nil {
+		entry = entry.WithFields(logrus.Fields(fields))
 	}
 
 	// Add stack trace if present
