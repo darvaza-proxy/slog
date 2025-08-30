@@ -66,9 +66,10 @@ func (ll *Loglet) findCachedAncestor() logletAncestorInfo {
 	totalFields := 0
 
 	for current != nil {
-		if current.fieldsMap != nil {
+		// Only lock ancestor nodes (current != ll) since we already hold our own lock
+		needsLock := current != ll
+		if baseMap, hasCached := current.peekFieldsMap(needsLock); hasCached {
 			// Found cached ancestor - don't add it to pathToRoot
-			baseMap := current.fieldsMap
 			adjustedFields := len(baseMap) + totalFields
 			return logletAncestorInfo{pathToRoot, baseMap, adjustedFields}
 		}

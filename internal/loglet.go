@@ -31,13 +31,13 @@ var (
 //
 // Instead, use proper chaining with new variable names.
 type Loglet struct {
-	parent     *Loglet
-	level      slog.LogLevel
-	keys       []string
-	values     []any
-	stack      core.Stack
-	fieldsMap  map[string]any // cached fields map
-	fieldsOnce sync.Once      // ensures fieldsMap is built exactly once
+	parent    *Loglet
+	level     slog.LogLevel
+	keys      []string
+	values    []any
+	stack     core.Stack
+	fieldsMap map[string]any // cached fields map
+	fieldsMu  sync.Mutex     // protects fieldsMap access and computation
 }
 
 // IsZero returns true if the loglet has no meaningful content.
@@ -73,7 +73,7 @@ func (ll *Loglet) Copy() Loglet {
 		values:    ll.values,
 		stack:     ll.stack,
 		fieldsMap: ll.fieldsMap,
-		// fieldsOnce is intentionally omitted - will be zero value
+		// fieldsMu is intentionally omitted - will be zero value
 	}
 }
 
@@ -219,17 +219,43 @@ func (ll *Loglet) FieldsMap() map[string]any {
 	return fieldsMap
 }
 
-// getFieldsMap returns the fields map and whether it was freshly computed
+// getFieldsMap computes and caches the fields map if needed.
+// Returns the fields map and whether it was freshly computed.
 func (ll *Loglet) getFieldsMap() (fields map[string]any, fresh bool) {
-	if ll != nil {
-		ll.fieldsOnce.Do(func() {
-			if ll.fieldsMap == nil {
-				ll.fieldsMap, fresh = ll.buildFieldsMap()
-			}
-		})
-		fields = ll.fieldsMap
+	if ll == nil {
+		return nil, false
 	}
+
+	ll.fieldsMu.Lock()
+	defer ll.fieldsMu.Unlock()
+
+	fields = ll.fieldsMap
+	if fields == nil {
+		// Compute and cache
+		fields, fresh = ll.buildFieldsMap()
+		ll.fieldsMap = fields
+	}
+
 	return fields, fresh
+}
+
+// peekFieldsMap returns the cached fields map without computing it.
+// If needsLock is true, it acquires the mutex for thread-safe access.
+// If needsLock is false, it assumes the caller already holds the lock.
+//
+//revive:disable-next-line:flag-parameter
+func (ll *Loglet) peekFieldsMap(needsLock bool) (map[string]any, bool) {
+	if ll == nil {
+		return nil, false
+	}
+
+	if needsLock {
+		ll.fieldsMu.Lock()
+		defer ll.fieldsMu.Unlock()
+	}
+
+	m := ll.fieldsMap
+	return m, m != nil
 }
 
 // FieldsMapCopy returns a modifiable copy of the fields map with optional
