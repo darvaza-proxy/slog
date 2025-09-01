@@ -3,6 +3,7 @@
 [![Go Reference][godoc-badge]][godoc]
 [![Go Report Card][goreport-badge]][goreport]
 [![codecov][codecov-badge]][codecov]
+[![Socket Badge][socket-badge]][socket-link]
 
 `darvaza.org/slog` provides a backend-agnostic interface for structured logging
 in Go. It defines a simple, standardised API that libraries can use without
@@ -13,7 +14,9 @@ forcing a specific logging implementation on their users.
 [goreport]: https://goreportcard.com/report/darvaza.org/slog
 [goreport-badge]: https://goreportcard.com/badge/darvaza.org/slog
 [codecov]: https://codecov.io/gh/darvaza-proxy/slog
-[codecov-badge]: https://codecov.io/github/darvaza-proxy/slog/graph/badge.svg?flag=root
+[codecov-badge]: https://codecov.io/github/darvaza-proxy/slog/graph/badge.svg
+[socket-badge]: https://socket.dev/api/badge/go/package/darvaza.org/slog
+[socket-link]: https://socket.dev/go/package/darvaza.org/slog
 
 ## Features
 
