@@ -22,17 +22,16 @@ var (
 
 // LogMsg represents one structured log entry
 type LogMsg struct {
-	Message string
-	Level   slog.LogLevel
 	Fields  map[string]any
+	Message string
 	Stack   core.Stack
+	Level   slog.LogLevel
 }
 
 // Logger is a slog.Logger using a channel as backend
 type Logger struct {
+	l      *cblog
 	loglet internal.Loglet
-
-	l *cblog
 }
 
 // Level returns the current log level. Exposed for testing only.

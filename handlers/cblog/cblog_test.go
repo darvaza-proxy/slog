@@ -617,10 +617,10 @@ func TestComplexFieldTypes(t *testing.T) {
 }
 
 type messageVerificationTestCase struct {
-	name    string
-	level   slog.LogLevel
-	message string
 	channel <-chan cblog.LogMsg
+	name    string
+	message string
+	level   slog.LogLevel
 }
 
 func (tc messageVerificationTestCase) Name() string {
@@ -659,10 +659,10 @@ func messageVerificationTestCases(channel <-chan cblog.LogMsg) []messageVerifica
 
 type callbackMessageTestCase struct {
 	name     string
-	index    int
-	level    slog.LogLevel
 	message  string
 	messages []cblog.LogMsg
+	index    int
+	level    slog.LogLevel
 }
 
 func (tc callbackMessageTestCase) Name() string {
