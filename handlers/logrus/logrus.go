@@ -27,10 +27,9 @@ const (
 
 // Logger is an adaptor for using github.com/sirupsen/logrus as slog.Logger
 type Logger struct {
-	loglet internal.Loglet
-
 	logger *logrus.Logger
 	entry  *logrus.Entry
+	loglet internal.Loglet
 }
 
 // Level returns the current log level. Exposed for testing only.
@@ -53,7 +52,7 @@ func (rl *Logger) Enabled() bool {
 
 // WithEnabled tells if the logger would log or not
 func (rl *Logger) WithEnabled() (slog.Logger, bool) {
-	return rl, rl.Enabled()
+	return rl, rl.Enabled() // skipcq: GO-W4006
 }
 
 // Print adds a log entry with arguments handled in the manner of fmt.Print
