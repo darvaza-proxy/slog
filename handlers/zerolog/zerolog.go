@@ -19,9 +19,8 @@ var (
 
 // Logger is an adaptor for using github.com/rs/zerolog as slog.Logger.
 type Logger struct {
-	loglet internal.Loglet
-
 	logger *zerolog.Logger
+	loglet internal.Loglet
 }
 
 // Level returns the current log level. Exposed for testing only.
