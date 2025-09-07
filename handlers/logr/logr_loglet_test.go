@@ -16,9 +16,9 @@ var _ core.TestCase = levelMappingTestCase{}
 
 // levelMappingTestCase tests level mapping between slog and logr levels.
 type levelMappingTestCase struct {
+	name     string
 	level    slog.LogLevel
 	expected slog.LogLevel
-	name     string
 }
 
 // Name returns the test case name.

@@ -45,8 +45,8 @@ var _ core.TestCase = levelMappingConsistencyTestCase{}
 type logLevelTestCase struct {
 	buf   *bytes.Buffer
 	fn    func() slog.Logger
-	level slog.LogLevel
 	name  string
+	level slog.LogLevel
 }
 
 // Name returns the test case name.
@@ -77,10 +77,10 @@ func newLogLevelTestCase(name string, buf *bytes.Buffer, level slog.LogLevel,
 
 // levelMappingConsistencyTestCase tests level mapping consistency between Logger and Sink.
 type levelMappingConsistencyTestCase struct {
-	slogLevel slog.LogLevel
-	logrLevel int
-	expected  slog.LogLevel
 	name      string
+	logrLevel int
+	slogLevel slog.LogLevel
+	expected  slog.LogLevel
 }
 
 // Name returns the test case name.
@@ -531,8 +531,8 @@ func TestRoundTrip(t *testing.T) {
 // testLogger is a simple slog.Logger implementation for testing
 type testLogger struct {
 	buf    *bytes.Buffer
-	level  slog.LogLevel
 	fields map[string]any
+	level  slog.LogLevel
 }
 
 func newTestLogger(buf *bytes.Buffer) slog.Logger {
