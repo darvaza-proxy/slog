@@ -13,9 +13,9 @@ import (
 
 // Message represents a recorded log message for testing.
 type Message struct {
+	Fields  map[string]any
 	Message string
 	Level   slog.LogLevel
-	Fields  map[string]any
 	Stack   bool
 }
 
@@ -41,8 +41,8 @@ func (m Message) String() string {
 
 // Recorder provides thread-safe recording of log messages for testing.
 type Recorder struct {
-	mu       sync.Mutex
 	messages []Message
+	mu       sync.Mutex
 }
 
 // NewRecorder creates a new message recorder for testing.
@@ -86,9 +86,8 @@ func (r *Recorder) Clear() {
 
 // Logger implements slog.Logger for testing purposes.
 type Logger struct {
-	loglet internal.Loglet
-
 	recorder  *Recorder
+	loglet    internal.Loglet
 	enabled   bool
 	threshold slog.LogLevel // Zero value (UndefinedLevel) = always enabled (backward compat)
 }
@@ -184,7 +183,8 @@ func (l *Logger) Enabled() bool {
 	if level == slog.UndefinedLevel {
 		return true
 	}
-	// Level filtering: only enabled if current level >= threshold (lower numeric value)
+	// Level filtering: enabled if current level is at least as severe as the threshold
+	// (lower numeric value => more severe), hence level <= threshold
 	return level <= l.threshold
 }
 
@@ -193,7 +193,7 @@ func (l *Logger) WithEnabled() (slog.Logger, bool) {
 	if l == nil {
 		return nil, false
 	}
-	return l, l.Enabled()
+	return l, l.Enabled() // skipcq: GO-W4006
 }
 
 // Print implements slog.Logger.

@@ -56,8 +56,8 @@ func testNewStdLoggerPrefix(t *testing.T) {
 
 // stdLoggerFlagsTestCase represents a test case for std logger flags.
 type stdLoggerFlagsTestCase struct {
-	flags int
 	name  string
+	flags int
 }
 
 func (tc stdLoggerFlagsTestCase) Name() string {
@@ -233,8 +233,8 @@ func testStdLogSinkNoPrefix(t *testing.T) {
 
 // stdLogSinkFlagsTestCase represents a test case for std log sink with flags.
 type stdLogSinkFlagsTestCase struct {
-	flags int
 	name  string
+	flags int
 }
 
 func (tc stdLogSinkFlagsTestCase) Name() string {

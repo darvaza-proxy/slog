@@ -817,7 +817,7 @@ func testFieldsMapSharedWarning(t *testing.T) {
 	// }
 }
 
-// TestFieldsMapParentDelegation tests the new parent delegation optimization
+// TestFieldsMapParentDelegation tests the new parent delegation optimisation
 func TestFieldsMapParentDelegation(t *testing.T) {
 	t.Helper()
 	var base Loglet

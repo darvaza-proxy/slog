@@ -113,7 +113,7 @@ them into a single call. This is intentional because:
 ### Performance Considerations
 
 While separate uploads add ~20 seconds to CI time, this ensures accurate
-coverage tracking. Future optimizations could include:
+coverage tracking. Future optimisations could include:
 
 - Parallel uploads to reduce total time.
 - Skipping modules with no coverage changes.

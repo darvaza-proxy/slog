@@ -2,8 +2,8 @@ package internal
 
 // logletAncestorInfo holds information about a cached ancestor
 type logletAncestorInfo struct {
-	pathToRoot  []*Loglet
 	baseMap     map[string]any
+	pathToRoot  []*Loglet
 	totalFields int
 }
 
@@ -14,7 +14,7 @@ type logletAncestorInfo struct {
 // 3. AND either:
 //   - pathToRoot has length 1 AND current loglet has no fields (self delegation)
 //   - totalFields equals baseMap size (no additional fields to add)
-func (info logletAncestorInfo) canDelegate() bool {
+func (info *logletAncestorInfo) canDelegate() bool {
 	if info.baseMap == nil || len(info.pathToRoot) == 0 {
 		return false
 	}
@@ -54,9 +54,7 @@ func (info *logletAncestorInfo) tryAncestorCaching() {
 
 // shouldTryAncestorCaching checks if we should attempt ancestor caching
 func (info *logletAncestorInfo) shouldTryAncestorCaching() bool {
-	return len(info.pathToRoot) > 0 &&
-		len(info.pathToRoot[0].keys) == 0 &&
-		len(info.pathToRoot) > 1
+	return len(info.pathToRoot) > 1 && len(info.pathToRoot[0].keys) == 0
 }
 
 // findCachedAncestor walks up the tree to find a cached ancestor
@@ -71,7 +69,11 @@ func (ll *Loglet) findCachedAncestor() logletAncestorInfo {
 		if baseMap, hasCached := current.peekFieldsMap(needsLock); hasCached {
 			// Found cached ancestor - don't add it to pathToRoot
 			adjustedFields := len(baseMap) + totalFields
-			return logletAncestorInfo{pathToRoot, baseMap, adjustedFields}
+			return logletAncestorInfo{
+				baseMap:     baseMap,
+				pathToRoot:  pathToRoot,
+				totalFields: adjustedFields,
+			}
 		}
 
 		// Only add uncached nodes to pathToRoot
@@ -80,5 +82,9 @@ func (ll *Loglet) findCachedAncestor() logletAncestorInfo {
 		current = current.GetParent()
 	}
 
-	return logletAncestorInfo{pathToRoot, nil, totalFields}
+	return logletAncestorInfo{
+		baseMap:     nil,
+		pathToRoot:  pathToRoot,
+		totalFields: totalFields,
+	}
 }

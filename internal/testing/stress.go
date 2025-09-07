@@ -13,6 +13,9 @@ import (
 
 // StressTest represents a stress test scenario for loggers.
 type StressTest struct {
+	// Custom stress function (if set, default behaviour is overridden)
+	StressFunc func(logger slog.Logger, id int)
+
 	// Concurrency settings
 	Goroutines int
 	Operations int
@@ -21,12 +24,9 @@ type StressTest struct {
 	Duration time.Duration
 
 	// Memory pressure settings
-	EnableMemoryPressure bool
 	FieldsPerMessage     int // Number of fields to add to each message
 	MessageSize          int // Size of message content in bytes
-
-	// Custom stress function (if set, default behaviour is overridden)
-	StressFunc func(logger slog.Logger, id int)
+	EnableMemoryPressure bool
 }
 
 // DefaultStressTest returns a standard stress test configuration.
@@ -66,9 +66,6 @@ func DurationBasedStressTest(duration time.Duration) StressTest {
 
 // StressTestOptions provides options for stress testing.
 type StressTestOptions struct {
-	// VerifyResults indicates whether to verify logged messages
-	VerifyResults bool
-
 	// GetMessages provides a way to retrieve messages for verification
 	GetMessages func() []Message
 
@@ -80,6 +77,9 @@ type StressTestOptions struct {
 
 	// Custom verification function
 	VerifyFunc func(t core.T, messages []Message, test StressTest)
+
+	// VerifyResults indicates whether to verify logged messages
+	VerifyResults bool
 }
 
 // RunStressTest executes a stress test against a logger.
@@ -347,9 +347,9 @@ type StressTestSuite struct {
 
 // stressTestCase defines a stress test case.
 type stressTestCase struct {
+	stressTestFactory func() StressTest
 	name              string
 	skip              bool
-	stressTestFactory func() StressTest
 }
 
 // Run executes the stress test suite.

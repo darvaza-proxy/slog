@@ -13,8 +13,8 @@ var (
 )
 
 // Loglet represents an immutable link in a logger context chain. Each Loglet
-// contains fields, log level, and call stack information, with a reference to
-// its parent Loglet forming a chain of contexts.
+// contains fields, log level, and call stack information, with a reference
+// to its parent Loglet forming a chain of contexts.
 //
 // Loglets are immutable - each With* method returns a new Loglet instance.
 // This design ensures thread safety and prevents accidental modification.
@@ -32,12 +32,12 @@ var (
 // Instead, use proper chaining with new variable names.
 type Loglet struct {
 	parent    *Loglet
-	level     slog.LogLevel
+	fieldsMap map[string]any // cached fields map
 	keys      []string
 	values    []any
 	stack     core.Stack
-	fieldsMap map[string]any // cached fields map
-	fieldsMu  sync.Mutex     // protects fieldsMap access and computation
+	level     slog.LogLevel
+	fieldsMu  sync.Mutex // protects fieldsMap access and computation
 }
 
 // IsZero returns true if the loglet has no meaningful content.
@@ -50,7 +50,8 @@ func (ll *Loglet) IsZero() bool {
 }
 
 // GetParent returns the parent loglet with circular reference protection.
-// Returns nil if parent points to self, preventing infinite loops during traversal.
+// Returns nil if parent points to self, preventing infinite loops during
+// traversal.
 func (ll *Loglet) GetParent() *Loglet {
 	switch ll {
 	case nil, ll.parent:
@@ -60,7 +61,7 @@ func (ll *Loglet) GetParent() *Loglet {
 	}
 }
 
-// Copy returns a copy of the loglet without copying the sync.Once field.
+// Copy returns a copy of the loglet without copying the mutex field.
 // This avoids copy-locks warnings while preserving the cached fieldsMap.
 func (ll *Loglet) Copy() Loglet {
 	if ll == nil {
@@ -96,7 +97,7 @@ func (ll *Loglet) WithLevel(level slog.LogLevel) Loglet {
 	}
 }
 
-// CallStack returns the callstack associated to a Loglet
+// CallStack returns the call stack associated with a Loglet
 func (ll *Loglet) CallStack() core.Stack {
 	return ll.stack
 }
@@ -135,7 +136,8 @@ func (ll *Loglet) WithField(label string, value any) Loglet {
 
 // WithFields attaches a set of fields to a new Loglet.
 // Returns the same loglet if no valid fields are provided.
-// Empty keys are filtered out. Only sets parent if current loglet has meaningful content.
+// Empty keys are filtered out. Only sets parent if current loglet has
+// meaningful content.
 func (ll *Loglet) WithFields(fields map[string]any) Loglet {
 	keys, values, count := filterFields(fields)
 	if count == 0 {
@@ -176,7 +178,7 @@ func filterFields(fields map[string]any) ([]string, []any, int) {
 	return keys, values, len(keys)
 }
 
-// FieldsCount return the number of fields on a Log context
+// FieldsCount returns the number of fields in a log context
 func (ll *Loglet) FieldsCount() int {
 	if ll == nil {
 		return 0
@@ -191,7 +193,8 @@ func (ll *Loglet) FieldsCount() int {
 	return count
 }
 
-// Fields returns a FieldsIterator for traversing all fields in the context chain.
+// Fields returns a FieldsIterator for traversing all fields in the context
+// chain.
 // The iterator walks from the current loglet up through the parent chain.
 func (ll *Loglet) Fields() (iter *FieldsIterator) {
 	return &FieldsIterator{
@@ -272,7 +275,7 @@ func (ll *Loglet) FieldsMapCopy(excess int) map[string]any {
 		return nil
 	}
 
-	// Normalize excess to avoid negative values
+	// Normalise excess to avoid negative values
 	if excess < 0 {
 		excess = 0
 	}
@@ -298,7 +301,8 @@ func (ll *Loglet) buildFieldsMap() (map[string]any, bool) {
 	return ll.buildFieldsMapFromPath(info.pathToRoot, baseMap, info.totalFields)
 }
 
-// buildFieldsMapFromPath builds a fields map from the given path and base map
+// buildFieldsMapFromPath builds a fields map from the given path and base
+// map.
 func (ll *Loglet) buildFieldsMapFromPath(
 	pathToRoot []*Loglet, baseMap map[string]any, totalFields int,
 ) (map[string]any, bool) {
@@ -310,7 +314,8 @@ func (ll *Loglet) buildFieldsMapFromPath(
 	return result, true
 }
 
-// cacheIfNeeded caches this loglet's field map if it has fields but no cache
+// cacheIfNeeded caches this loglet's field map if it has fields but no
+// cache.
 func (ll *Loglet) cacheIfNeeded() (map[string]any, bool) {
 	if len(ll.keys) == 0 {
 		return nil, false
@@ -336,7 +341,8 @@ func (ll *Loglet) addOwnFields(fields map[string]any) {
 	}
 }
 
-// copyFieldsMap creates a copy of the fields map with optional excess capacity
+// copyFieldsMap creates a copy of the fields map with optional excess
+// capacity.
 func copyFieldsMap(source map[string]any, excess int) map[string]any {
 	if source == nil {
 		return nil
@@ -349,17 +355,19 @@ func copyFieldsMap(source map[string]any, excess int) map[string]any {
 }
 
 // FieldsIterator iterates over fields in a Loglet context chain.
-// Use Next() to advance and Key(), Value(), or Field() to access current values.
+// Use Next() to advance and Key(), Value(), or Field() to access current
+// values.
 type FieldsIterator struct {
-	ll *Loglet
-	i  int
-	k  string
 	v  any
+	ll *Loglet
+	k  string
+	i  int
 }
 
 // Next advances the iterator to the next field in the chain.
 // Returns false when iteration is complete, true when a field is available.
-// Call Key(), Value(), or Field() to access the current field after Next() returns true.
+// Call Key(), Value(), or Field() to access the current field after Next()
+// returns true.
 func (iter *FieldsIterator) Next() bool {
 	for iter.ll != nil {
 		ll := iter.ll

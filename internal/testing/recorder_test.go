@@ -73,10 +73,10 @@ var _ core.TestCase = loggerFactoryTestCase{}
 
 type loggerFactoryTestCase struct {
 	name             string
-	expectNonNil     bool
-	expectTypeValid  bool
 	testMessage      string
 	expectedMsgCount int
+	expectNonNil     bool
+	expectTypeValid  bool
 }
 
 func (tc loggerFactoryTestCase) Name() string {

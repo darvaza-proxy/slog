@@ -37,7 +37,7 @@ count := loglet.FieldsCount()
 
 #### Field Access
 
-Two methods are provided for accessing fields, each optimized for different
+Two methods are provided for accessing fields, each optimised for different
 use cases:
 
 ##### Fields() Iterator - For Modification
@@ -223,7 +223,7 @@ child := parent.WithField("env", "production")
 ### Advanced Delegation System
 
 The FieldsMap implementation includes a sophisticated delegation and caching
-system that optimizes performance for complex loglet chains through intelligent
+system that optimises performance for complex loglet chains through intelligent
 ancestor traversal and selective caching.
 
 #### Ancestor Caching Strategy
@@ -297,7 +297,7 @@ Loglets are immutable after creation, making them inherently thread-safe:
 
 ### Memory Management
 
-- Parent chains are shared between loglets to minimize memory usage
+- Parent chains are shared between loglets to minimise memory usage
 - Cached maps are only created when `FieldsMap()` is called
 - Circular reference protection prevents memory leaks
 - Zero-value loglets consume minimal memory
