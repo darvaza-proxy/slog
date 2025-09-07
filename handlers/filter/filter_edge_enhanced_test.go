@@ -18,8 +18,8 @@ var _ core.TestCase = filterNewEdgeTestCase{}
 
 // invalidLevelTestCase tests panic on invalid log level
 type invalidLevelTestCase struct {
-	invalidLevel slog.LogLevel
 	name         string
+	invalidLevel slog.LogLevel
 }
 
 func (tc invalidLevelTestCase) Name() string {
@@ -54,9 +54,9 @@ func newInvalidLevelTestCase(name string, invalidLevel slog.LogLevel) invalidLev
 
 // withStackDisabledTestCase tests WithStack on disabled entries
 type withStackDisabledTestCase struct {
+	name       string
 	entryLevel slog.LogLevel
 	threshold  slog.LogLevel
-	name       string
 }
 
 func (tc withStackDisabledTestCase) Name() string {
@@ -94,9 +94,9 @@ func newWithStackDisabledTestCase(name string, entryLevel, threshold slog.LogLev
 
 // withLevelDisabledTestCase tests WithLevel on disabled logger
 type withLevelDisabledTestCase struct {
+	name      string
 	level     slog.LogLevel
 	threshold slog.LogLevel
-	name      string
 }
 
 func (tc withLevelDisabledTestCase) Name() string {
@@ -153,8 +153,8 @@ func newWithLevelDisabledTestCase(name string, level, threshold slog.LogLevel) w
 
 // filterNewEdgeTestCase tests edge cases in filter.New
 type filterNewEdgeTestCase struct {
-	name       string
 	parent     slog.Logger
+	name       string
 	threshold  slog.LogLevel
 	expectNoop bool
 }

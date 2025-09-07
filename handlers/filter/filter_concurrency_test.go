@@ -20,9 +20,9 @@ var _ core.TestCase = filterImmutabilityTestCase{}
 
 // filterConcurrentFieldTestCase tests concurrent field attachment
 type filterConcurrentFieldTestCase struct {
+	name    string
 	workers int
 	fields  int
-	name    string
 }
 
 func (tc filterConcurrentFieldTestCase) Name() string {
@@ -98,9 +98,9 @@ func TestFilterConcurrentFields(t *testing.T) {
 
 // filterConcurrentLoggingTestCase tests parallel logging from multiple goroutines
 type filterConcurrentLoggingTestCase struct {
+	name     string
 	workers  int
 	messages int
-	name     string
 }
 
 func (tc filterConcurrentLoggingTestCase) Name() string {

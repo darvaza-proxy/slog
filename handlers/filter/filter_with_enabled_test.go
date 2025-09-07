@@ -48,9 +48,9 @@ func newWithEnabledLoggerTestCase(name string,
 
 // withEnabledEntryTestCase tests LogEntry.WithEnabled() behaviour
 type withEnabledEntryTestCase struct {
+	name        string
 	entryLevel  slog.LogLevel
 	threshold   slog.LogLevel
-	name        string
 	hasParent   bool
 	expectState bool
 }

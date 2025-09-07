@@ -20,17 +20,26 @@ var _ core.TestCase = dynamicThresholdTestCase{}
 // filterChainTestCase tests complex filter chains with varying thresholds
 type filterChainTestCase struct {
 	setupChain     func() slog.Logger
-	testOperations []operation
-	expectedCount  int
 	name           string
 	description    string
+	testOperations []operation
+	expectedCount  int
 }
 
 type operation struct {
-	level     slog.LogLevel
-	message   string
 	fields    map[string]any
+	message   string
+	level     slog.LogLevel
 	shouldLog bool
+}
+
+func newOperation(level slog.LogLevel, message string, fields map[string]any, shouldLog bool) operation {
+	return operation{
+		level:     level,
+		message:   message,
+		fields:    fields,
+		shouldLog: shouldLog,
+	}
 }
 
 func (tc filterChainTestCase) Name() string {
@@ -118,11 +127,11 @@ func filterChainTestCases() []filterChainTestCase {
 				return filter3
 			},
 			[]operation{
-				{slog.Debug, "debug message", nil, false}, // Blocked by filter3
-				{slog.Info, "info message", nil, false},   // Blocked by filter3
-				{slog.Warn, "warn message", nil, true},    // Passes all
-				{slog.Error, "error message", nil, true},  // Passes all
-				{slog.Fatal, "fatal message", nil, true},  // Passes all
+				newOperation(slog.Debug, "debug message", nil, false), // Blocked by filter3
+				newOperation(slog.Info, "info message", nil, false),   // Blocked by filter3
+				newOperation(slog.Warn, "warn message", nil, true),    // Passes all
+				newOperation(slog.Error, "error message", nil, true),  // Passes all
+				newOperation(slog.Fatal, "fatal message", nil, true),  // Passes all
 			},
 			3, // warn, error, fatal
 		),
@@ -159,9 +168,9 @@ func filterChainTestCases() []filterChainTestCase {
 				return filter2
 			},
 			[]operation{
-				{slog.Debug, "debug", map[string]any{"key": "value"}, false},
-				{slog.Info, "info", map[string]any{"public": "yes", "secret": "no"}, true},
-				{slog.Error, "error", map[string]any{"level": "high"}, true},
+				newOperation(slog.Debug, "debug", map[string]any{"key": "value"}, false),
+				newOperation(slog.Info, "info", map[string]any{"public": "yes", "secret": "no"}, true),
+				newOperation(slog.Error, "error", map[string]any{"level": "high"}, true),
 			},
 			2, // info and error pass
 		),
@@ -179,11 +188,11 @@ func filterChainTestCases() []filterChainTestCase {
 				return filter3
 			},
 			[]operation{
-				{slog.Debug, "debug", nil, false}, // Blocked by filter2
-				{slog.Info, "info", nil, false},   // Blocked by filter2
-				{slog.Warn, "warn", nil, false},   // Blocked by filter2
-				{slog.Error, "error", nil, true},  // Passes all
-				{slog.Fatal, "fatal", nil, true},  // Passes all
+				newOperation(slog.Debug, "debug", nil, false), // Blocked by filter2
+				newOperation(slog.Info, "info", nil, false),   // Blocked by filter2
+				newOperation(slog.Warn, "warn", nil, false),   // Blocked by filter2
+				newOperation(slog.Error, "error", nil, true),  // Passes all
+				newOperation(slog.Fatal, "fatal", nil, true),  // Passes all
 			},
 			2, // Only error and fatal pass the restrictive middle filter
 		),
@@ -196,11 +205,11 @@ func TestComplexFilterChains(t *testing.T) {
 
 // nestedFilterTestCase tests deeply nested filter scenarios
 type nestedFilterTestCase struct {
+	name       string
 	depth      int
 	threshold  slog.LogLevel
 	testLevel  slog.LogLevel
 	shouldPass bool
-	name       string
 }
 
 func (tc nestedFilterTestCase) Name() string {
