@@ -29,9 +29,9 @@ var _ core.TestCase = zerologLogletTestCase{}
 
 type zerologLogletTestCase struct {
 	name     string
+	logLevel string
 	level    slog.LogLevel
 	enabled  bool
-	logLevel string
 }
 
 func (tc zerologLogletTestCase) Name() string {

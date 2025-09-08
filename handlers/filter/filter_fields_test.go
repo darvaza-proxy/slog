@@ -101,8 +101,8 @@ func TestFieldsFilterAsPrimary(t *testing.T) {
 // fieldsFilterReturnFalseTestCase tests FieldsFilter returning false (drop all fields)
 type fieldsFilterReturnFalseTestCase struct {
 	inputFields map[string]any
-	shouldDrop  bool
 	name        string
+	shouldDrop  bool
 }
 
 func (tc fieldsFilterReturnFalseTestCase) Name() string {

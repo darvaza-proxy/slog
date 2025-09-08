@@ -13,13 +13,8 @@ var (
 
 // Logger implements a factory for level-filtered loggers.
 type Logger struct {
-	root internal.Loglet
-
 	// Parent is the Logger to use as backend when conditions are met.
 	Parent slog.Logger
-
-	// Threshold is the minimum level to be logged.
-	Threshold slog.LogLevel
 
 	// FieldFilter allows us to modify single fields before passing them
 	// to the Parent logger.
@@ -32,6 +27,11 @@ type Logger struct {
 	// MessageFilter allows us to modify Print() messages before passing
 	// them to the Parent logger, or completely discard the entry.
 	MessageFilter func(msg string) (string, bool)
+
+	root internal.Loglet
+
+	// Threshold is the minimum level to be logged.
+	Threshold slog.LogLevel
 }
 
 func (l *Logger) check() bool {

@@ -23,10 +23,9 @@ var (
 
 // Logger is an adaptor using go.uber.org/zap as slog.Logger
 type Logger struct {
-	loglet internal.Loglet
-
 	logger *zap.Logger
 	config *zap.Config
+	loglet internal.Loglet
 }
 
 // Unwrap returns the underlying zap logger
@@ -58,7 +57,7 @@ func (zpl *Logger) Enabled() bool {
 
 // WithEnabled passes the logger and if it's enabled
 func (zpl *Logger) WithEnabled() (slog.Logger, bool) {
-	return zpl, zpl.Enabled()
+	return zpl, zpl.Enabled() // skipcq: GO-W4006
 }
 
 // Print adds a log entry with arguments handled in the manner of fmt.Print

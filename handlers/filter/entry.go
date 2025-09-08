@@ -16,8 +16,8 @@ var (
 
 // LogEntry implements a level-filtered logger.
 type LogEntry struct {
-	loglet internal.Loglet
 	config *Logger
+	loglet internal.Loglet
 }
 
 // Level returns the current log level. Exposed for testing only.
@@ -75,7 +75,7 @@ func (l *LogEntry) getEnabled() (parent slog.Logger, level slog.LogLevel, enable
 
 // WithEnabled returns itself and whether it's enabled.
 func (l *LogEntry) WithEnabled() (slog.Logger, bool) {
-	return l, l.Enabled()
+	return l, l.Enabled() // skipcq: GO-W4006
 }
 
 // Print would, if conditions are met, add a log entry with the arguments

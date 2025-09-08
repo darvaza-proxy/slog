@@ -171,12 +171,12 @@ func TestLogrusLevelValidation(t *testing.T) {
 }
 
 type logrusLevelTestCase struct {
-	name    string
 	method  func() slog.Logger
+	buffer  *bytes.Buffer
+	name    string
+	logMsg  string
 	level   slog.LogLevel
 	enabled bool
-	logMsg  string
-	buffer  *bytes.Buffer
 }
 
 func (tc logrusLevelTestCase) Name() string {

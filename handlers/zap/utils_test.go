@@ -98,8 +98,8 @@ func TestMapFromZapLevel(t *testing.T) {
 }
 
 type getConfigLevelTestCase struct {
-	name     string
 	config   *zap.Config
+	name     string
 	expected slog.LogLevel
 }
 

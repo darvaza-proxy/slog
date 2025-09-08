@@ -248,9 +248,9 @@ func verifyComparisonResult(t *testing.T, expected, actual []Message) {
 
 // messageStringTestCase represents a test case for Message String method.
 type messageStringTestCase struct {
-	msg  Message
 	want string
 	name string
+	msg  Message
 }
 
 func (tc messageStringTestCase) Name() string {
@@ -308,9 +308,9 @@ func messageStringTestCases() []messageStringTestCase {
 var _ core.TestCase = assertNoFieldTestCase{}
 
 type assertNoFieldTestCase struct {
-	msg        Message
 	key        string
 	name       string
+	msg        Message
 	expectPass bool
 }
 

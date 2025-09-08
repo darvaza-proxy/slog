@@ -19,9 +19,9 @@ func TestLogLevel(t *testing.T) {
 
 // logLevelConstantTestCase represents a test case for log level constants.
 type logLevelConstantTestCase struct {
+	name  string
 	level slog.LogLevel
 	value slog.LogLevel
-	name  string
 }
 
 func (tc logLevelConstantTestCase) Name() string {
@@ -59,9 +59,9 @@ func testLogLevelConstants(t *testing.T) {
 
 // logLevelOrderingTestCase represents a test case for log level ordering.
 type logLevelOrderingTestCase struct {
+	name      string
 	prevLevel slog.LogLevel
 	currLevel slog.LogLevel
-	name      string
 }
 
 func (tc logLevelOrderingTestCase) Name() string {

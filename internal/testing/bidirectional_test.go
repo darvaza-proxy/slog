@@ -175,7 +175,7 @@ func (l *levelMappingLogger) Enabled() bool {
 }
 
 func (l *levelMappingLogger) WithEnabled() (slog.Logger, bool) {
-	return l, l.Enabled()
+	return l, l.Enabled() // skipcq: GO-W4006
 }
 
 func (l *levelMappingLogger) Print(args ...any) {
@@ -195,8 +195,8 @@ var _ core.TestCase = testBidirectionalFunctionTestCase{}
 var _ core.TestCase = testBidirectionalWithAdapterTestCase{}
 
 type testBidirectionalFunctionTestCase struct {
-	name        string
 	adapterFn   func(slog.Logger) slog.Logger
+	name        string
 	expectError bool
 }
 
@@ -247,8 +247,8 @@ func TestTestBidirectionalFunction(t *testing.T) {
 }
 
 type testBidirectionalWithAdapterTestCase struct {
-	name           string
 	adapterFactory func() slog.Logger
+	name           string
 	expectError    bool
 }
 

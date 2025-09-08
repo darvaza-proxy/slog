@@ -230,10 +230,10 @@ func runTestSlogCoreWithEmpty(t *testing.T) {
 
 // levelTestCase represents a test case for level mapping
 type levelTestCase struct {
+	logFunc   func(*zap.Logger, string, ...zap.Field)
 	name      string
 	zapLevel  zapcore.Level
 	slogLevel slog.LogLevel
-	logFunc   func(*zap.Logger, string, ...zap.Field)
 }
 
 func (tc levelTestCase) Name() string {
@@ -763,8 +763,8 @@ func (tc mapTestCase) Test(t *testing.T) {
 
 // configTestCase represents a test case for configuration testing
 type configTestCase struct {
-	name   string
 	config zap.Config
+	name   string
 }
 
 func (tc configTestCase) Name() string {

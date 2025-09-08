@@ -114,17 +114,17 @@ func testFilterThresholdFiltering(t *testing.T) {
 
 	// Test level transitions with threshold
 	testLevels := []struct {
-		name    string
 		method  func() slog.Logger
+		name    string
 		level   slog.LogLevel
 		enabled bool
 	}{
-		{"Debug", logger.Debug, slog.Debug, false},
-		{"Info", logger.Info, slog.Info, true},
-		{"Warn", logger.Warn, slog.Warn, true},
-		{"Error", logger.Error, slog.Error, true},
-		{"Fatal", logger.Fatal, slog.Fatal, true},
-		{"Panic", logger.Panic, slog.Panic, true},
+		{logger.Debug, "Debug", slog.Debug, false},
+		{logger.Info, "Info", slog.Info, true},
+		{logger.Warn, "Warn", slog.Warn, true},
+		{logger.Error, "Error", slog.Error, true},
+		{logger.Fatal, "Fatal", slog.Fatal, true},
+		{logger.Panic, "Panic", slog.Panic, true},
 	}
 
 	for _, tt := range testLevels {
@@ -397,9 +397,9 @@ func TestFilterParentless(t *testing.T) {
 type filterHierarchyTestCase struct {
 	operation      func(entry slog.Logger) slog.Logger
 	expectedFields map[string]any
-	expectedCalls  hierarchyCallTracker
 	name           string
 	description    string
+	expectedCalls  hierarchyCallTracker
 }
 
 func (tc filterHierarchyTestCase) Name() string {
@@ -463,9 +463,9 @@ func (tc filterHierarchyTestCase) Test(t *testing.T) {
 
 // hierarchyCallTracker tracks filter function calls
 type hierarchyCallTracker struct {
+	fieldFilterKeys   []string
 	fieldFilterCalls  int
 	fieldsFilterCalls int
-	fieldFilterKeys   []string
 }
 
 func newHierarchyCallTracker() *hierarchyCallTracker {

@@ -100,8 +100,8 @@ func testBidirectionalLevels(t core.T, fn func(slog.Logger) slog.Logger, opts *B
 
 // levelTestCase represents a single level test case
 type levelTestCase struct {
-	name    string
 	logFunc func(slog.Logger, string)
+	name    string
 	level   slog.LogLevel
 }
 

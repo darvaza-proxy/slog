@@ -143,12 +143,12 @@ func (m *mockPanicLogger) Enabled() bool                           { return true
 func (m *mockPanicLogger) WithEnabled() (slog.Logger, bool)        { return m, true }
 
 type slogHookLevelTestCase struct {
-	name         string
 	logFunc      func(args ...any)
-	logLevel     logrus.Level
-	expected     slog.LogLevel
 	logrusLogger *logrus.Logger
 	recorder     *slogtest.Logger
+	name         string
+	logLevel     logrus.Level
+	expected     slog.LogLevel
 }
 
 func (tc slogHookLevelTestCase) Name() string {

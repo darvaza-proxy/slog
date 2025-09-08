@@ -54,8 +54,8 @@ var _ core.TestCase = fieldCopyingTestCase{}
 // levelTestCase represents a test case for log level methods.
 type levelTestCase struct {
 	logFunc  func(*Logger) slog.Logger
-	expected slog.LogLevel
 	name     string
+	expected slog.LogLevel
 }
 
 func newLevelTestCase(name string, logFunc func(*Logger) slog.Logger, expected slog.LogLevel) levelTestCase {
@@ -368,10 +368,8 @@ func (tc fieldCopyingTestCase) verifyFields(t *testing.T, msg Message) {
 func fieldCopyingTestCases() []fieldCopyingTestCase {
 	return []fieldCopyingTestCase{
 		{
-			name: "logger with no fields",
-			setupLogger: func() *Logger {
-				return NewLogger()
-			},
+			name:           "logger with no fields",
+			setupLogger:    NewLogger,
 			expectedFields: map[string]any{},
 		},
 		{

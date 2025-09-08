@@ -10,8 +10,8 @@ import (
 // logLevelInfo holds information about a log level for testing purposes.
 type logLevelInfo struct {
 	method func(slog.Logger) slog.Logger
-	level  slog.LogLevel
 	name   string
+	level  slog.LogLevel
 }
 
 // newLogLevelInfo creates a new log level info instance.

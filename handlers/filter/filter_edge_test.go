@@ -17,8 +17,8 @@ var _ core.TestCase = disabledLoggerTestCase{}
 
 // parentlessBehaviourTestCase tests parentless logger behaviour
 type parentlessBehaviourTestCase struct {
-	level    slog.LogLevel
 	name     string
+	level    slog.LogLevel
 	expected bool
 }
 

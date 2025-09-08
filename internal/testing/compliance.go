@@ -408,10 +408,10 @@ func (ComplianceTest) verifySiblingIndependence(t *testing.T, l1 slog.Logger) {
 
 // concurrencyTest defines a basic concurrency test case.
 type concurrencyTest struct {
+	testFunc   func(*testing.T, slog.Logger, int, int)
 	name       string
 	goroutines int
 	operations int
-	testFunc   func(*testing.T, slog.Logger, int, int)
 }
 
 // concurrencyTests returns the basic concurrency test cases.

@@ -17,10 +17,10 @@ var _ core.TestCase = levelMethodTestCase{}
 // allLevelsTestCase tests all log level methods on LogEntry
 type allLevelsTestCase struct {
 	method      func(slog.Logger) slog.Logger
-	methodLevel slog.LogLevel
-	threshold   slog.LogLevel
 	methodName  string
 	name        string
+	methodLevel slog.LogLevel
+	threshold   slog.LogLevel
 	shouldLog   bool
 }
 
@@ -107,9 +107,9 @@ func newAllLevelsTestCase(name, methodName string,
 // levelMethodTestCase tests level methods with various configurations
 type levelMethodTestCase struct {
 	method    func(slog.Logger) slog.Logger
+	name      string
 	level     slog.LogLevel
 	threshold slog.LogLevel
-	name      string
 	hasParent bool
 	expectLog bool
 }
