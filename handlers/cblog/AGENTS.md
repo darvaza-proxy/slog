@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 This file provides guidance to AI agents when working with code in this
 repository. For developers and general project information, please refer to
@@ -81,4 +81,4 @@ When testing with cblog:
 - Document any blocking behaviour clearly.
 
 For general development guidelines, see the main
-[slog AGENT.md](../../AGENT.md).
+[slog AGENTS.md](../../AGENTS.md).

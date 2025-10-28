@@ -63,4 +63,4 @@ logger.Info().WithField("component", "api").Print("Server started")
 
 - [API Reference](https://pkg.go.dev/darvaza.org/slog/handlers/cblog)
 - [slog Documentation](https://github.com/darvaza-proxy/slog)
-- [Development Guide](AGENT.md)
+- [Development Guide](AGENTS.md)

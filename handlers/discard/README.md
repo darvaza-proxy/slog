@@ -55,4 +55,4 @@ logger.Panic().Print("This will panic") // Calls log.Panic()
 
 - [API Reference](https://pkg.go.dev/darvaza.org/slog/handlers/discard)
 - [slog Documentation](https://github.com/darvaza-proxy/slog)
-- [Development Guide](AGENT.md)
+- [Development Guide](AGENTS.md)

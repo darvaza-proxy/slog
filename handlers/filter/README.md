@@ -256,4 +256,4 @@ func createLogger(isDevelopment bool) slog.Logger {
 
 - [API Reference](https://pkg.go.dev/darvaza.org/slog/handlers/filter)
 - [slog Documentation](https://github.com/darvaza-proxy/slog)
-- [Development Guide](../../AGENT.md)
+- [Development Guide](../../AGENTS.md)

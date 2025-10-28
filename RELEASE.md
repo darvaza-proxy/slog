@@ -13,8 +13,8 @@ consistent and coordinated releases.
 
 ### Essential Commands
 
-For development commands and build instructions, see [AGENT.md Common
-Development Commands](AGENT.md#common-development-commands).
+For development commands and build instructions, see [AGENTS.md Common
+Development Commands](AGENTS.md#common-development-commands).
 
 Release-specific commands:
 
@@ -55,9 +55,9 @@ Before starting the release process:
 - [ ] Ensure all tests pass: `make test`
 - [ ] Run linting: `make lint`
 - [ ] Update dependencies: `make up && make tidy`
-- [ ] Review [AGENT.md testing patterns](AGENT.md#testing-patterns) for
+- [ ] Review [AGENTS.md testing patterns](AGENTS.md#testing-patterns) for
   comprehensive testing
-- [ ] Follow [documentation standards](AGENT.md#documentation-standards) when
+- [ ] Follow [documentation standards](AGENTS.md#documentation-standards) when
   writing release notes
 - [ ] Review and update CHANGELOG.md if present
 - [ ] Ensure documentation is up-to-date.
@@ -265,8 +265,8 @@ Each handler maintains its own version but typically follows the main module:
 ## Handler Development Mode
 
 For detailed information about handler development mode, replace directives,
-and development workflows, see [AGENT.md Handler Development
-Mode](AGENT.md#handler-development-mode).
+and development workflows, see [AGENTS.md Handler Development
+Mode](AGENTS.md#handler-development-mode).
 
 **Key Points**:
 
@@ -373,5 +373,5 @@ All modules require Go 1.23 or later and use darvaza.org/core v0.18.2.
 ## See Also
 
 - [README.md](README.md): General repository information
-- [AGENT.md](AGENT.md): Development guidelines for AI agents
+- [AGENTS.md](AGENTS.md): Development guidelines for AI agents
 - Individual handler README files in `handlers/*/README.md`

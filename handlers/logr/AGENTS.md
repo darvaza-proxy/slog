@@ -67,6 +67,6 @@ Run tests with: `make test-logr`
 
 ## See Also
 
-- [slog AGENT.md](../../AGENT.md) - General slog development guide
+- [slog AGENTS.md](../../AGENTS.md) - General slog development guide
 - [logr documentation](https://github.com/go-logr/logr) - Understanding logr
   concepts
