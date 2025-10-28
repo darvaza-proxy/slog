@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 This file provides guidance to AI agents when working with code in this
 repository. For developers and general project information, please refer to
@@ -91,4 +91,4 @@ Custom filter functions can:
 - Ensure the filtered logger remains thread-safe.
 
 For general development guidelines, see the main
-[slog AGENT.md](../../AGENT.md).
+[slog AGENTS.md](../../AGENTS.md).

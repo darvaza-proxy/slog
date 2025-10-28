@@ -103,5 +103,5 @@ slogrus.SetupLogrusToSlog(existingLogger, slogLogger)
 
 - [API Reference](https://pkg.go.dev/darvaza.org/slog/handlers/logrus)
 - [slog Documentation](https://github.com/darvaza-proxy/slog)
-- [Development Guide](AGENT.md)
+- [Development Guide](AGENTS.md)
 - [Logrus Documentation](https://github.com/sirupsen/logrus)

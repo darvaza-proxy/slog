@@ -349,5 +349,5 @@ documentation on using the test utilities, including:
 
 ## Development
 
-See [AGENT.md](AGENT.md) for development guidelines and
+See [AGENTS.md](AGENTS.md) for development guidelines and
 [LICENCE.txt](LICENCE.txt) for licensing information.

@@ -79,5 +79,5 @@ slogLogger.Info().
 
 - [API Reference](https://pkg.go.dev/darvaza.org/slog/handlers/zerolog)
 - [slog Documentation](https://github.com/darvaza-proxy/slog)
-- [Development Guide](AGENT.md)
+- [Development Guide](AGENTS.md)
 - [Zerolog Documentation](https://github.com/rs/zerolog)

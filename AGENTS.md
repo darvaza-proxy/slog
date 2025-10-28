@@ -482,7 +482,7 @@ When editing Markdown files, ensure compliance with:
 When creating or editing documentation files:
 
 1. **File Structure**:
-   - Always include a link to related documentation (e.g., AGENT.md should
+   - Always include a link to related documentation (e.g., AGENTS.md should
      link to README.md).
    - Add prerequisites or setup instructions before diving into commands.
    - Include paths to configuration files when mentioning tools.
@@ -517,7 +517,7 @@ When creating or editing documentation files:
    - If `make tidy` fails, fix the issues and run it again until it passes.
 2. Verify all tests pass with `make test`.
 3. Ensure no linting violations remain.
-4. Update `AGENT.md` to reflect any changes in development workflow or
+4. Update `AGENTS.md` to reflect any changes in development workflow or
    standards.
 5. Update `README.md` to reflect significant changes in functionality or API.
 6. Update handler documentation if modifying handler behaviour.

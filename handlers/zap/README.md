@@ -152,7 +152,7 @@ behaviour.
 
 - [API Reference][godoc]
 - [slog Documentation][slog-github]
-- [Development Guide](AGENT.md)
+- [Development Guide](AGENTS.md)
 - [Zap Documentation][zap-docs]
 
 [zap-github]: https://github.com/uber-go/zap
