@@ -73,14 +73,14 @@ func main() {
 
 ### slog to logr (when using logr as backend)
 
-| slog Level | logr Method |
-|------------|-------------|
-| Debug      | V(1).Info() |
-| Info       | V(0).Info() |
-| Warn       | V(0).Info() |
-| Error      | Error()     |
+| slog Level | logr Method          |
+|------------|----------------------|
+| Debug      | V(1).Info()          |
+| Info       | V(0).Info()          |
+| Warn       | V(0).Info()          |
+| Error      | Error()              |
 | Fatal      | Error() + os.Exit(1) |
-| Panic      | Error() + panic |
+| Panic      | Error() + panic      |
 
 Note: logr doesn't have a warn level, so Warn is mapped to V(0) like Info.
 

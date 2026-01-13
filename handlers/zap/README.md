@@ -129,14 +129,14 @@ it now accepts variadic `zap.Option` parameters for customizing the logger.
 
 ## Level Mapping
 
-| slog Level | zap Level    | Behaviour |
-|------------|--------------|-----------|
+| slog Level | zap Level    | Behaviour        |
+|------------|--------------|------------------|
 | Debug      | Debug        | Standard mapping |
 | Info       | Info         | Standard mapping |
 | Warn       | Warn         | Standard mapping |
 | Error      | Error        | Standard mapping |
 | Fatal      | Fatal        | Calls os.Exit(1) |
-| Panic      | Panic/DPanic | Calls panic() |
+| Panic      | Panic/DPanic | Calls panic()    |
 
 **Note:** DPanic (Development Panic) maps to slog.Panic and triggers panic()
 behaviour.
