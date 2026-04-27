@@ -84,7 +84,7 @@ The build system includes automatic Markdown linting:
 
 - Detects markdownlint-cli via pnpx.
 - Configuration in `internal/build/markdownlint.json`.
-- 80-character line limits and strict formatting rules.
+- 80-character prose line limit (120 in code blocks), strict formatting rules.
 - Selective HTML allowlist (comments, br, kbd, etc.).
 - Runs automatically with `make fmt` when available.
 
@@ -448,8 +448,9 @@ done
 
 When editing Markdown files, ensure compliance with:
 
-- **Line Length**: Maximum 80 characters per line. Break long lines at
-  appropriate points (after commas, before operators, at sentence boundaries).
+- **Line Length**: Maximum 80 characters per prose line; code blocks may
+  extend to 120. Break long lines at appropriate points (after commas,
+  before operators, at sentence boundaries).
 - **LanguageTool**: Check for missing articles ("a", "an", "the"), punctuation,
   and proper hyphenation of compound modifiers.
 - **Markdownlint**: Follow standard Markdown formatting rules, including:
@@ -460,7 +461,8 @@ When editing Markdown files, ensure compliance with:
 
 ### Common Documentation Issues to Check
 
-1. **Line Length**: Keep lines under 80 characters.
+1. **Line Length**: Keep prose lines under 80 characters; code blocks
+   may extend to 120.
    - ❌ Long URLs on same line with text
    - ✅ Break after colon or use reference-style links
    - For lists, indent continuation lines with 2 spaces
