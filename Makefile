@@ -47,7 +47,13 @@ FIX_WHITESPACE_EXCLUDE_PATTERNS ?= $(patsubst %,-o -name '*.%',$(FIX_WHITESPACE_
 FIX_WHITESPACE_EXCLUDE ?= $(FIX_WHITESPACE_EXCLUDE_GO) $(FIX_WHITESPACE_EXCLUDE_PATTERNS)
 FIX_WHITESPACE_ARGS ?= . \! \( $(FIX_WHITESPACE_EXCLUDE) \)
 
-PNPX ?= pnpx
+ifndef DLX
+ifeq ($(shell pnpm --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+DLX = pnpm dlx
+else
+DLX = true
+endif
+endif
 
 FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules
 FIND_FILES_PRUNE_ARGS ?= \( $(FIND_FILES_PRUNE_RULES) \) -prune
@@ -55,8 +61,8 @@ FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
 FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'
 
 ifndef MARKDOWNLINT
-ifeq ($(shell $(PNPX) markdownlint-cli --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
-MARKDOWNLINT = $(PNPX) markdownlint-cli
+ifeq ($(shell $(DLX) markdownlint-cli --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+MARKDOWNLINT = $(DLX) markdownlint-cli
 else
 MARKDOWNLINT = true
 endif
@@ -64,8 +70,8 @@ endif
 MARKDOWNLINT_FLAGS ?= --fix --config $(TOOLSDIR)/markdownlint.json
 
 ifndef LANGUAGETOOL
-ifeq ($(shell $(PNPX) @twilio-labs/languagetool-cli --version 2>&1 | grep -qE '^(unknown|[0-9])' && echo yes),yes)
-LANGUAGETOOL = $(PNPX) @twilio-labs/languagetool-cli
+ifeq ($(shell $(DLX) @twilio-labs/languagetool-cli --version 2>&1 | grep -qE '^(unknown|[0-9])' && echo yes),yes)
+LANGUAGETOOL = $(DLX) @twilio-labs/languagetool-cli
 else
 LANGUAGETOOL = true
 endif
@@ -73,8 +79,8 @@ endif
 LANGUAGETOOL_FLAGS ?= --config $(TOOLSDIR)/languagetool.cfg --custom-dict-file $(TMPDIR)/languagetool-dict.txt
 
 ifndef CSPELL
-ifeq ($(shell $(PNPX) cspell --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
-CSPELL = $(PNPX) cspell
+ifeq ($(shell $(DLX) cspell --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+CSPELL = $(DLX) cspell
 else
 CSPELL = true
 endif
@@ -82,8 +88,8 @@ endif
 CSPELL_FLAGS ?= --no-progress --dot --config $(TOOLSDIR)/cspell.json
 
 ifndef SHELLCHECK
-ifeq ($(shell $(PNPX) shellcheck --version 2>&1 | grep -q '^ShellCheck' && echo yes),yes)
-SHELLCHECK = $(PNPX) shellcheck
+ifeq ($(shell $(DLX) shellcheck --version 2>&1 | grep -q '^ShellCheck' && echo yes),yes)
+SHELLCHECK = $(DLX) shellcheck
 else
 SHELLCHECK = true
 endif
