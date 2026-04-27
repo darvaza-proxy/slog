@@ -106,6 +106,11 @@ fi
 # Create coverage directory
 mkdir -p "$COVERAGE_DIR"
 
-echo "Generating codecov.sh..."
-generate_upload_script "$INDEX" > "$COVERAGE_DIR/codecov.sh"
-chmod +x "$COVERAGE_DIR/codecov.sh"
+OUT="$COVERAGE_DIR/codecov.sh"
+generate_upload_script "$INDEX" > "$OUT~"
+chmod +x "$OUT~"
+if cmp "$OUT" "$OUT~" 2> /dev/null >&2; then
+	rm "$OUT~"
+else
+	mv "$OUT~" "$OUT"
+fi

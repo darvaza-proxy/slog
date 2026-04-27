@@ -162,10 +162,11 @@ generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
 
+# Prepare for codecov uploading
+codecov: $(COVERAGE_DIR)/coverage.out $(COVERAGE_DIR)/codecov.sh
+
 # Generate Codecov upload script
-# This target prepares codecov.sh script for uploading coverage
-# data to Codecov with proper module flags
-codecov: $(COVERAGE_DIR)/coverage.out ; $(info $(M) preparing codecov data)
+$(COVERAGE_DIR)/codecov.sh: $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index ; $(info $(M) generating codecov.sh…)
 	$Q $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index $(COVERAGE_DIR)
 
 check-jq: FORCE
