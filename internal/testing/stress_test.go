@@ -141,7 +141,7 @@ func testCustomStressFunction(t *testing.T) {
 		Goroutines: 5,
 		StressFunc: func(l slog.Logger, id int) {
 			// Custom stress logic
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				l.Info().
 					WithField("custom_id", id).
 					WithField("iteration", i).

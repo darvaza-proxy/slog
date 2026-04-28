@@ -121,7 +121,7 @@ func runConcurrentLogging(logger slog.Logger, test ConcurrencyTest) {
 
 // runGoroutineOperations performs logging operations for a single goroutine.
 func runGoroutineOperations(logger slog.Logger, id, operations int) {
-	for j := 0; j < operations; j++ {
+	for j := range operations {
 		logger.Info().
 			WithField("goroutine", id).
 			WithField("operation", j).
@@ -157,7 +157,7 @@ func createConcurrentLoggers(base slog.Logger, goroutines, fieldsPerGoroutine in
 	var wg sync.WaitGroup
 	loggers := make([]slog.Logger, goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
@@ -172,7 +172,7 @@ func createConcurrentLoggers(base slog.Logger, goroutines, fieldsPerGoroutine in
 // createLoggerWithFields creates a logger with multiple fields.
 func createLoggerWithFields(base slog.Logger, id, numFields int) slog.Logger {
 	l := base
-	for j := 0; j < numFields; j++ {
+	for j := range numFields {
 		fieldName := fmt.Sprintf("field_%d", j)
 		fieldValue := id*100 + j
 		l = l.WithField(fieldName, fieldValue)
