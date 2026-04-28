@@ -16,7 +16,6 @@ import (
 
 const (
 	testHelloWorld = "hello world"
-	testValue      = "value"
 )
 
 func TestLevel(t *testing.T) {
@@ -38,117 +37,127 @@ func TestLevel(t *testing.T) {
 var _ core.TestCase = messageVerificationTestCase{}
 var _ core.TestCase = callbackMessageTestCase{}
 
+type finaliserResult struct {
+	closed bool
+	count  int
+}
+
 func TestFinaliserClosesInternalChannel(t *testing.T) {
 	// Test that finaliser closes internally created channels
-	type result struct {
-		closed bool
-		count  int
-	}
-	resultChan := make(chan result, 1)
+	resultChan := make(chan finaliserResult, 1)
+	runInternalFinaliserScenario(resultChan)
 
-	func() {
-		logger, logCh := cblog.New(nil)
-
-		// Set up goroutine to detect channel closure and count messages
-		go func() {
-			count := 0
-			for range logCh {
-				count++
-			}
-			resultChan <- result{closed: true, count: count}
-		}()
-
-		// Send test messages
-		logger.Info().Print("test message 1")
-		logger.Debug().Print("test message 2")
-		logger.Warn().Print("test message 3")
-
-		// logger goes out of scope here
-	}()
-
-	// Force garbage collection
+	// Force garbage collection so the finaliser fires deterministically.
+	//revive:disable-next-line:call-to-gc
 	runtime.GC()
 	runtime.Gosched()
 
-	// Check if channel was closed and verify message count
 	select {
 	case res := <-resultChan:
-		if !res.closed {
-			t.Error("channel was not closed")
-		}
-		if res.count != 3 {
-			t.Errorf("expected 3 messages, got %d", res.count)
-		}
-		// Success - channel was closed by finaliser with correct message count
+		verifyFinaliserClosed(t, res, 3)
 	case <-time.After(2 * time.Second):
 		t.Error("finaliser did not close internal channel")
+	}
+}
+
+// runInternalFinaliserScenario creates a logger backed by an internal
+// channel, drains the channel until it is closed, sends a few messages,
+// then drops the logger so the finaliser can run.
+func runInternalFinaliserScenario(resultChan chan<- finaliserResult) {
+	logger, logCh := cblog.New(nil)
+
+	go func() {
+		count := 0
+		for range logCh {
+			count++
+		}
+		resultChan <- finaliserResult{closed: true, count: count}
+	}()
+
+	logger.Info().Print("test message 1")
+	logger.Debug().Print("test message 2")
+	logger.Warn().Print("test message 3")
+}
+
+func verifyFinaliserClosed(t *testing.T, res finaliserResult, want int) {
+	t.Helper()
+	if !res.closed {
+		t.Error("channel was not closed")
+	}
+	if res.count != want {
+		t.Errorf("expected %d messages, got %d", want, res.count)
 	}
 }
 
 func TestFinaliserDoesNotCloseExternalChannel(t *testing.T) {
 	// Test that finaliser does NOT close externally provided channels
 	ch := make(chan cblog.LogMsg, 10)
-	type result struct {
-		closed bool
-		count  int
-	}
-	resultChan := make(chan result, 1)
+	resultChan := make(chan finaliserResult, 1)
 
-	// Monitor the channel
-	go func() {
-		count := 0
-		for msg := range ch {
-			count++
-			// Exit after receiving expected messages plus one manual message
-			if count == 3 && msg.Message == "manual message" {
-				resultChan <- result{closed: false, count: count}
-				return
-			}
-		}
-		// Channel was closed unexpectedly
-		resultChan <- result{closed: true, count: count}
-	}()
+	go monitorExternalChannelUntilManual(ch, resultChan)
+	runExternalFinaliserScenario(ch)
 
-	func() {
-		logger, _ := cblog.New(ch)
-
-		// Send test messages
-		logger.Info().Print("test message 1")
-		logger.Debug().Print("test message 2")
-
-		// logger goes out of scope here
-	}()
-
-	// Force garbage collection
+	// Force garbage collection so the finaliser fires deterministically.
+	//revive:disable-next-line:call-to-gc
 	runtime.GC()
 	runtime.Gosched()
 
 	// Give time for any potential finaliser to run
 	time.Sleep(500 * time.Millisecond)
 
-	// Verify we can still send to the channel
-	select {
-	case ch <- cblog.LogMsg{Level: slog.Info, Message: "manual message"}:
-		// Success - channel is still open
-	default:
+	if !sendManualMessage(ch) {
 		t.Error("channel appears to be closed")
 	}
 
-	// Check the result
 	select {
 	case res := <-resultChan:
-		if res.closed {
-			t.Error("finaliser incorrectly closed external channel")
-		}
-		if res.count != 3 {
-			t.Errorf("expected 3 messages, got %d", res.count)
-		}
-		// Success - received all messages and channel remains open
+		verifyFinaliserNotClosed(t, res, 3)
 	case <-time.After(time.Second):
 		t.Error("timeout waiting for result")
 	}
 
 	close(ch) // Clean up
+}
+
+// monitorExternalChannelUntilManual counts messages on ch and reports
+// once the manual sentinel is received, or when the channel is closed.
+func monitorExternalChannelUntilManual(ch <-chan cblog.LogMsg, result chan<- finaliserResult) {
+	count := 0
+	for msg := range ch {
+		count++
+		if count == 3 && msg.Message == "manual message" {
+			result <- finaliserResult{closed: false, count: count}
+			return
+		}
+	}
+	result <- finaliserResult{closed: true, count: count}
+}
+
+// runExternalFinaliserScenario creates a logger backed by ch, sends a
+// couple of messages, then drops the logger so the finaliser can run.
+func runExternalFinaliserScenario(ch chan cblog.LogMsg) {
+	logger, _ := cblog.New(ch)
+	logger.Info().Print("test message 1")
+	logger.Debug().Print("test message 2")
+}
+
+func sendManualMessage(ch chan<- cblog.LogMsg) bool {
+	select {
+	case ch <- cblog.LogMsg{Level: slog.Info, Message: "manual message"}:
+		return true
+	default:
+		return false
+	}
+}
+
+func verifyFinaliserNotClosed(t *testing.T, res finaliserResult, want int) {
+	t.Helper()
+	if res.closed {
+		t.Error("finaliser incorrectly closed external channel")
+	}
+	if res.count != want {
+		t.Errorf("expected %d messages, got %d", want, res.count)
+	}
 }
 
 func TestNew(t *testing.T) {
@@ -428,35 +437,63 @@ func testCblogConcurrentFields(t *testing.T) {
 }
 
 func testCblogConcurrentWithVerification(t *testing.T) {
-	logger, ch := cblog.New(nil)
-
 	const numGoroutines = 10
 	const numMessages = 100
+	const total = numGoroutines * numMessages
 
-	// Collect messages
-	done := make(chan bool)
-	var messages []cblog.LogMsg
-	var mu sync.Mutex
+	logger, ch := cblog.New(nil)
+	done := make(chan bool, 1)
+	collector := &cblogMessageCollector{}
 
-	go func() {
-		for msg := range ch {
-			mu.Lock()
-			messages = append(messages, msg)
-			mu.Unlock()
-			if len(messages) == numGoroutines*numMessages {
-				done <- true
-				return
-			}
+	go collector.collectUntil(ch, total, done)
+	sendConcurrentLogs(logger, numGoroutines, numMessages)
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		if !core.AssertTrue(t, false, "timeout: only received %d messages", collector.count()) {
+			return
 		}
-	}()
+	}
 
-	// Send messages concurrently
+	core.AssertEqual(t, total, collector.count(), "message count")
+}
+
+type cblogMessageCollector struct {
+	messages []cblog.LogMsg
+	mu       sync.Mutex
+}
+
+// collectUntil appends messages from ch until total are gathered, then
+// reports done. It exits when ch closes.
+func (c *cblogMessageCollector) collectUntil(ch <-chan cblog.LogMsg, total int, done chan<- bool) {
+	for msg := range ch {
+		c.mu.Lock()
+		c.messages = append(c.messages, msg)
+		finished := len(c.messages) == total
+		c.mu.Unlock()
+		if finished {
+			done <- true
+			return
+		}
+	}
+}
+
+func (c *cblogMessageCollector) count() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.messages)
+}
+
+// sendConcurrentLogs fans out numGoroutines workers, each sending
+// numMessages messages tagged with their goroutine and message index.
+func sendConcurrentLogs(logger slog.Logger, numGoroutines, numMessages int) {
 	var wg sync.WaitGroup
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numMessages; j++ {
+			for j := range numMessages {
 				logger.Info().
 					WithField("goroutine", id).
 					WithField("message", j).
@@ -464,20 +501,7 @@ func testCblogConcurrentWithVerification(t *testing.T) {
 			}
 		}(i)
 	}
-
 	wg.Wait()
-
-	select {
-	case <-done:
-		// All messages received
-	case <-time.After(5 * time.Second):
-		if !core.AssertTrue(t, false, "timeout: only received %d messages", len(messages)) {
-			return
-		}
-	}
-
-	// Verify we got all messages
-	core.AssertEqual(t, numGoroutines*numMessages, len(messages), "message count")
 }
 
 func TestNewWithCallback(t *testing.T) {
@@ -529,9 +553,9 @@ func testNewWithCallbackWithNilHandler(t *testing.T) {
 }
 
 func testNewWithCallbackWithZeroSize(t *testing.T) {
-	var called int32
+	var called atomic.Int32
 	handler := func(_ cblog.LogMsg) {
-		atomic.StoreInt32(&called, 1)
+		called.Store(1)
 	}
 
 	logger := cblog.NewWithCallback(0, handler)
@@ -542,7 +566,7 @@ func testNewWithCallbackWithZeroSize(t *testing.T) {
 	logger.Info().Print("test")
 	time.Sleep(100 * time.Millisecond)
 
-	core.AssertNotEqual(t, int32(0), atomic.LoadInt32(&called), "handler was not called")
+	core.AssertNotEqual(t, int32(0), called.Load(), "handler was not called")
 }
 
 func TestFieldChaining(t *testing.T) {
