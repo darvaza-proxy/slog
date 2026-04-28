@@ -141,6 +141,10 @@ func (zl *Logger) handleTerminalLevels(msg string) {
 			perr = core.NewPanicError(skip, msg)
 		}
 		panic(perr)
+	default:
+		// Non-terminal levels (Debug/Info/Warn/Error/Undefined) just
+		// return — the message has already been written to the
+		// zerolog event by the caller.
 	}
 }
 
