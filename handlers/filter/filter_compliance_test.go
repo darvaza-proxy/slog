@@ -66,52 +66,10 @@ func runTestFilterWithCustomFilters(t *testing.T) {
 	compliance := slogtest.ComplianceTest{
 		FactoryOptions: slogtest.FactoryOptions{
 			NewLogger: func() slog.Logger {
-				backend := mock.NewLogger()
-				logger := &filter.Logger{
-					Parent:    backend,
-					Threshold: slog.Debug,
-					// Filter out fields starting with underscore
-					FieldFilter: func(key string, val any) (string, any, bool) {
-						if len(key) > 0 && key[0] == '_' {
-							return "", nil, false
-						}
-						// Transform sensitive fields
-						if key == sensitiveKey1 || key == sensitiveKey2 {
-							return key, redactedValue, true
-						}
-						return key, val, true
-					},
-					// Add prefix to all messages
-					MessageFilter: func(msg string) (string, bool) {
-						if msg == "" {
-							return msg, false // Filter out empty messages
-						}
-						return "[FILTERED] " + msg, true
-					},
-				}
-				return logger
+				return newComplianceFilterLogger(mock.NewLogger())
 			},
 			NewLoggerWithRecorder: func(recorder slog.Logger) slog.Logger {
-				logger := &filter.Logger{
-					Parent:    recorder,
-					Threshold: slog.Debug,
-					FieldFilter: func(key string, val any) (string, any, bool) {
-						if len(key) > 0 && key[0] == '_' {
-							return "", nil, false
-						}
-						if key == sensitiveKey1 || key == sensitiveKey2 {
-							return key, redactedValue, true
-						}
-						return key, val, true
-					},
-					MessageFilter: func(msg string) (string, bool) {
-						if msg == "" {
-							return msg, false
-						}
-						return "[FILTERED] " + msg, true
-					},
-				}
-				return logger
+				return newComplianceFilterLogger(recorder)
 			},
 		},
 		SkipPanicTests:   false,
@@ -119,6 +77,35 @@ func runTestFilterWithCustomFilters(t *testing.T) {
 	}
 
 	compliance.Run(t)
+}
+
+// newComplianceFilterLogger builds the filter.Logger used by the
+// compliance harness: drop underscore-prefixed fields, redact sensitive
+// keys, and prefix every message with "[FILTERED] ".
+func newComplianceFilterLogger(parent slog.Logger) *filter.Logger {
+	return &filter.Logger{
+		Parent:        parent,
+		Threshold:     slog.Debug,
+		FieldFilter:   complianceFieldFilter,
+		MessageFilter: complianceMessageFilter,
+	}
+}
+
+func complianceFieldFilter(key string, val any) (string, any, bool) {
+	if len(key) > 0 && key[0] == '_' {
+		return "", nil, false
+	}
+	if key == sensitiveKey1 || key == sensitiveKey2 {
+		return key, redactedValue, true
+	}
+	return key, val, true
+}
+
+func complianceMessageFilter(msg string) (string, bool) {
+	if msg == "" {
+		return msg, false
+	}
+	return "[FILTERED] " + msg, true
 }
 
 func runTestNoopFilterCompliance(t *testing.T) {

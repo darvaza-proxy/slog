@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -50,51 +51,59 @@ func (tc filterChainTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	logger := tc.setupChain()
-
-	// Extract the base mock logger
-	var base *mock.Logger
-	current := logger
-	for {
-		if m, ok := current.(*mock.Logger); ok {
-			base = m
-			break
-		}
-		if f, ok := current.(*filter.Logger); ok && f.Parent != nil {
-			current = f.Parent
-		} else {
-			break
-		}
-	}
-
+	base := extractBaseMockLogger(logger)
 	if base == nil {
 		t.Fatal("Could not find base mock logger in chain")
 	}
 
-	// Execute operations
 	for _, op := range tc.testOperations {
-		entry := logger.WithLevel(op.level)
-		if len(op.fields) > 0 {
-			entry = entry.WithFields(op.fields)
-		}
-		entry.Print(op.message)
+		runOperation(logger, op)
 	}
 
-	// Verify results
 	msgs := base.GetMessages()
 	slogtest.AssertMessageCount(t, msgs, tc.expectedCount)
+	verifyLoggedOperations(t, msgs, tc.testOperations)
+}
 
-	// Verify which operations were logged
-	msgIdx := 0
-	for i, op := range tc.testOperations {
-		if op.shouldLog {
-			if msgIdx >= len(msgs) {
-				t.Errorf("Operation %d should have logged but didn't", i)
-				continue
-			}
-			msg := msgs[msgIdx]
-			core.AssertContains(t, msg.Message, op.message, "message content")
-			msgIdx++
+// extractBaseMockLogger walks a chain of filter.Logger wrappers until
+// it reaches the underlying mock.Logger, returning nil if the chain
+// terminates on something else.
+func extractBaseMockLogger(top slog.Logger) *mock.Logger {
+	current := top
+	for current != nil {
+		if m, ok := current.(*mock.Logger); ok {
+			return m
 		}
+		f, ok := current.(*filter.Logger)
+		if !ok {
+			return nil
+		}
+		current = f.Parent
+	}
+	return nil
+}
+
+func runOperation(logger slog.Logger, op operation) {
+	entry := logger.WithLevel(op.level)
+	if len(op.fields) > 0 {
+		entry = entry.WithFields(op.fields)
+	}
+	entry.Print(op.message)
+}
+
+func verifyLoggedOperations(t *testing.T, msgs []slogtest.Message, ops []operation) {
+	t.Helper()
+	msgIdx := 0
+	for i, op := range ops {
+		if !op.shouldLog {
+			continue
+		}
+		if msgIdx >= len(msgs) {
+			t.Errorf("Operation %d should have logged but didn't", i)
+			continue
+		}
+		core.AssertContains(t, msgs[msgIdx].Message, op.message, "message content")
+		msgIdx++
 	}
 }
 
@@ -275,7 +284,7 @@ func (tc dynamicThresholdTestCase) Name() string {
 	return tc.name
 }
 
-func (tc dynamicThresholdTestCase) Test(t *testing.T) {
+func (dynamicThresholdTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := mock.NewLogger()
@@ -336,45 +345,8 @@ func runTestCompleteTransformationChain(t *testing.T) {
 	t.Helper()
 	base := mock.NewLogger()
 
-	// Track all transformations
-	fieldTransforms := 0
-	fieldsTransforms := 0
-	messageTransforms := 0
-
-	filterLogger := &filter.Logger{
-		Parent:    base,
-		Threshold: slog.Debug,
-		FieldFilter: func(key string, val any) (string, any, bool) {
-			fieldTransforms++
-			if strings.HasPrefix(key, "drop_") {
-				return "", nil, false
-			}
-			if strings.HasPrefix(key, "rename_") {
-				return strings.Replace(key, "rename_", "renamed_", 1), val, true
-			}
-			if key == "redact" {
-				return key, "[REDACTED]", true
-			}
-			return key, val, true
-		},
-		FieldsFilter: func(fields slog.Fields) (slog.Fields, bool) {
-			fieldsTransforms++
-			// Add a tracking field
-			result := make(map[string]any)
-			for k, v := range fields {
-				result[k] = v
-			}
-			result["fields_processed"] = true
-			return result, true
-		},
-		MessageFilter: func(msg string) (string, bool) {
-			messageTransforms++
-			if msg == "drop_message" {
-				return "", false
-			}
-			return fmt.Sprintf("[%d] %s", messageTransforms, msg), true
-		},
-	}
+	tracker := &transformationTracker{}
+	filterLogger := newTransformingFilterLogger(base, tracker)
 
 	// Test various scenarios
 
@@ -416,9 +388,59 @@ func runTestCompleteTransformationChain(t *testing.T) {
 	slogtest.AssertField(t, msg2, "fields_processed", true)
 
 	// Verify transformation counts
-	core.AssertTrue(t, fieldTransforms > 0, "field filter called")
-	core.AssertTrue(t, fieldsTransforms > 0, "fields filter called")
-	core.AssertEqual(t, 3, messageTransforms, "message filter called 3 times")
+	core.AssertTrue(t, tracker.field > 0, "field filter called")
+	core.AssertTrue(t, tracker.fields > 0, "fields filter called")
+	core.AssertEqual(t, 3, tracker.message, "message filter called 3 times")
+}
+
+// transformationTracker counts how often each filter callback fires.
+type transformationTracker struct {
+	field   int
+	fields  int
+	message int
+}
+
+// newTransformingFilterLogger builds a filter that demonstrates
+// drop, rename, redact, batch tagging, and message numbering all in
+// a single chain. Tracker counters drive the post-run assertions.
+func newTransformingFilterLogger(parent slog.Logger, tracker *transformationTracker) *filter.Logger {
+	return &filter.Logger{
+		Parent:    parent,
+		Threshold: slog.Debug,
+		FieldFilter: func(key string, val any) (string, any, bool) {
+			tracker.field++
+			return rewriteTransformField(key, val)
+		},
+		FieldsFilter: func(fields slog.Fields) (slog.Fields, bool) {
+			tracker.fields++
+			result := make(map[string]any, len(fields)+1)
+			maps.Copy(result, fields)
+			result["fields_processed"] = true
+			return result, true
+		},
+		MessageFilter: func(msg string) (string, bool) {
+			tracker.message++
+			if msg == "drop_message" {
+				return "", false
+			}
+			return fmt.Sprintf("[%d] %s", tracker.message, msg), true
+		},
+	}
+}
+
+// rewriteTransformField applies the drop / rename / redact rules used
+// by runTestCompleteTransformationChain.
+func rewriteTransformField(key string, val any) (string, any, bool) {
+	switch {
+	case strings.HasPrefix(key, "drop_"):
+		return "", nil, false
+	case strings.HasPrefix(key, "rename_"):
+		return strings.Replace(key, "rename_", "renamed_", 1), val, true
+	case key == "redact":
+		return key, "[REDACTED]", true
+	default:
+		return key, val, true
+	}
 }
 
 // Test filter chain with all transformation types

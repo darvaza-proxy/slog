@@ -60,43 +60,48 @@ func TestFilterDurationBasedStress(t *testing.T) {
 // createCustomFilterLogger creates a filter with custom field and message filters.
 func createCustomFilterLogger(parent slog.Logger) slog.Logger {
 	return &filter.Logger{
-		Parent:    parent,
-		Threshold: slog.Debug,
-		// Complex field filter that transforms fields
-		FieldFilter: func(key string, val any) (string, any, bool) {
-			// Filter out internal fields
-			if len(key) > 0 && key[0] == '_' {
-				return "", nil, false
-			}
-			// Transform sensitive fields
-			if key == sensitiveKey1 || key == sensitiveKey2 {
-				return key, redactedValue, true
-			}
-			return key, val, true
-		},
-		// Complex fields filter
-		FieldsFilter: func(fields slog.Fields) (slog.Fields, bool) {
-			if len(fields) == 0 {
-				return fields, true
-			}
-			// Add timestamp to all field sets
-			result := make(slog.Fields, len(fields)+1)
-			for k, v := range fields {
-				if k != "_internal" {
-					result[k] = v
-				}
-			}
-			result["timestamp"] = time.Now().Unix()
-			return result, true
-		},
-		// Message filter that adds context
-		MessageFilter: func(msg string) (string, bool) {
-			if msg == "" {
-				return msg, false // Filter out empty messages
-			}
-			return "[APP] " + msg, true
-		},
+		Parent:        parent,
+		Threshold:     slog.Debug,
+		FieldFilter:   stressFieldFilter,
+		FieldsFilter:  stressFieldsFilter,
+		MessageFilter: stressMessageFilter,
 	}
+}
+
+// stressFieldFilter drops underscore-prefixed fields and redacts known
+// sensitive keys.
+func stressFieldFilter(key string, val any) (string, any, bool) {
+	if len(key) > 0 && key[0] == '_' {
+		return "", nil, false
+	}
+	if key == sensitiveKey1 || key == sensitiveKey2 {
+		return key, redactedValue, true
+	}
+	return key, val, true
+}
+
+// stressFieldsFilter copies fields (skipping "_internal") and adds a
+// "timestamp" entry.
+func stressFieldsFilter(fields slog.Fields) (slog.Fields, bool) {
+	if len(fields) == 0 {
+		return fields, true
+	}
+	result := make(slog.Fields, len(fields)+1)
+	for k, v := range fields {
+		if k != "_internal" {
+			result[k] = v
+		}
+	}
+	result["timestamp"] = time.Now().Unix()
+	return result, true
+}
+
+// stressMessageFilter prefixes non-empty messages with "[APP] ".
+func stressMessageFilter(msg string) (string, bool) {
+	if msg == "" {
+		return msg, false
+	}
+	return "[APP] " + msg, true
 }
 
 // TestFilterWithCustomFiltersStress tests filter with custom filters under stress.

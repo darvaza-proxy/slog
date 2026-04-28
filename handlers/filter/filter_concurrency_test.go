@@ -35,42 +35,42 @@ func (tc filterConcurrentFieldTestCase) Test(t *testing.T) {
 	base := mock.NewLogger()
 	logger := filter.New(base, slog.Debug)
 
-	var wg sync.WaitGroup
-	wg.Add(tc.workers)
+	runConcurrentFieldWorkers(logger, tc.workers, tc.fields)
 
-	// Each worker adds fields concurrently
-	for i := 0; i < tc.workers; i++ {
+	msgs := base.GetMessages()
+	slogtest.AssertMessageCount(t, msgs, tc.workers)
+	verifyEachMessageHasFields(t, msgs, tc.fields)
+}
+
+func runConcurrentFieldWorkers(logger *filter.Logger, workers, fields int) {
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for i := range workers {
 		workerID := i
 		go func() {
 			defer wg.Done()
-
-			// Create a new entry for each worker
-			entry := logger.Info()
-
-			// Add multiple fields
-			for j := 0; j < tc.fields; j++ {
-				fieldKey := fmt.Sprintf("worker_%d_field_%d", workerID, j)
-				fieldValue := fmt.Sprintf("value_%d_%d", workerID, j)
-				entry = entry.WithField(fieldKey, fieldValue)
-			}
-
-			// Log the message
-			entry.Printf("Worker %d message", workerID)
+			emitFieldStorm(logger, workerID, fields)
 		}()
 	}
-
 	wg.Wait()
+}
 
-	// Verify all messages were recorded
-	msgs := base.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, tc.workers)
+func emitFieldStorm(logger *filter.Logger, workerID, fields int) {
+	entry := logger.Info()
+	for j := range fields {
+		fieldKey := fmt.Sprintf("worker_%d_field_%d", workerID, j)
+		fieldValue := fmt.Sprintf("value_%d_%d", workerID, j)
+		entry = entry.WithField(fieldKey, fieldValue)
+	}
+	entry.Printf("Worker %d message", workerID)
+}
 
-	// Verify each message has the expected fields
+func verifyEachMessageHasFields(t *testing.T, msgs []slogtest.Message, want int) {
+	t.Helper()
 	for i, msg := range msgs {
-		// Count fields - should have tc.fields per message
-		fieldCount := len(msg.Fields)
-		if fieldCount != tc.fields {
-			t.Errorf("Message %d: expected %d fields, got %d. Fields: %+v", i, tc.fields, fieldCount, msg.Fields)
+		if len(msg.Fields) != want {
+			t.Errorf("Message %d: expected %d fields, got %d. Fields: %+v",
+				i, want, len(msg.Fields), msg.Fields)
 		}
 	}
 }
@@ -111,82 +111,88 @@ func (tc filterConcurrentLoggingTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := mock.NewLogger()
+	counter := &filterCallCounter{}
+	logger := newCountingFilterLogger(base, counter)
 
-	// Add filters to ensure thread safety
-	filterCalls := 0
-	var filterMu sync.Mutex
+	runConcurrentLevelMix(logger, tc.workers, tc.messages)
 
-	logger := &filter.Logger{
-		Parent:    base,
+	expectedMessages := tc.workers * tc.messages
+	msgs := base.GetMessages()
+	slogtest.AssertMessageCount(t, msgs, expectedMessages)
+
+	// Each message has 1 message filter call + 1 field filter call.
+	core.AssertEqual(t, expectedMessages*2, counter.value(), "filter call count")
+	verifyFilteredMessages(t, msgs)
+}
+
+// filterCallCounter tracks how many times filter callbacks fire under
+// concurrent load.
+type filterCallCounter struct {
+	mu    sync.Mutex
+	count int
+}
+
+func (c *filterCallCounter) inc() {
+	c.mu.Lock()
+	c.count++
+	c.mu.Unlock()
+}
+
+func (c *filterCallCounter) value() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.count
+}
+
+func newCountingFilterLogger(parent slog.Logger, counter *filterCallCounter) *filter.Logger {
+	return &filter.Logger{
+		Parent:    parent,
 		Threshold: slog.Debug,
 		MessageFilter: func(msg string) (string, bool) {
-			filterMu.Lock()
-			filterCalls++
-			filterMu.Unlock()
+			counter.inc()
 			return "[filtered] " + msg, true
 		},
 		FieldFilter: func(key string, val any) (string, any, bool) {
-			filterMu.Lock()
-			filterCalls++
-			filterMu.Unlock()
+			counter.inc()
 			return "filtered_" + key, val, true
 		},
 	}
+}
 
+func runConcurrentLevelMix(logger *filter.Logger, workers, messages int) {
 	var wg sync.WaitGroup
-	wg.Add(tc.workers)
-
-	// Each worker logs multiple messages concurrently
-	for i := 0; i < tc.workers; i++ {
+	wg.Add(workers)
+	for i := range workers {
 		workerID := i
 		go func() {
 			defer wg.Done()
-
-			for j := 0; j < tc.messages; j++ {
-				// Mix different log levels and operations
-				switch j % 4 {
-				case 0:
-					logger.Debug().
-						WithField("worker", workerID).
-						Printf("Debug message %d", j)
-				case 1:
-					logger.Info().
-						WithField("worker", workerID).
-						Printf("Info message %d", j)
-				case 2:
-					logger.Warn().
-						WithField("worker", workerID).
-						Printf("Warn message %d", j)
-				case 3:
-					logger.Error().
-						WithField("worker", workerID).
-						Printf("Error message %d", j)
-				}
-			}
+			emitMixedLevelMessages(logger, workerID, messages)
 		}()
 	}
-
 	wg.Wait()
+}
 
-	// Verify all messages were recorded
-	msgs := base.GetMessages()
-	expectedMessages := tc.workers * tc.messages
-	slogtest.AssertMessageCount(t, msgs, expectedMessages)
+func emitMixedLevelMessages(logger *filter.Logger, workerID, messages int) {
+	for j := range messages {
+		switch j % 4 {
+		case 0:
+			logger.Debug().WithField("worker", workerID).Printf("Debug message %d", j)
+		case 1:
+			logger.Info().WithField("worker", workerID).Printf("Info message %d", j)
+		case 2:
+			logger.Warn().WithField("worker", workerID).Printf("Warn message %d", j)
+		case 3:
+			logger.Error().WithField("worker", workerID).Printf("Error message %d", j)
+		default:
+			// Skip unexpected dispatch values rather than crash the worker.
+		}
+	}
+}
 
-	// Verify filters were called for each message and field
-	filterMu.Lock()
-	actualCalls := filterCalls
-	filterMu.Unlock()
-
-	// Each message has 1 message filter call + 1 field filter call
-	expectedCalls := expectedMessages * 2
-	core.AssertEqual(t, expectedCalls, actualCalls, "filter call count")
-
-	// Verify all messages have filtered content
+func verifyFilteredMessages(t *testing.T, msgs []slogtest.Message) {
+	t.Helper()
 	for _, msg := range msgs {
 		core.AssertContains(t, msg.Message, "[filtered]", "message filtering")
-
-		// Check that worker field was filtered - we don't care about the value, just that it exists
 		if _, exists := msg.Fields["filtered_worker"]; !exists {
 			t.Error("Worker field not properly filtered")
 		}
@@ -223,7 +229,7 @@ func (tc filterImmutabilityTestCase) Name() string {
 	return tc.name
 }
 
-func (tc filterImmutabilityTestCase) Test(t *testing.T) {
+func (filterImmutabilityTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := mock.NewLogger()
@@ -312,64 +318,88 @@ func runTestConcurrentFilterModification(t *testing.T) {
 	t.Helper()
 	base := mock.NewLogger()
 
-	// Shared counters protected by mutex
-	var mu sync.Mutex
-	fieldFilterCalls := 0
-	messageFilterCalls := 0
-
-	logger := &filter.Logger{
-		Parent:    base,
-		Threshold: slog.Debug,
-		FieldFilter: func(key string, val any) (string, any, bool) {
-			mu.Lock()
-			fieldFilterCalls++
-			mu.Unlock()
-			// Simulate some work
-			for i := 0; i < 100; i++ {
-				_ = i * 2
-			}
-			return key, val, true
-		},
-		MessageFilter: func(msg string) (string, bool) {
-			mu.Lock()
-			messageFilterCalls++
-			mu.Unlock()
-			// Simulate some work
-			for i := 0; i < 100; i++ {
-				_ = i * 2
-			}
-			return msg, true
-		},
-	}
+	counters := &filterCallTallies{}
+	logger := newWorkSimulatingFilter(base, counters)
 
 	const workers = 20
 	const operations = 10
 
+	runFilterModificationWorkers(logger, workers, operations)
+
+	expectedMessages := workers * operations
+	msgs := base.GetMessages()
+	slogtest.AssertMessageCount(t, msgs, expectedMessages)
+
+	field, message := counters.snapshot()
+	core.AssertEqual(t, expectedMessages, message, "message filter calls")
+	core.AssertEqual(t, expectedMessages, field, "field filter calls")
+}
+
+// filterCallTallies counts FieldFilter and MessageFilter invocations
+// under concurrent load.
+type filterCallTallies struct {
+	mu      sync.Mutex
+	field   int
+	message int
+}
+
+func (c *filterCallTallies) incField() {
+	c.mu.Lock()
+	c.field++
+	c.mu.Unlock()
+}
+
+func (c *filterCallTallies) incMessage() {
+	c.mu.Lock()
+	c.message++
+	c.mu.Unlock()
+}
+
+func (c *filterCallTallies) snapshot() (field, message int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.field, c.message
+}
+
+// simulateFilterWork burns a few cycles to widen the race window
+// without touching shared state.
+func simulateFilterWork() {
+	for i := range 100 {
+		_ = i * 2
+	}
+}
+
+func newWorkSimulatingFilter(parent slog.Logger, counters *filterCallTallies) *filter.Logger {
+	return &filter.Logger{
+		Parent:    parent,
+		Threshold: slog.Debug,
+		FieldFilter: func(key string, val any) (string, any, bool) {
+			counters.incField()
+			simulateFilterWork()
+			return key, val, true
+		},
+		MessageFilter: func(msg string) (string, bool) {
+			counters.incMessage()
+			simulateFilterWork()
+			return msg, true
+		},
+	}
+}
+
+func runFilterModificationWorkers(logger *filter.Logger, workers, operations int) {
 	var wg sync.WaitGroup
 	wg.Add(workers)
-
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < operations; j++ {
+			for j := range operations {
 				logger.Info().
 					WithField(fmt.Sprintf("field_%d_%d", id, j), "value").
 					Printf("Message from worker %d operation %d", id, j)
 			}
 		}(i)
 	}
-
 	wg.Wait()
-
-	// Verify counts
-	expectedMessages := workers * operations
-	msgs := base.GetMessages()
-	slogtest.AssertMessageCount(t, msgs, expectedMessages)
-
-	mu.Lock()
-	core.AssertEqual(t, expectedMessages, messageFilterCalls, "message filter calls")
-	core.AssertEqual(t, expectedMessages, fieldFilterCalls, "field filter calls")
-	mu.Unlock()
 }
 
 // Test concurrent filter modifications
@@ -389,58 +419,59 @@ func runTestSharedLoggerRaceConditions(t *testing.T) {
 	wg.Add(workers)
 
 	// All workers share the same logger instance
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		go func(id int) {
 			defer wg.Done()
-
-			for j := 0; j < iterations; j++ {
-				// Perform various operations on the shared logger
-				switch j % 5 {
-				case 0:
-					// Create new entry and add fields
-					entry := logger.Debug()
-					entry = entry.WithField("id", id)
-					entry = entry.WithField("iteration", j)
-					entry.Print("debug message")
-				case 1:
-					// Chain operations
-					logger.Info().
-						WithField("worker", id).
-						WithField("op", j).
-						Print("info message")
-				case 2:
-					// Use WithFields
-					logger.Warn().WithFields(map[string]any{
-						"worker": id,
-						"iter":   j,
-						"type":   "warning",
-					}).Print("warn message")
-				case 3:
-					// Change level mid-chain
-					logger.Debug().
-						WithField("start", "debug").
-						Error().
-						WithField("end", "error").
-						Printf("Level change %d", id)
-				case 4:
-					// Add stack trace
-					logger.Error().
-						WithStack(0).
-						WithField("worker", id).
-						Print("error with stack")
-				}
+			for j := range iterations {
+				runSharedLoggerOperation(logger, id, j)
 			}
 		}(i)
 	}
-
 	wg.Wait()
 
-	// Verify all messages were recorded without panic
 	msgs := base.GetMessages()
-	expectedMessages := workers * iterations
-	slogtest.AssertMessageCount(t, msgs, expectedMessages)
+	slogtest.AssertMessageCount(t, msgs, workers*iterations)
+	verifySharedLoggerMessages(t, msgs)
+}
 
-	// Verify message integrity (no corruption)
+// runSharedLoggerOperation runs one of five distinct logging shapes
+// against the shared logger, picked by iteration index.
+func runSharedLoggerOperation(logger *filter.Logger, id, j int) {
+	switch j % 5 {
+	case 0:
+		entry := logger.Debug()
+		entry = entry.WithField("id", id)
+		entry = entry.WithField("iteration", j)
+		entry.Print("debug message")
+	case 1:
+		logger.Info().
+			WithField("worker", id).
+			WithField("op", j).
+			Print("info message")
+	case 2:
+		logger.Warn().WithFields(map[string]any{
+			"worker": id,
+			"iter":   j,
+			"type":   "warning",
+		}).Print("warn message")
+	case 3:
+		logger.Debug().
+			WithField("start", "debug").
+			Error().
+			WithField("end", "error").
+			Printf("Level change %d", id)
+	case 4:
+		logger.Error().
+			WithStack(0).
+			WithField("worker", id).
+			Print("error with stack")
+	default:
+		// Skip unexpected dispatch values rather than crash the worker.
+	}
+}
+
+func verifySharedLoggerMessages(t *testing.T, msgs []slogtest.Message) {
+	t.Helper()
 	for _, msg := range msgs {
 		core.AssertNotNil(t, msg.Message, "message should not be nil")
 		core.AssertTrue(t, msg.Level >= slog.Panic && msg.Level <= slog.Debug,

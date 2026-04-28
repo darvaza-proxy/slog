@@ -144,7 +144,7 @@ func (tc filterFieldsTestCase) Name() string {
 	return tc.name
 }
 
-func (tc filterFieldsTestCase) Test(t *testing.T) {
+func (filterFieldsTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := newTestLogger()
@@ -199,7 +199,7 @@ func (tc filterStackTestCase) Name() string {
 	return tc.name
 }
 
-func (tc filterStackTestCase) Test(t *testing.T) {
+func (filterStackTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := newTestLogger()
@@ -246,7 +246,7 @@ func (tc filterChainingTestCase) Name() string {
 	return tc.name
 }
 
-func (tc filterChainingTestCase) Test(t *testing.T) {
+func (filterChainingTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := newTestLogger()
@@ -283,7 +283,7 @@ func (tc filterFieldTransformationTestCase) Name() string {
 	return tc.name
 }
 
-func (tc filterFieldTransformationTestCase) Test(t *testing.T) {
+func (filterFieldTransformationTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := newTestLogger()
@@ -327,7 +327,7 @@ func (tc filterMessageFilterTestCase) Name() string {
 	return tc.name
 }
 
-func (tc filterMessageFilterTestCase) Test(t *testing.T) {
+func (filterMessageFilterTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	base := newTestLogger()
@@ -368,7 +368,7 @@ func (tc filterParentlessTestCase) Name() string {
 	return tc.name
 }
 
-func (tc filterParentlessTestCase) Test(t *testing.T) {
+func (filterParentlessTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	logger := filter.NewNoop()
@@ -411,9 +411,27 @@ func (tc filterHierarchyTestCase) Test(t *testing.T) {
 
 	base := mock.NewLogger()
 	tracker := newHierarchyCallTracker()
+	logger := newHierarchyTestLogger(base, tracker)
 
-	logger := &filter.Logger{
-		Parent:    base,
+	entry := logger.Info()
+	tc.operation(entry).Print("test")
+
+	core.AssertEqual(t, tc.expectedCalls.fieldFilterCalls, tracker.fieldFilterCalls,
+		"FieldFilter calls")
+	core.AssertEqual(t, tc.expectedCalls.fieldsFilterCalls, tracker.fieldsFilterCalls,
+		"FieldsFilter calls")
+
+	msgs := base.GetMessages()
+	slogtest.AssertMustMessageCount(t, msgs, 1)
+	verifyExpectedFields(t, msgs[0].Fields, tc.expectedFields)
+}
+
+// newHierarchyTestLogger builds the filter.Logger used by the
+// hierarchy test cases: it tracks every filter invocation and applies
+// "drop the testDropFieldKey, prefix the rest" semantics.
+func newHierarchyTestLogger(parent slog.Logger, tracker *hierarchyCallTracker) *filter.Logger {
+	return &filter.Logger{
+		Parent:    parent,
 		Threshold: slog.Debug,
 		FieldFilter: func(key string, val any) (string, any, bool) {
 			tracker.fieldFilterCalls++
@@ -434,31 +452,14 @@ func (tc filterHierarchyTestCase) Test(t *testing.T) {
 			return result, len(result) > 0
 		},
 	}
+}
 
-	// Execute the operation
-	entry := logger.Info()
-	result := tc.operation(entry)
-	result.Print("test")
-
-	// Verify calls match expectations
-	core.AssertEqual(t, tc.expectedCalls.fieldFilterCalls, tracker.fieldFilterCalls,
-		"FieldFilter calls")
-	core.AssertEqual(t, tc.expectedCalls.fieldsFilterCalls, tracker.fieldsFilterCalls,
-		"FieldsFilter calls")
-
-	// Verify resulting fields
-	msgs := base.GetMessages()
-	slogtest.AssertMustMessageCount(t, msgs, 1)
-
-	actualFields := msgs[0].Fields
-	for expectedKey, expectedValue := range tc.expectedFields {
-		core.AssertEqual(t, expectedValue, actualFields[expectedKey],
-			"field %s", expectedKey)
+func verifyExpectedFields(t *testing.T, actual, expected map[string]any) {
+	t.Helper()
+	for key, value := range expected {
+		core.AssertEqual(t, value, actual[key], "field %s", key)
 	}
-
-	// Verify no unexpected fields
-	core.AssertEqual(t, len(tc.expectedFields), len(actualFields),
-		"total field count")
+	core.AssertEqual(t, len(expected), len(actual), "total field count")
 }
 
 // hierarchyCallTracker tracks filter function calls
@@ -489,6 +490,7 @@ func newFilterHierarchyTestCase(name, description string,
 	}
 }
 
+//revive:disable-next-line:argument-limit
 func newWithFieldTestCase(name, description, key string, value any,
 	expectedFields map[string]any, expectedCalls hierarchyCallTracker) filterHierarchyTestCase {
 	return newFilterHierarchyTestCase(name, description,
