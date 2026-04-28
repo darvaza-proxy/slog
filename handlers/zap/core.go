@@ -73,7 +73,7 @@ func (c *SlogCore) Check(entry zapcore.Entry, checked *zapcore.CheckedEntry) *za
 // Write serializes the Entry and any Fields to the slog backend
 func (c *SlogCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 	// Convert zap level to slog level
-	slogLevel := mapZapToSlogLevel(entry.Level)
+	slogLevel := mapFromZapLevel(entry.Level)
 
 	// Start with the appropriate log level
 	logger := c.logger.WithLevel(slogLevel)
@@ -109,6 +109,10 @@ func (c *SlogCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 	case zapcore.PanicLevel, zapcore.DPanicLevel:
 		// zap expects Panic to panic
 		panic(fmt.Sprintf("zap panic: %s", entry.Message))
+	default:
+		// Debug/Info/Warn/Error and any unknown levels need no
+		// post-write action — the message has already been emitted
+		// to the slog backend at the mapped level.
 	}
 
 	return nil
@@ -133,25 +137,4 @@ func convertFields(zapFields []zapcore.Field) map[string]any {
 	}
 
 	return enc.Fields
-}
-
-// mapZapToSlogLevel maps zap levels to slog levels
-func mapZapToSlogLevel(level zapcore.Level) slog.LogLevel {
-	switch level {
-	case zapcore.DebugLevel:
-		return slog.Debug
-	case zapcore.InfoLevel:
-		return slog.Info
-	case zapcore.WarnLevel:
-		return slog.Warn
-	case zapcore.ErrorLevel:
-		return slog.Error
-	case zapcore.DPanicLevel, zapcore.PanicLevel:
-		return slog.Panic
-	case zapcore.FatalLevel:
-		return slog.Fatal
-	default:
-		// Unknown levels default to Info
-		return slog.Info
-	}
 }
