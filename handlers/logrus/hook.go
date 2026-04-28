@@ -84,12 +84,9 @@ func NewLogrusLogger(slogLogger slog.Logger) *logrus.Logger {
 // mapLogrusToSlogLevel converts logrus levels to slog levels
 func mapLogrusToSlogLevel(level logrus.Level) slog.LogLevel {
 	switch level {
-	case logrus.TraceLevel:
-		return slog.Debug // slog doesn't have Trace, map to Debug
-	case logrus.DebugLevel:
+	case logrus.TraceLevel, logrus.DebugLevel:
+		// slog doesn't have Trace, fold both into Debug.
 		return slog.Debug
-	case logrus.InfoLevel:
-		return slog.Info
 	case logrus.WarnLevel:
 		return slog.Warn
 	case logrus.ErrorLevel:
@@ -99,6 +96,7 @@ func mapLogrusToSlogLevel(level logrus.Level) slog.LogLevel {
 	case logrus.PanicLevel:
 		return slog.Panic
 	default:
+		// logrus.InfoLevel and any future levels.
 		return slog.Info
 	}
 }

@@ -2,6 +2,7 @@ package logrus_test
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
@@ -57,16 +58,7 @@ func TestLogrusWithFields(t *testing.T) {
 	logrusLogger.SetFormatter(&logrus.TextFormatter{
 		DisableTimestamp: true,
 		DisableColors:    true,
-		SortingFunc: func(keys []string) {
-			// Sort keys for consistent output
-			for i := 0; i < len(keys); i++ {
-				for j := i + 1; j < len(keys); j++ {
-					if keys[i] > keys[j] {
-						keys[i], keys[j] = keys[j], keys[i]
-					}
-				}
-			}
-		},
+		SortingFunc:      slices.Sort[[]string],
 	})
 
 	logger := slogrus.New(logrusLogger)
