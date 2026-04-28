@@ -23,73 +23,64 @@ func TestLogletFieldsMapRace(t *testing.T) {
 func runTestConcurrentFieldsMapAccess(t *testing.T) {
 	t.Helper()
 
-	// Create a deeper chain to increase chance of race
-	// The key is having intermediate nodes with fields that will be cached
+	// Build a chain whose intermediate nodes will end up with cached
+	// fieldsMaps, then fan out to leaves that all traverse those
+	// ancestors so leaf reads race against ancestor writes.
 	var root internal.Loglet
 	level1 := root.WithField("f1", "v1")
 	level2 := level1.WithField("f2", "v2")
 	level3 := level2.WithField("f3", "v3")
 
-	// Create multiple leaf nodes that will all traverse the same ancestors
-	// This increases the chance of concurrent access to ancestor fieldsMap
 	leafNodes := make([]internal.Loglet, 10)
 	for i := range leafNodes {
 		leafNodes[i] = level3.WithField("leaf", i)
 	}
 
-	// Use WaitGroup to coordinate goroutines
 	var wg sync.WaitGroup
+	runLeafFieldsMapWorkers(t, leafNodes, &wg)
+	runIntermediateFieldsMapTouches(&wg, &level1, &level2, &level3)
+	wg.Wait()
+}
 
-	// Launch goroutines that access FieldsMap on different nodes simultaneously
-	// The race happens when:
-	// 1. Leaf nodes start building their fieldsMap
-	// 2. They call findCachedAncestor() which reads ancestor.fieldsMap
-	// 3. Meanwhile, ancestors are also building their fieldsMap (writing)
-	for i := range leafNodes {
+// runLeafFieldsMapWorkers fans the leaf set out across goroutines so
+// every leaf builds its fieldsMap concurrently with the others.
+func runLeafFieldsMapWorkers(t *testing.T, leaves []internal.Loglet, wg *sync.WaitGroup) {
+	t.Helper()
+	for i := range leaves {
 		wg.Add(1)
 		go func(id int, node *internal.Loglet) {
 			defer wg.Done()
-
-			// Force all goroutines to start at roughly the same time
-			// This increases the chance of the race
-
-			// Access FieldsMap which triggers buildFieldsMap
-			fields := node.FieldsMap()
-
-			// Verify fields are correct
-			if fields == nil {
-				t.Errorf("worker %d: fields is nil", id)
-				return
-			}
-
-			// Should have all ancestor fields
-			if v, ok := fields["f1"]; !ok || v != "v1" {
-				t.Errorf("worker %d: missing or wrong f1", id)
-			}
-			if v, ok := fields["f2"]; !ok || v != "v2" {
-				t.Errorf("worker %d: missing or wrong f2", id)
-			}
-		}(i, &leafNodes[i])
+			assertLeafAncestorFields(t, id, node.FieldsMap())
+		}(i, &leaves[i])
 	}
+}
 
-	// Also trigger computation on intermediate nodes concurrently
-	// This ensures ancestors are being written while leaves are reading
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		_ = level1.FieldsMap()
-	}()
-	go func() {
-		defer wg.Done()
-		_ = level2.FieldsMap()
-	}()
-	go func() {
-		defer wg.Done()
-		_ = level3.FieldsMap()
-	}()
+// assertLeafAncestorFields checks that a leaf's resolved fieldsMap
+// contains the ancestor entries that should have been inherited.
+func assertLeafAncestorFields(t *testing.T, id int, fields map[string]any) {
+	t.Helper()
+	if fields == nil {
+		t.Errorf("worker %d: fields is nil", id)
+		return
+	}
+	if v, ok := fields["f1"]; !ok || v != "v1" {
+		t.Errorf("worker %d: missing or wrong f1", id)
+	}
+	if v, ok := fields["f2"]; !ok || v != "v2" {
+		t.Errorf("worker %d: missing or wrong f2", id)
+	}
+}
 
-	// Wait for all goroutines to complete
-	wg.Wait()
+// runIntermediateFieldsMapTouches triggers computation on intermediate
+// nodes concurrently so ancestors are being written while leaves read.
+func runIntermediateFieldsMapTouches(wg *sync.WaitGroup, loglets ...*internal.Loglet) {
+	wg.Add(len(loglets))
+	for _, ll := range loglets {
+		go func(l *internal.Loglet) {
+			defer wg.Done()
+			_ = l.FieldsMap()
+		}(ll)
+	}
 }
 
 // runTestNestedHierarchyRace tests a more complex scenario with nested
@@ -97,7 +88,6 @@ func runTestConcurrentFieldsMapAccess(t *testing.T) {
 func runTestNestedHierarchyRace(t *testing.T) {
 	t.Helper()
 
-	// Create a deeper hierarchy
 	var root internal.Loglet
 	root = root.WithField("app", "test")
 
@@ -106,47 +96,49 @@ func runTestNestedHierarchyRace(t *testing.T) {
 	level3 := level2.WithField("level", "3")
 	level4 := level3.WithField("level", "4")
 
-	// Create multiple branches at different levels
 	branch2a := level2.WithField("branch", "2a")
 	branch2b := level2.WithField("branch", "2b")
 	branch3a := level3.WithField("branch", "3a")
 	branch3b := level3.WithField("branch", "3b")
 
-	var wg sync.WaitGroup
-
-	// Access different levels concurrently
-	// This tests the conditional locking logic where:
-	// - A node doesn't lock itself (already holds lock)
-	// - But does lock ancestor nodes
-
+	// Exercise the conditional-locking path: a node skips locking
+	// itself (it already holds the lock) but does lock ancestors.
 	loglets := []*internal.Loglet{
 		&level4, &branch2a, &branch2b, &branch3a, &branch3b,
 	}
+	runHierarchyAppFieldWorkers(t, loglets)
 
-	for _, ll := range loglets {
-		wg.Add(1)
-		go func(loglet *internal.Loglet) {
-			defer wg.Done()
-
-			// Multiple accesses to trigger caching at different times
-			for i := 0; i < 5; i++ {
-				fields := loglet.FieldsMap()
-
-				// Verify app field is always present (from root)
-				if app, ok := fields["app"]; !ok || app != "test" {
-					t.Errorf("missing or incorrect 'app' field")
-				}
-			}
-		}(ll)
-	}
-
-	wg.Wait()
-
-	// Verify all loglets have correct final state
 	core.AssertEqual(t, "test", level4.FieldsMap()["app"], "level4 app")
 	core.AssertEqual(t, "4", level4.FieldsMap()["level"], "level4 level")
 	core.AssertEqual(t, "2a", branch2a.FieldsMap()["branch"], "branch2a")
 	core.AssertEqual(t, "2b", branch2b.FieldsMap()["branch"], "branch2b")
+}
+
+// runHierarchyAppFieldWorkers fans out one goroutine per loglet, each
+// re-resolving the fieldsMap several times to broaden the race window.
+func runHierarchyAppFieldWorkers(t *testing.T, loglets []*internal.Loglet) {
+	t.Helper()
+	var wg sync.WaitGroup
+	for _, ll := range loglets {
+		wg.Add(1)
+		go func(loglet *internal.Loglet) {
+			defer wg.Done()
+			assertAppFieldRepeatedly(t, loglet)
+		}(ll)
+	}
+	wg.Wait()
+}
+
+// assertAppFieldRepeatedly resolves the loglet's fieldsMap a few times
+// in a row, asserting the ancestor "app" field is always present.
+func assertAppFieldRepeatedly(t *testing.T, loglet *internal.Loglet) {
+	t.Helper()
+	for range 5 {
+		fields := loglet.FieldsMap()
+		if app, ok := fields["app"]; !ok || app != "test" {
+			t.Error("missing or incorrect 'app' field")
+		}
+	}
 }
 
 // runTestPeekFieldsMapConcurrency verifies that peekFieldsMap with
@@ -165,7 +157,7 @@ func runTestPeekFieldsMapConcurrency(t *testing.T) {
 
 	// Multiple goroutines trying to build child's map
 	// They will all peek at parent's cached map
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
