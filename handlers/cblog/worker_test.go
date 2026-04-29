@@ -173,8 +173,7 @@ func BenchmarkNewWithCallback(b *testing.B) {
 		b.Fatal("NewWithCallback returned nil")
 	}
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		logger.Info().Print("benchmark message")
 	}
 }

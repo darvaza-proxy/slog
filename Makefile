@@ -18,13 +18,14 @@ COVERAGE_DIR ?= $(TMPDIR)/coverage
 
 # Dynamic version selection based on Go version
 # Format: $(TOOLSDIR)/get_version.sh <go_version> <tool_version1> <tool_version2> ..
-GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.23 v2.3.0)
-REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.23 v1.7)
+GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v2.8.0 v2.11.4)
+REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v1.14.0 v1.15.0)
 
 GOLANGCI_LINT_URL ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOLANGCI_LINT ?= $(GO) run $(GOLANGCI_LINT_URL)
 
-REVIVE_CONF ?= $(TOOLSDIR)/revive.toml
+REVIVE_CONF_FILE ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 revive-v1.14.toml revive.toml)
+REVIVE_CONF ?= $(TOOLSDIR)/$(REVIVE_CONF_FILE)
 REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
 REVIVE_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
 REVIVE ?= $(GO) run $(REVIVE_URL)
@@ -55,7 +56,7 @@ DLX = true
 endif
 endif
 
-FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules
+FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules -o -name .tmp
 FIND_FILES_PRUNE_ARGS ?= \( $(FIND_FILES_PRUNE_RULES) \) -prune
 FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
 FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'

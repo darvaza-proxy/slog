@@ -16,8 +16,7 @@ func BenchmarkFieldsIteration(b *testing.B) {
 	l4 := l3.WithField("request_id", "req-abc-123")
 	l5 := l4.WithField("operation", "create_user")
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		// Traditional iterator pattern
 		fields := make(map[string]any, l5.FieldsCount())
 		iter := l5.Fields()
@@ -39,8 +38,7 @@ func BenchmarkFieldsMap(b *testing.B) {
 	l4 := l3.WithField("request_id", "req-abc-123")
 	l5 := l4.WithField("operation", "create_user")
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		// New FieldsMap pattern
 		fields := l5.FieldsMap()
 		_ = fields
@@ -60,8 +58,7 @@ func BenchmarkFieldsMapCached(b *testing.B) {
 	// Prime the cache
 	_ = l5.FieldsMap()
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		// Cached FieldsMap calls
 		fields := l5.FieldsMap()
 		_ = fields
@@ -86,7 +83,7 @@ func createBenchmarkLoglet() Loglet {
 // BenchmarkIteratorPattern benchmarks field access using iterator
 func BenchmarkIteratorPattern(b *testing.B) {
 	loglet := createBenchmarkLoglet()
-	for range b.N {
+	for b.Loop() {
 		fields := make(map[string]any, loglet.FieldsCount())
 		iter := loglet.Fields()
 		for iter.Next() {
@@ -99,7 +96,7 @@ func BenchmarkIteratorPattern(b *testing.B) {
 
 // BenchmarkFieldsMapFirstCall benchmarks first call to FieldsMap
 func BenchmarkFieldsMapFirstCall(b *testing.B) {
-	for range b.N {
+	for b.Loop() {
 		freshLoglet := createBenchmarkLoglet()
 		fields := freshLoglet.FieldsMap()
 		_ = fields
@@ -113,8 +110,7 @@ func BenchmarkFieldsMapDelegation(b *testing.B) {
 	l2 := l1.WithField("key2", "value2")
 	child := l2.WithLevel(slog.Info) // No fields, should delegate
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_ = child.FieldsMap()
 	}
 }
@@ -128,8 +124,7 @@ func BenchmarkFieldsMapMultiLevelDelegation(b *testing.B) {
 	intermediate2 := intermediate1.WithStack(1) // No fields, delegates
 	child := intermediate2.Copy()               // Final loglet that should delegate
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_ = child.FieldsMap()
 	}
 }
@@ -141,8 +136,7 @@ func benchmarkFieldsMapIterationHelper(b *testing.B) {
 	l2 := l1.WithField("key2", "value2")
 	child := l2.WithLevel(slog.Info) // No fields, should delegate
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		// Simulate the old behaviour (without delegation)
 		fields := make(map[string]any, child.FieldsCount())
 		iter := child.Fields()
@@ -167,8 +161,7 @@ func BenchmarkFieldsMapCopy(b *testing.B) {
 	l2 := l1.WithField("key2", "value2")
 	l3 := l2.WithField("key3", "value3")
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_ = l3.FieldsMapCopy(0)
 	}
 }
@@ -180,8 +173,7 @@ func BenchmarkFieldsMapCopyWithExcess(b *testing.B) {
 	l2 := l1.WithField("key2", "value2")
 	l3 := l2.WithField("key3", "value3")
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_ = l3.FieldsMapCopy(5)
 	}
 }
@@ -196,15 +188,14 @@ func benchmarkFieldsMapCopyFromCachedHelper(b *testing.B) {
 	// Prime the cache
 	_ = l3.FieldsMap()
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_ = l3.FieldsMapCopy(0)
 	}
 }
 
 // benchmarkFieldsMapCopyFromUncachedHelper benchmarks copy from uncached source
 func benchmarkFieldsMapCopyFromUncachedHelper(b *testing.B) {
-	for range b.N {
+	for b.Loop() {
 		var base Loglet
 		l1 := base.WithField("key1", "value1")
 		l2 := l1.WithField("key2", "value2")
@@ -226,8 +217,7 @@ func benchmarkManualIterationHelper(b *testing.B) {
 	l2 := l1.WithField("key2", "value2")
 	l3 := l2.WithField("key3", "value3")
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		fields := make(map[string]any, l3.FieldsCount())
 		iter := l3.Fields()
 		for iter.Next() {

@@ -34,10 +34,12 @@ enableAllRules = true
 [rule.banned-characters]
   disabled = true
 
-# darvaza.org/slog predates Go 1.21's `log/slog`; the `slog` package
-# name is the inherited identity of this module, not a deliberate
-# stdlib shadow. `internal/testing` likewise provides the slog test
-# toolkit and is imported alongside the real `testing`. The rule is a
-# false positive here.
-[rule.package-naming]
-  disabled = true
+# Config variant for revive v1.14.0 (Go 1.24 tier). darvaza.org/slog
+# predates Go 1.21's `log/slog`; the `slog` package name is inherited,
+# not a deliberate stdlib shadow. `internal/testing` likewise sits
+# alongside the real stdlib `testing`. The `package-naming` rule
+# (disabled in revive.toml) was introduced in v1.15.0; in v1.14.0 the
+# equivalent check lives inside `var-naming` and is controlled via the
+# third argument's `skipPackageNameCollisionWithGoStd` option.
+[rule.var-naming]
+  arguments = [[], [], [{skipPackageNameCollisionWithGoStd = true}]]

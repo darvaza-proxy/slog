@@ -1,10 +1,10 @@
 module darvaza.org/slog
 
-go 1.23.0
+go 1.24.0
 
-require darvaza.org/core v0.18.3
+require darvaza.org/core v0.19.0
 
 require (
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 )

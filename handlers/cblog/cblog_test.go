@@ -731,16 +731,14 @@ func BenchmarkLogger(b *testing.B) {
 
 	b.Run("SimpleMessage", func(b *testing.B) {
 		logger := cblog.NewWithCallback(1000, discardHandler)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			logger.Info().Print("benchmark message")
 		}
 	})
 
 	b.Run("WithFields", func(b *testing.B) {
 		logger := cblog.NewWithCallback(1000, discardHandler)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			logger.Info().
 				WithField("key1", "value1").
 				WithField("key2", 42).
@@ -756,8 +754,7 @@ func BenchmarkLogger(b *testing.B) {
 			"key2": 42,
 			"key3": true,
 		}
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			logger.Info().WithFields(fields).Print("benchmark message")
 		}
 	})
