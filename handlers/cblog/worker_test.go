@@ -11,27 +11,60 @@ import (
 )
 
 func TestNewWithCallbackConcurrency(t *testing.T) {
-	// Test concurrent message handling with callback
 	const numMessages = 1000
-	var received []cblog.LogMsg
-	var mu sync.Mutex
-	done := make(chan bool)
 
-	handler := func(msg cblog.LogMsg) {
-		mu.Lock()
-		received = append(received, msg)
-		if len(received) == numMessages {
-			close(done)
-		}
-		mu.Unlock()
-	}
-
-	logger := cblog.NewWithCallback(100, handler)
+	collector := newCallbackCollector(numMessages)
+	logger := cblog.NewWithCallback(100, collector.handle)
 	if !core.AssertNotNil(t, logger, "NewWithCallback returned nil") {
 		return
 	}
 
-	// Send messages concurrently
+	sendNumberedLogs(logger, numMessages)
+	waitOrTimeout(collector.done, 5*time.Second)
+
+	received := collector.snapshot()
+	if !core.AssertEqual(t, numMessages, len(received), "message count") {
+		return
+	}
+	for i, msg := range received {
+		core.AssertEqual(t, slog.Info, msg.Level, "message %d level", i)
+		core.AssertNotNil(t, msg.Fields["num"], "message %d 'num' field", i)
+	}
+}
+
+// callbackCollector accumulates messages from a cblog callback and
+// signals done once target messages have been received.
+type callbackCollector struct {
+	done     chan struct{}
+	received []cblog.LogMsg
+	mu       sync.Mutex
+	target   int
+}
+
+func newCallbackCollector(target int) *callbackCollector {
+	return &callbackCollector{done: make(chan struct{}), target: target}
+}
+
+func (c *callbackCollector) handle(msg cblog.LogMsg) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.received = append(c.received, msg)
+	if len(c.received) == c.target {
+		close(c.done)
+	}
+}
+
+func (c *callbackCollector) snapshot() []cblog.LogMsg {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]cblog.LogMsg, len(c.received))
+	copy(out, c.received)
+	return out
+}
+
+// sendNumberedLogs fans out one goroutine per message, each tagging its
+// output with the index in a "num" field.
+func sendNumberedLogs(logger slog.Logger, numMessages int) {
 	var wg sync.WaitGroup
 	for i := range numMessages {
 		wg.Add(1)
@@ -40,26 +73,13 @@ func TestNewWithCallbackConcurrency(t *testing.T) {
 			logger.Info().WithField("num", n).Printf("message %d", n)
 		}(i)
 	}
-
 	wg.Wait()
+}
 
-	// Wait for all messages to be processed
+func waitOrTimeout(done <-chan struct{}, d time.Duration) {
 	select {
 	case <-done:
-		// Success
-	case <-time.After(5 * time.Second):
-		// Timeout occurred - let the verification below handle the failure
-	}
-
-	// Verify message count (handles both success and timeout cases)
-	if !core.AssertEqual(t, numMessages, len(received), "message count") {
-		return
-	}
-
-	// Verify all messages have the expected level
-	for i, msg := range received {
-		core.AssertEqual(t, slog.Info, msg.Level, "message %d level", i)
-		core.AssertNotNil(t, msg.Fields["num"], "message %d 'num' field", i)
+	case <-time.After(d):
 	}
 }
 
@@ -153,8 +173,7 @@ func BenchmarkNewWithCallback(b *testing.B) {
 		b.Fatal("NewWithCallback returned nil")
 	}
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		logger.Info().Print("benchmark message")
 	}
 }

@@ -18,13 +18,14 @@ COVERAGE_DIR ?= $(TMPDIR)/coverage
 
 # Dynamic version selection based on Go version
 # Format: $(TOOLSDIR)/get_version.sh <go_version> <tool_version1> <tool_version2> ..
-GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.23 v2.3.0)
-REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.23 v1.7)
+GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v2.8.0 v2.11.4)
+REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v1.14.0 v1.15.0)
 
 GOLANGCI_LINT_URL ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOLANGCI_LINT ?= $(GO) run $(GOLANGCI_LINT_URL)
 
-REVIVE_CONF ?= $(TOOLSDIR)/revive.toml
+REVIVE_CONF_FILE ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 revive-v1.14.toml revive.toml)
+REVIVE_CONF ?= $(TOOLSDIR)/$(REVIVE_CONF_FILE)
 REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
 REVIVE_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
 REVIVE ?= $(GO) run $(REVIVE_URL)
@@ -47,16 +48,22 @@ FIX_WHITESPACE_EXCLUDE_PATTERNS ?= $(patsubst %,-o -name '*.%',$(FIX_WHITESPACE_
 FIX_WHITESPACE_EXCLUDE ?= $(FIX_WHITESPACE_EXCLUDE_GO) $(FIX_WHITESPACE_EXCLUDE_PATTERNS)
 FIX_WHITESPACE_ARGS ?= . \! \( $(FIX_WHITESPACE_EXCLUDE) \)
 
-PNPX ?= pnpx
+ifndef DLX
+ifeq ($(shell pnpm --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+DLX = pnpm dlx
+else
+DLX = true
+endif
+endif
 
-FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules
+FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules -o -name .tmp
 FIND_FILES_PRUNE_ARGS ?= \( $(FIND_FILES_PRUNE_RULES) \) -prune
 FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
 FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'
 
 ifndef MARKDOWNLINT
-ifeq ($(shell $(PNPX) markdownlint-cli --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
-MARKDOWNLINT = $(PNPX) markdownlint-cli
+ifeq ($(shell $(DLX) markdownlint-cli --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+MARKDOWNLINT = $(DLX) markdownlint-cli
 else
 MARKDOWNLINT = true
 endif
@@ -64,8 +71,8 @@ endif
 MARKDOWNLINT_FLAGS ?= --fix --config $(TOOLSDIR)/markdownlint.json
 
 ifndef LANGUAGETOOL
-ifeq ($(shell $(PNPX) @twilio-labs/languagetool-cli --version 2>&1 | grep -qE '^(unknown|[0-9])' && echo yes),yes)
-LANGUAGETOOL = $(PNPX) @twilio-labs/languagetool-cli
+ifeq ($(shell $(DLX) @twilio-labs/languagetool-cli --version 2>&1 | grep -qE '^(unknown|[0-9])' && echo yes),yes)
+LANGUAGETOOL = $(DLX) @twilio-labs/languagetool-cli
 else
 LANGUAGETOOL = true
 endif
@@ -73,8 +80,8 @@ endif
 LANGUAGETOOL_FLAGS ?= --config $(TOOLSDIR)/languagetool.cfg --custom-dict-file $(TMPDIR)/languagetool-dict.txt
 
 ifndef CSPELL
-ifeq ($(shell $(PNPX) cspell --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
-CSPELL = $(PNPX) cspell
+ifeq ($(shell $(DLX) cspell --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+CSPELL = $(DLX) cspell
 else
 CSPELL = true
 endif
@@ -82,8 +89,8 @@ endif
 CSPELL_FLAGS ?= --no-progress --dot --config $(TOOLSDIR)/cspell.json
 
 ifndef SHELLCHECK
-ifeq ($(shell $(PNPX) shellcheck --version 2>&1 | grep -q '^ShellCheck' && echo yes),yes)
-SHELLCHECK = $(PNPX) shellcheck
+ifeq ($(shell $(DLX) shellcheck --version 2>&1 | grep -q '^ShellCheck' && echo yes),yes)
+SHELLCHECK = $(DLX) shellcheck
 else
 SHELLCHECK = true
 endif
@@ -156,10 +163,11 @@ generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
 
+# Prepare for codecov uploading
+codecov: $(COVERAGE_DIR)/coverage.out $(COVERAGE_DIR)/codecov.sh
+
 # Generate Codecov upload script
-# This target prepares codecov.sh script for uploading coverage
-# data to Codecov with proper module flags
-codecov: $(COVERAGE_DIR)/coverage.out ; $(info $(M) preparing codecov data)
+$(COVERAGE_DIR)/codecov.sh: $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index ; $(info $(M) generating codecov.sh…)
 	$Q $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index $(COVERAGE_DIR)
 
 check-jq: FORCE

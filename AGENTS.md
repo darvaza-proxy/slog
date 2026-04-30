@@ -28,7 +28,7 @@ support for structured fields.
 
 Before starting development, ensure you have:
 
-- Go 1.23 or later installed (check with `go version`).
+- Go 1.24 or later installed (check with `go version`).
 - `make` command available (usually pre-installed on Unix systems).
 - `$GOPATH` configured correctly (typically `~/go`).
 - Git configured for proper line endings.
@@ -82,9 +82,9 @@ The `internal/build/fix_whitespace.sh` script automatically:
 
 The build system includes automatic Markdown linting:
 
-- Detects markdownlint-cli via pnpx.
+- Detects markdownlint-cli via dlx.
 - Configuration in `internal/build/markdownlint.json`.
-- 80-character line limits and strict formatting rules.
+- 80-character prose line limit (120 in code blocks), strict formatting rules.
 - Selective HTML allowlist (comments, br, kbd, etc.).
 - Runs automatically with `make fmt` when available.
 
@@ -92,7 +92,7 @@ The build system includes automatic Markdown linting:
 
 Spell checking for both Markdown and Go source files:
 
-- Detects cspell via pnpx.
+- Detects cspell via dlx.
 - British English configuration in `internal/build/cspell.json`.
 - New `check-spelling` target.
 - Integrated into `make tidy`.
@@ -103,7 +103,7 @@ Spell checking for both Markdown and Go source files:
 
 Grammar and style checking for Markdown files:
 
-- Detects LanguageTool via pnpx.
+- Detects LanguageTool via dlx.
 - British English configuration in `internal/build/languagetool.cfg`.
 - New `check-grammar` target.
 - Checks for missing articles, punctuation, and proper hyphenation.
@@ -112,7 +112,7 @@ Grammar and style checking for Markdown files:
 
 Shell script analysis for all `.sh` files:
 
-- Detects shellcheck via pnpx.
+- Detects shellcheck via dlx.
 - New `check-shell` target.
 - Integrated into `make tidy`.
 - Uses inline disable directives for SC1007 (empty assignments) and SC3043
@@ -144,8 +144,8 @@ GitHub Actions workflows split for better performance:
   only.
 - **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
   pipeline.
-  - Race condition detection job with Go 1.23.
-  - Multi-version testing matrix (Go 1.23 and 1.24).
+  - Race condition detection job pinned to Go 1.26.
+  - Multi-version testing matrix (Go 1.24, 1.25, 1.26).
   - Conditional execution to avoid duplicate runs on PRs.
 - Workflows skip branches ending in `-wip`.
 - Improves parallelism and reduces redundant work.
@@ -305,7 +305,7 @@ versions of tools like golangci-lint for different Go versions.
 
 ```bash
 # Usage: get_version.sh <base_go_version> <version1> [version2] ...
-# Example: $(TOOLSDIR)/get_version.sh 1.23 v1.63.4 v1.64
+# Example: $(TOOLSDIR)/get_version.sh 1.24 v2.8.0 v2.11.4
 ```
 
 The script:
@@ -313,15 +313,15 @@ The script:
 1. Detects the current Go version from `go version`.
 2. Compares it with the base Go version (first argument).
 3. If current Go >= base version, it selects versions from the list:
-   - For Go == base version: uses the first version (v1.63.4)
+   - For Go == base version: uses the first version (v2.8.0)
    - For Go > base version: increments through the list
    - Returns the last version if Go version exceeds the list
 
 This allows the Makefile to use appropriate tool versions:
 
-- Go 1.22: would use v1.63.4 (if base is 1.23).
-- Go 1.23: uses v1.63.4 (first version after base).
-- Go 1.24+: uses v1.64 (second version).
+- Go 1.23: would use v2.8.0 (if base is 1.24).
+- Go 1.24: uses v2.8.0 (first version after base).
+- Go 1.25+: uses v2.11.4 (second version).
 
 ### Testing Tool Compatibility
 
@@ -334,7 +334,7 @@ git checkout -b test/ci-go-version
 
 # Update tool version in Makefile
 # Edit line: GOLANGCI_LINT_VERSION ?= \
-#   $(shell $(TOOLSDIR)/get_version.sh 1.23 vX.Y.Z)
+#   $(shell $(TOOLSDIR)/get_version.sh 1.24 vX.Y.Z)
 
 # Commit and push
 git add Makefile
@@ -350,8 +350,8 @@ gh run view --job=<job-id>
 
 ### Common Version Issues
 
-1. **Tool built with older Go**: If golangci-lint was built with Go 1.22,
-   it cannot analyze code requiring Go 1.23+.
+1. **Tool built with older Go**: If golangci-lint was built with Go 1.23,
+   it cannot analyze code requiring Go 1.24+.
 2. **Version selection**: Ensure versions in get_version.sh calls are
    ordered correctly (older to newer).
 3. **CI failures**: Check the actual Go version used by the runner, not just
@@ -448,8 +448,9 @@ done
 
 When editing Markdown files, ensure compliance with:
 
-- **Line Length**: Maximum 80 characters per line. Break long lines at
-  appropriate points (after commas, before operators, at sentence boundaries).
+- **Line Length**: Maximum 80 characters per prose line; code blocks may
+  extend to 120. Break long lines at appropriate points (after commas,
+  before operators, at sentence boundaries).
 - **LanguageTool**: Check for missing articles ("a", "an", "the"), punctuation,
   and proper hyphenation of compound modifiers.
 - **Markdownlint**: Follow standard Markdown formatting rules, including:
@@ -460,7 +461,8 @@ When editing Markdown files, ensure compliance with:
 
 ### Common Documentation Issues to Check
 
-1. **Line Length**: Keep lines under 80 characters.
+1. **Line Length**: Keep prose lines under 80 characters; code blocks
+   may extend to 120.
    - ❌ Long URLs on same line with text
    - ✅ Break after colon or use reference-style links
    - For lists, indent continuation lines with 2 spaces
@@ -535,7 +537,7 @@ make tidy
 make check-grammar
 ```
 
-LanguageTool is automatically installed via npm (using pnpx) when available.
+LanguageTool is automatically installed via npm (`pnpm dlx`) when available.
 It checks both Markdown documentation and Go source files (comments and
 strings). The following rules are disabled for technical documentation
 compatibility:
@@ -714,7 +716,7 @@ When LanguageTool reports issues:
    - Use `GOTEST_FLAGS` to pass additional flags to tests.
 
 4. **Linting tool detection**:
-   - Tools are auto-detected via `pnpx`.
+   - Tools are auto-detected via `pnpm dlx`.
    - If tools aren't found, they're replaced with `true` (no-op).
    - Install tools globally with `pnpm install -g <tool>` if needed.
 

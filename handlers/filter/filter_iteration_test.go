@@ -2,7 +2,8 @@ package filter_test
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"testing"
 
 	"darvaza.org/core"
@@ -71,9 +72,7 @@ func TestFieldIterationCompleteness(t *testing.T) {
 		Threshold: slog.Debug,
 		FieldsFilter: func(fields slog.Fields) (slog.Fields, bool) {
 			// Record all fields we see
-			for k, v := range fields {
-				seenFields[k] = v
-			}
+			maps.Copy(seenFields, fields)
 			return fields, true
 		},
 	}
@@ -218,7 +217,7 @@ func TestFieldCollectionInChain(t *testing.T) {
 	for k := range msg.Fields {
 		fieldKeys = append(fieldKeys, k)
 	}
-	sort.Strings(fieldKeys)
+	slices.Sort(fieldKeys)
 	t.Logf("Actual fields: %v", fieldKeys)
 	for _, k := range fieldKeys {
 		t.Logf("  %s = %v", k, msg.Fields[k])
@@ -239,7 +238,7 @@ func TestLargeFieldCollection(t *testing.T) {
 
 	// Add many fields incrementally
 	const fieldCount = 100
-	for i := 0; i < fieldCount; i++ {
+	for i := range fieldCount {
 		fieldKey := fmt.Sprintf("field_%03d", i)
 		fieldValue := fmt.Sprintf("value_%03d", i)
 		entry = entry.WithField(fieldKey, fieldValue)
@@ -247,7 +246,7 @@ func TestLargeFieldCollection(t *testing.T) {
 
 	// Add a batch of fields
 	batchFields := make(map[string]any)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		batchKey := fmt.Sprintf("batch_%02d", i)
 		batchValue := fmt.Sprintf("batch_value_%02d", i)
 		batchFields[batchKey] = batchValue
@@ -301,9 +300,9 @@ func TestFieldIterationWithErrors(t *testing.T) {
 	entry.Print("test selective drop")
 
 	// All fields should have been processed
-	sort.Strings(processedFields)
+	slices.Sort(processedFields)
 	expectedProcessed := []string{"drop1", "drop2", "keep1", "keep2", "keep3"}
-	sort.Strings(expectedProcessed)
+	slices.Sort(expectedProcessed)
 	core.AssertSliceEqual(t, expectedProcessed, processedFields, "all fields processed")
 
 	// Only non-dropped fields should appear in output

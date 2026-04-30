@@ -120,6 +120,9 @@ func (l *LogEntry) msg(skip int, msg string) {
 		case slog.Fatal:
 			// revive:disable:deep-exit
 			os.Exit(1)
+		default:
+			// Any other level: log.Output above has already written
+			// the message; do not panic or exit on an unexpected level.
 		}
 
 		// Unreachable.

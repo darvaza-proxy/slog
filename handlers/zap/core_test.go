@@ -534,40 +534,62 @@ func runTestSlogCoreConcurrent(t *testing.T) {
 	const goroutines = 10
 	const msgsPerGoroutine = 10 // Reduced for cleaner test output
 
+	runZapConcurrentLoggers(zapLogger, goroutines, msgsPerGoroutine)
+
+	messages := recorder.GetMessages()
+	expectedCount := goroutines * msgsPerGoroutine
+	core.AssertEqual(t, expectedCount, len(messages), "message count")
+
+	counts := tallyZapGoroutineCounts(messages)
+	for i := range goroutines {
+		core.AssertEqual(t, msgsPerGoroutine, counts[i], "Goroutine %d message count", i)
+	}
+}
+
+// runZapConcurrentLoggers fans out N goroutines, each emitting M
+// messages tagged with its goroutine id, and waits for them all to
+// finish before returning.
+func runZapConcurrentLoggers(zapLogger *zap.Logger, goroutines, msgsPerGoroutine int) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
-
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
 			logger := zapLogger.With(zap.Int("goroutine", id))
-			for j := 0; j < msgsPerGoroutine; j++ {
+			for j := range msgsPerGoroutine {
 				logger.Info(fmt.Sprintf("msg-%d-%d", id, j),
 					zap.Int("index", j),
 				)
 			}
 		}(i)
 	}
-
 	wg.Wait()
+}
 
-	messages := recorder.GetMessages()
-	expectedCount := goroutines * msgsPerGoroutine
-	core.AssertEqual(t, expectedCount, len(messages), "message count")
-
-	// Verify all goroutines logged their messages
+// tallyZapGoroutineCounts walks the recorded messages and tallies how
+// many came from each goroutine. The "goroutine" field may surface as
+// either int or int64 depending on field-encoding paths.
+func tallyZapGoroutineCounts(messages []mock.Message) map[int]int {
 	counts := make(map[int]int)
 	for _, msg := range messages {
-		if gid, ok := msg.Fields["goroutine"].(int64); ok {
-			counts[int(gid)]++
-		} else if gid, ok := msg.Fields["goroutine"].(int); ok {
+		gid, ok := readGoroutineID(msg.Fields)
+		if ok {
 			counts[gid]++
 		}
 	}
+	return counts
+}
 
-	for i := 0; i < goroutines; i++ {
-		core.AssertEqual(t, msgsPerGoroutine, counts[i], "Goroutine %d message count", i)
+// readGoroutineID extracts the per-goroutine id from a message's
+// fields, accepting either int or int64 to absorb encoding drift.
+func readGoroutineID(fields map[string]any) (int, bool) {
+	if gid, ok := fields["goroutine"].(int64); ok {
+		return int(gid), true
 	}
+	if gid, ok := fields["goroutine"].(int); ok {
+		return gid, true
+	}
+	return 0, false
 }
 
 func runTestSlogCoreCheckDisabled(t *testing.T) {
@@ -615,26 +637,22 @@ func runTestSlogCoreFatalWrite(t *testing.T) {
 	err := zapCore.Write(entry, nil)
 	core.AssertNil(t, err, "write error")
 
-	// Check that we got the original message
 	messages := recorder.GetMessages()
-	found := false
-	for _, msg := range messages {
-		if msg.Message == "fatal error occurred" && msg.Level == slog.Fatal {
-			found = true
-			break
-		}
-	}
-	core.AssertTrue(t, found, "fatal message found")
+	core.AssertTrue(t, hasMessage(messages, "fatal error occurred", slog.Fatal),
+		"fatal message found")
+	core.AssertTrue(t, hasMessage(messages, "zap fatal exit", slog.Fatal),
+		"zap fatal exit message")
+}
 
-	// Also check for the "zap fatal exit" message
-	foundExit := false
+// hasMessage reports whether the recorder captured a message
+// matching both the given text and slog level.
+func hasMessage(messages []mock.Message, text string, level slog.LogLevel) bool {
 	for _, msg := range messages {
-		if msg.Message == "zap fatal exit" && msg.Level == slog.Fatal {
-			foundExit = true
-			break
+		if msg.Message == text && msg.Level == level {
+			return true
 		}
 	}
-	core.AssertTrue(t, foundExit, "zap fatal exit message")
+	return false
 }
 
 func runTestPanicLevel(t *testing.T, zapCore zapcore.Core) {

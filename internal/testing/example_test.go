@@ -9,21 +9,6 @@ import (
 
 // TestRecorderExample demonstrates using the test recorder for handler testing
 func TestRecorderExample(t *testing.T) {
-	testRecorderExample(t)
-}
-
-// TestComplianceExample demonstrates running the compliance test suite
-func TestComplianceExample(t *testing.T) {
-	testComplianceExample(t)
-}
-
-// TestCustomHandlerExample demonstrates testing a custom handler
-func TestCustomHandlerExample(t *testing.T) {
-	testCustomHandlerExample(t)
-}
-
-func testRecorderExample(t *testing.T) {
-	t.Helper()
 	// Create a test logger that records messages
 	recorder := slogtest.NewLogger()
 
@@ -44,8 +29,8 @@ func testRecorderExample(t *testing.T) {
 	slogtest.AssertField(t, msg, "action", "login")
 }
 
-func testComplianceExample(t *testing.T) {
-	t.Helper()
+// TestComplianceExample demonstrates running the compliance test suite
+func TestComplianceExample(t *testing.T) {
 	// Define how to create your logger
 	compliance := slogtest.ComplianceTest{
 		FactoryOptions: slogtest.FactoryOptions{
@@ -72,8 +57,8 @@ func testComplianceExample(t *testing.T) {
 	compliance.Run(t)
 }
 
-func testCustomHandlerExample(t *testing.T) {
-	t.Helper()
+// TestCustomHandlerExample demonstrates testing a custom handler
+func TestCustomHandlerExample(t *testing.T) {
 	// Test level methods with a fresh logger each time
 	slogtest.TestLevelMethods(t, func() slog.Logger {
 		return slogtest.NewLogger()

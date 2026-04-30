@@ -116,7 +116,7 @@ func testHasFieldsLargeMap(t *testing.T) {
 	fields := make(map[string]any, 1000)
 
 	// Fill with empty keys
-	for i := 0; i < 999; i++ {
+	for i := range 999 {
 		fields[""] = i // All will overwrite to same empty key
 	}
 

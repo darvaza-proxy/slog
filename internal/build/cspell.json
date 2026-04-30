@@ -71,9 +71,7 @@
     "parentless",
     "Parentless",
     "perr",
-    "PNPX",
     "pnpm",
-    "pnpx",
     "portless",
     "Println",
     "rhqv",
@@ -108,12 +106,12 @@
     "zlogger"
   ],
   "ignorePaths": [
-    "*.lock",
-    ".coverage",
-    ".git",
-    ".tmp",
-    "go.sum",
-    "node_modules",
-    "vendor"
+    "**/*.lock",
+    "**/.coverage/**",
+    "**/.git/**",
+    "**/.tmp/**",
+    "**/go.sum",
+    "**/node_modules/**",
+    "**/vendor/**"
   ]
 }

@@ -123,7 +123,7 @@ func TestZapSpecific(t *testing.T) {
 
 func testNewWithCallback(t *testing.T) {
 	logger, _ := slogzap.New(nil)
-	zapLogger := logger.(*slogzap.Logger)
+	zapLogger := core.AssertMustTypeIs[*slogzap.Logger](t, logger, "logger type")
 
 	callbackExecuted := false
 	newLogger := zapLogger.NewWithCallback(func(_ zapcore.Entry) error {
@@ -143,7 +143,7 @@ func testNewWithCallback(t *testing.T) {
 
 func testNewWithCallbackNilCallback(t *testing.T) {
 	logger, _ := slogzap.New(nil)
-	zapLogger := logger.(*slogzap.Logger)
+	zapLogger := core.AssertMustTypeIs[*slogzap.Logger](t, logger, "logger type")
 
 	// Test with nil callback
 	newLogger := zapLogger.NewWithCallback(nil)
@@ -173,7 +173,7 @@ func testUnwrap(t *testing.T) {
 		t.Fatalf("New failed: %v", err)
 	}
 
-	zapLogger := logger.(*slogzap.Logger)
+	zapLogger := core.AssertMustTypeIs[*slogzap.Logger](t, logger, "logger type")
 	zl, zc := zapLogger.Unwrap()
 
 	if zl == nil {
@@ -212,10 +212,11 @@ func testEnabledNilLogger(t *testing.T) {
 
 func testWithLevelSameLevel(t *testing.T) {
 	logger, _ := slogzap.New(nil)
-	zapLogger := logger.(*slogzap.Logger)
+	zapLogger := core.AssertMustTypeIs[*slogzap.Logger](t, logger, "logger type")
 
 	// First set the logger to a valid level
-	infoLogger := zapLogger.WithLevel(slog.Info).(*slogzap.Logger)
+	infoLogger := core.AssertMustTypeIs[*slogzap.Logger](t,
+		zapLogger.WithLevel(slog.Info), "info logger type")
 
 	// Get current level
 	currentLevel := infoLogger.Level()

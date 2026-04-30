@@ -34,73 +34,44 @@ func (tc allLevelsTestCase) Test(t *testing.T) {
 	parent := mock.NewLogger()
 	logger := filter.New(parent, tc.threshold)
 
-	// Start with an entry at the highest enabled level to ensure it's enabled
-	// This way level methods will actually create new entries
-	var entry slog.Logger
-	if tc.threshold >= slog.Debug {
-		entry = logger.Debug()
-	} else if tc.threshold >= slog.Info {
-		entry = logger.Info()
-	} else if tc.threshold >= slog.Warn {
-		entry = logger.Warn()
-	} else if tc.threshold >= slog.Error {
-		entry = logger.Error()
-	} else if tc.threshold >= slog.Fatal {
-		entry = logger.Fatal()
-	} else {
-		entry = logger.Panic()
-	}
-
-	// Call the level method using the function pointer
+	entry := startEntryAtThreshold(logger, tc.threshold)
 	levelEntry := tc.method(entry)
 
-	// Verify the level was set correctly
-	// We need to cast to *filter.LogEntry to access Level() method for testing
 	logEntry := core.AssertMustTypeIs[*filter.LogEntry](t, levelEntry, "entry type")
-
-	// Get the starting entry's level for comparison
 	startEntry := core.AssertMustTypeIs[*filter.LogEntry](t, entry, "start entry type")
-	startLevel := startEntry.Level()
 
 	// Level methods should ALWAYS create an entry at the requested level
-	// This maintains semantic correctness: .Debug() creates a Debug entry
+	// This maintains semantic correctness: .Debug() creates a Debug entry.
 	core.AssertEqual(t, tc.methodLevel, logEntry.Level(), "entry level")
 
 	// Verify immutability: level methods should create new instances when changing level
-	// but reuse the same instance when the level doesn't change (optimization)
-	if startLevel == tc.methodLevel {
+	// but reuse the same instance when the level doesn't change (optimization).
+	if startEntry.Level() == tc.methodLevel {
 		core.AssertSame(t, entry, levelEntry, "same level returns same instance")
 	} else {
 		core.AssertMustNotSame(t, entry, levelEntry, "different level creates new instance")
 	}
 
-	// Test logging
 	levelEntry.Print("test message")
-
-	messages := parent.GetMessages()
-	if tc.shouldLog {
-		slogtest.AssertMessageCount(t, messages, 1)
-		if len(messages) > 0 {
-			// The logged level should match what was actually set
-			slogtest.AssertMessage(t, messages[0], logEntry.Level(), "test message")
-		}
-	} else {
-		slogtest.AssertMessageCount(t, messages, 0)
-	}
+	assertParentLogged(t, parent, logEntry.Level(), tc.shouldLog)
 }
 
-// Factory function for allLevelsTestCase
-func newAllLevelsTestCase(name, methodName string,
-	method func(slog.Logger) slog.Logger,
-	methodLevel, threshold slog.LogLevel,
-	shouldLog bool) allLevelsTestCase {
-	return allLevelsTestCase{
-		name:        name,
-		methodName:  methodName,
-		method:      method,
-		methodLevel: methodLevel,
-		threshold:   threshold,
-		shouldLog:   shouldLog,
+// startEntryAtThreshold picks the most-verbose enabled level so the
+// returned entry is always live, regardless of threshold.
+func startEntryAtThreshold(logger *filter.Logger, threshold slog.LogLevel) slog.Logger {
+	switch {
+	case threshold >= slog.Debug:
+		return logger.Debug()
+	case threshold >= slog.Info:
+		return logger.Info()
+	case threshold >= slog.Warn:
+		return logger.Warn()
+	case threshold >= slog.Error:
+		return logger.Error()
+	case threshold >= slog.Fatal:
+		return logger.Fatal()
+	default:
+		return logger.Panic()
 	}
 }
 
@@ -121,55 +92,72 @@ func (tc levelMethodTestCase) Name() string {
 func (tc levelMethodTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	var logger slog.Logger
-	var parent *mock.Logger
+	logger, parent := tc.makeLogger()
 
-	if tc.hasParent {
-		parent = mock.NewLogger()
-		logger = filter.New(parent, tc.threshold)
-	} else {
-		logger = filter.NewNoop()
-	}
-
-	// Special handling for Panic without parent
-	if tc.level == slog.Panic && !tc.hasParent && tc.expectLog {
-		// Panic with no parent should panic
+	if tc.expectsPanicWithoutParent() {
 		core.AssertPanic(t, func() {
 			tc.method(logger).Print("test panic")
 		}, nil, "panic without parent")
 		return
 	}
 
-	// Test the level method using the function pointer
 	entry := tc.method(logger)
-
-	// Verify level is set
-	// All level methods should create a LogEntry with the appropriate level
 	logEntry := core.AssertMustTypeIs[*filter.LogEntry](t, entry, "entry type")
 	core.AssertEqual(t, tc.level, logEntry.Level(), "entry level")
-
-	// Test enabled state
 	core.AssertEqual(t, tc.expectLog, entry.Enabled(), "enabled state")
 
-	// Test logging (except for Fatal which would exit)
-	if tc.level != slog.Fatal {
-		entry.Print("test message")
-
-		if tc.hasParent {
-			messages := parent.GetMessages()
-			if tc.expectLog {
-				slogtest.AssertMessageCount(t, messages, 1)
-				if len(messages) > 0 {
-					slogtest.AssertMessage(t, messages[0], tc.level, "test message")
-				}
-			} else {
-				slogtest.AssertMessageCount(t, messages, 0)
-			}
-		}
+	if tc.level == slog.Fatal {
+		// Fatal would call os.Exit; skip the print path.
+		return
+	}
+	entry.Print("test message")
+	if tc.hasParent {
+		assertParentLogged(t, parent, tc.level, tc.expectLog)
 	}
 }
 
-// Factory function for levelMethodTestCase
+func (tc levelMethodTestCase) makeLogger() (slog.Logger, *mock.Logger) {
+	if !tc.hasParent {
+		return filter.NewNoop(), nil
+	}
+	parent := mock.NewLogger()
+	return filter.New(parent, tc.threshold), parent
+}
+
+func (tc levelMethodTestCase) expectsPanicWithoutParent() bool {
+	return tc.level == slog.Panic && !tc.hasParent && tc.expectLog
+}
+
+//revive:disable-next-line:flag-parameter
+func assertParentLogged(t *testing.T, parent *mock.Logger, level slog.LogLevel, expectLog bool) {
+	t.Helper()
+	messages := parent.GetMessages()
+	if !expectLog {
+		slogtest.AssertMessageCount(t, messages, 0)
+		return
+	}
+	slogtest.AssertMessageCount(t, messages, 1)
+	if len(messages) > 0 {
+		slogtest.AssertMessage(t, messages[0], level, "test message")
+	}
+}
+
+//revive:disable-next-line:argument-limit
+func newAllLevelsTestCase(name, methodName string,
+	method func(slog.Logger) slog.Logger,
+	methodLevel, threshold slog.LogLevel,
+	shouldLog bool) allLevelsTestCase {
+	return allLevelsTestCase{
+		name:        name,
+		methodName:  methodName,
+		method:      method,
+		methodLevel: methodLevel,
+		threshold:   threshold,
+		shouldLog:   shouldLog,
+	}
+}
+
+//revive:disable-next-line:argument-limit
 func newLevelMethodTestCase(name string,
 	method func(slog.Logger) slog.Logger,
 	level, threshold slog.LogLevel,

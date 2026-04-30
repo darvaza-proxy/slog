@@ -1,6 +1,7 @@
 package filter_test
 
 import (
+	"maps"
 	"testing"
 
 	"darvaza.org/core"
@@ -191,7 +192,7 @@ func (tc fieldsFilterComplexHierarchyTestCase) Test(t *testing.T) {
 	t.Helper()
 
 	logger := tc.setupLogger()
-	base := logger.Parent.(*mock.Logger)
+	base := core.AssertMustTypeIs[*mock.Logger](t, logger.Parent, "logger.Parent")
 
 	entry := logger.Info()
 	// Test both WithField and WithFields in combination
@@ -230,25 +231,7 @@ func fieldsFilterComplexHierarchyTestCases() []fieldsFilterComplexHierarchyTestC
 		newFieldsFilterComplexHierarchyTestCase(
 			"Both filters present",
 			"Both FieldFilter and FieldsFilter should work in hierarchy",
-			func() *filter.Logger {
-				base := mock.NewLogger()
-				return &filter.Logger{
-					Parent:    base,
-					Threshold: slog.Debug,
-					FieldFilter: func(key string, val any) (string, any, bool) {
-						// For single fields, prefix with "field_"
-						return "field_" + key, val, true
-					},
-					FieldsFilter: func(fields slog.Fields) (slog.Fields, bool) {
-						// For multiple fields, prefix with "fields_"
-						result := make(map[string]any)
-						for k, v := range fields {
-							result["fields_"+k] = v
-						}
-						return result, true
-					},
-				}
-			},
+			setupBothFiltersHierarchyLogger,
 			map[string]any{"multi1": "v1", "multi2": "v2"},
 			map[string]any{
 				"field_single":  "value", // From WithField
@@ -259,18 +242,7 @@ func fieldsFilterComplexHierarchyTestCases() []fieldsFilterComplexHierarchyTestC
 		newFieldsFilterComplexHierarchyTestCase(
 			"FieldsFilter with fallback",
 			"FieldsFilter falls back to FieldFilter for WithFields when nil",
-			func() *filter.Logger {
-				base := mock.NewLogger()
-				return &filter.Logger{
-					Parent:    base,
-					Threshold: slog.Debug,
-					FieldFilter: func(key string, val any) (string, any, bool) {
-						// Should be used for both WithField and WithFields
-						return "fallback_" + key, val, true
-					},
-					// No FieldsFilter
-				}
-			},
+			setupFallbackFiltersHierarchyLogger,
 			map[string]any{"multi1": "v1", "multi2": "v2"},
 			map[string]any{
 				"fallback_single": "value", // From WithField
@@ -281,30 +253,7 @@ func fieldsFilterComplexHierarchyTestCases() []fieldsFilterComplexHierarchyTestC
 		newFieldsFilterComplexHierarchyTestCase(
 			"Selective field dropping",
 			"Filters should selectively drop fields based on content",
-			func() *filter.Logger {
-				base := mock.NewLogger()
-				return &filter.Logger{
-					Parent:    base,
-					Threshold: slog.Debug,
-					FieldFilter: func(key string, val any) (string, any, bool) {
-						// Drop fields starting with underscore
-						if key[0] == '_' {
-							return "", nil, false
-						}
-						return "single_" + key, val, true
-					},
-					FieldsFilter: func(fields slog.Fields) (slog.Fields, bool) {
-						result := make(map[string]any)
-						for k, v := range fields {
-							// Drop private fields
-							if k[0] != '_' {
-								result["multi_"+k] = v
-							}
-						}
-						return result, len(result) > 0
-					},
-				}
-			},
+			setupSelectiveDropHierarchyLogger,
 			map[string]any{"public": "visible", "_private": "hidden"},
 			map[string]any{
 				"single_single": "value",   // From WithField
@@ -312,6 +261,72 @@ func fieldsFilterComplexHierarchyTestCases() []fieldsFilterComplexHierarchyTestC
 				// "_private" should be dropped
 			},
 		),
+	}
+}
+
+func setupBothFiltersHierarchyLogger() *filter.Logger {
+	return &filter.Logger{
+		Parent:    mock.NewLogger(),
+		Threshold: slog.Debug,
+		FieldFilter: func(key string, val any) (string, any, bool) {
+			return "field_" + key, val, true
+		},
+		FieldsFilter: prefixAllFieldsFilter("fields_"),
+	}
+}
+
+func setupFallbackFiltersHierarchyLogger() *filter.Logger {
+	return &filter.Logger{
+		Parent:    mock.NewLogger(),
+		Threshold: slog.Debug,
+		FieldFilter: func(key string, val any) (string, any, bool) {
+			return "fallback_" + key, val, true
+		},
+	}
+}
+
+func setupSelectiveDropHierarchyLogger() *filter.Logger {
+	return &filter.Logger{
+		Parent:       mock.NewLogger(),
+		Threshold:    slog.Debug,
+		FieldFilter:  dropUnderscoreFieldFilter("single_"),
+		FieldsFilter: dropUnderscoreFieldsFilter("multi_"),
+	}
+}
+
+// prefixAllFieldsFilter rewrites every field key with the given prefix.
+func prefixAllFieldsFilter(prefix string) func(slog.Fields) (slog.Fields, bool) {
+	return func(fields slog.Fields) (slog.Fields, bool) {
+		result := make(map[string]any, len(fields))
+		for k, v := range fields {
+			result[prefix+k] = v
+		}
+		return result, true
+	}
+}
+
+// dropUnderscoreFieldFilter prefixes accepted keys and drops keys
+// starting with '_'.
+func dropUnderscoreFieldFilter(prefix string) func(string, any) (string, any, bool) {
+	return func(key string, val any) (string, any, bool) {
+		if key[0] == '_' {
+			return "", nil, false
+		}
+		return prefix + key, val, true
+	}
+}
+
+// dropUnderscoreFieldsFilter rewrites the map, dropping keys that start
+// with '_' and prefixing the survivors.
+func dropUnderscoreFieldsFilter(prefix string) func(slog.Fields) (slog.Fields, bool) {
+	return func(fields slog.Fields) (slog.Fields, bool) {
+		result := make(map[string]any, len(fields))
+		for k, v := range fields {
+			if k[0] != '_' {
+				result[prefix+k] = v
+			}
+		}
+		return result, len(result) > 0
 	}
 }
 
@@ -374,10 +389,8 @@ func runTestFieldsFilterWithStack(t *testing.T) {
 		Threshold: slog.Debug,
 		FieldsFilter: func(fields slog.Fields) (slog.Fields, bool) {
 			// Pass through but track that we were called
-			result := make(map[string]any)
-			for k, v := range fields {
-				result[k] = v
-			}
+			result := make(map[string]any, len(fields)+1)
+			maps.Copy(result, fields)
 			result["filter_called"] = true
 			return result, true
 		},

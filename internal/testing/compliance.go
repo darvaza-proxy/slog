@@ -256,7 +256,7 @@ func (ComplianceTest) createBranches(base slog.Logger) []slog.Logger {
 func (ComplianceTest) verifyDistinctLoggers(t *testing.T, loggers []slog.Logger) {
 	t.Helper()
 
-	for i := 0; i < len(loggers); i++ {
+	for i := range len(loggers) {
 		for j := i + 1; j < len(loggers); j++ {
 			core.AssertNotEqual(t, loggers[i], loggers[j], "logger %d vs %d", i, j)
 		}
@@ -450,7 +450,7 @@ func (ct ComplianceTest) testBasicConcurrency(t *testing.T) {
 func (ct ComplianceTest) testConcurrentLogging(_ *testing.T, logger slog.Logger, goroutines, operations int) {
 	var wg sync.WaitGroup
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		wg.Add(1)
 		go ct.runConcurrentLogOperations(&wg, logger, i, operations)
 	}
@@ -462,7 +462,7 @@ func (ct ComplianceTest) testConcurrentLogging(_ *testing.T, logger slog.Logger,
 func (ComplianceTest) runConcurrentLogOperations(wg *sync.WaitGroup, logger slog.Logger, id, operations int) {
 	defer wg.Done()
 
-	for j := 0; j < operations; j++ {
+	for j := range operations {
 		// Just verify we can log concurrently without panic
 		logger.Info().
 			WithField("goroutine", id).
@@ -482,7 +482,7 @@ func (ct ComplianceTest) createConcurrentLoggers(logger slog.Logger, count int) 
 	var wg sync.WaitGroup
 	loggers := make([]slog.Logger, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		wg.Add(1)
 		go ct.createLoggerBranch(&wg, logger, i, loggers)
 	}
@@ -505,7 +505,7 @@ func (ComplianceTest) createLoggerBranch(wg *sync.WaitGroup, logger slog.Logger,
 func (ComplianceTest) verifyConcurrentLoggersDistinct(t *testing.T, loggers []slog.Logger) {
 	t.Helper()
 
-	for i := 0; i < len(loggers); i++ {
+	for i := range len(loggers) {
 		for j := i + 1; j < len(loggers); j++ {
 			core.AssertNotEqual(t, loggers[i], loggers[j], "concurrent logger %d vs %d", i, j)
 		}

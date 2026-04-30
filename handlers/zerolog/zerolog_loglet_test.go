@@ -3,6 +3,7 @@ package zerolog_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -71,7 +72,7 @@ func (tc zerologLogletTestCase) Test(t *testing.T) {
 	// Test logging
 	l.Printf("test %s", strings.ToLower(tc.name))
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 
@@ -117,7 +118,7 @@ func TestZerologWithFields(t *testing.T) {
 	l1 := logger.Info().WithField("key1", "value1")
 	l1.Print("test message")
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 	core.AssertEqual(t, "value1", result["key1"], "field key1")
@@ -154,7 +155,7 @@ func TestZerologChaining(t *testing.T) {
 
 	l.Print("chained message")
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 
@@ -178,7 +179,7 @@ func TestZerologWithStack(t *testing.T) {
 	buf.Reset()
 	l.Print("test with stack")
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 
@@ -206,11 +207,11 @@ func TestZerologErrorField(t *testing.T) {
 
 	// Test error field handling
 	buf.Reset()
-	err := fmt.Errorf("test error")
+	err := errors.New("test error")
 	l := logger.Error().WithField(slog.ErrorFieldName, err)
 	l.Print("error occurred")
 
-	var result map[string]interface{}
+	var result map[string]any
 	err = json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 
@@ -236,7 +237,7 @@ func TestZerologStackTrace(t *testing.T) {
 	l := logger.Info().WithStack(0)
 	l.Print("test with stack")
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 
@@ -278,7 +279,7 @@ func TestZerologStackTraceFormat(t *testing.T) {
 	buf.Reset()
 	testStackHelper1()
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 
@@ -319,7 +320,7 @@ func TestZerologNoStackTrace(t *testing.T) {
 	l := logger.Info()
 	l.Print("test without stack")
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(buf.Bytes(), &result)
 	core.AssertMustNil(t, err, "parse log output")
 

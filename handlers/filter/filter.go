@@ -166,6 +166,8 @@ func New(parent slog.Logger, threshold slog.LogLevel) *Logger {
 		threshold = slog.Fatal
 	case threshold <= slog.UndefinedLevel:
 		threshold = slog.Error
+	default:
+		// Use the caller-supplied threshold as-is.
 	}
 
 	return &Logger{

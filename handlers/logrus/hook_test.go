@@ -130,16 +130,16 @@ func (m *mockPanicLogger) WithLevel(_ slog.LogLevel) slog.Logger   { return m }
 func (m *mockPanicLogger) WithStack(_ int) slog.Logger             { return m }
 func (m *mockPanicLogger) WithField(_ string, _ any) slog.Logger   { return m }
 func (m *mockPanicLogger) WithFields(_ map[string]any) slog.Logger { return m }
-func (m *mockPanicLogger) Print(_ ...any)                          { panic("test panic") }
-func (m *mockPanicLogger) Println(_ ...any)                        { panic("test panic") }
-func (m *mockPanicLogger) Printf(_ string, _ ...any)               { panic("test panic") }
+func (*mockPanicLogger) Print(_ ...any)                            { panic("test panic") }
+func (*mockPanicLogger) Println(_ ...any)                          { panic("test panic") }
+func (*mockPanicLogger) Printf(_ string, _ ...any)                 { panic("test panic") }
 func (m *mockPanicLogger) Debug() slog.Logger                      { return m }
 func (m *mockPanicLogger) Info() slog.Logger                       { return m }
 func (m *mockPanicLogger) Warn() slog.Logger                       { return m }
 func (m *mockPanicLogger) Error() slog.Logger                      { return m }
 func (m *mockPanicLogger) Fatal() slog.Logger                      { return m }
 func (m *mockPanicLogger) Panic() slog.Logger                      { return m }
-func (m *mockPanicLogger) Enabled() bool                           { return true }
+func (*mockPanicLogger) Enabled() bool                             { return true }
 func (m *mockPanicLogger) WithEnabled() (slog.Logger, bool)        { return m, true }
 
 type slogHookLevelTestCase struct {
@@ -166,6 +166,7 @@ func (tc slogHookLevelTestCase) Test(t *testing.T) {
 	core.AssertEqual(t, tc.expected, messages[0].Level, "slog level")
 }
 
+//revive:disable-next-line:argument-limit
 func newSlogHookLevelTestCase(
 	name string, logFunc func(args ...any), logLevel logrus.Level,
 	expected slog.LogLevel, logrusLogger *logrus.Logger, recorder *slogtest.Logger,

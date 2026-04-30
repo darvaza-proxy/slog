@@ -32,8 +32,6 @@ func mapFromZapLevel(level zapcore.Level) slog.LogLevel {
 	switch level {
 	case zapcore.DebugLevel:
 		return slog.Debug
-	case zapcore.InfoLevel:
-		return slog.Info
 	case zapcore.WarnLevel:
 		return slog.Warn
 	case zapcore.ErrorLevel:
@@ -43,7 +41,8 @@ func mapFromZapLevel(level zapcore.Level) slog.LogLevel {
 	case zapcore.FatalLevel:
 		return slog.Fatal
 	default:
-		// Unknown levels default to Info
+		// InfoLevel is the explicit mapping; unknown levels reuse it
+		// as the safest fallback.
 		return slog.Info
 	}
 }

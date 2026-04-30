@@ -334,6 +334,7 @@ func testStdLoggerConcurrent(t *testing.T) {
 
 	// Both messages should have prefix
 	for i, msg := range msgs {
-		core.AssertTrue(t, strings.Contains(msg.Message, "CONCURRENT:"), "Message %d should have prefix: %q", i, msg.Message)
+		core.AssertTrue(t, strings.Contains(msg.Message, "CONCURRENT:"),
+			"Message %d should have prefix: %q", i, msg.Message)
 	}
 }

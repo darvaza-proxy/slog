@@ -59,7 +59,7 @@ func testConcurrencyMessageCount(t *testing.T) {
 
 // addIncompleteMessages adds a specific number of messages
 func addIncompleteMessages(recorder *Logger, count int) {
-	for i := 0; i < count; i++ {
+	for range count {
 		recorder.Info().Print("message")
 	}
 }
@@ -97,9 +97,9 @@ func testConcurrentDataComparison(t *testing.T) {
 
 // createConcurrentTestMessages creates expected messages for concurrent testing
 func createConcurrentTestMessages(goroutines, operations int) []Message {
-	var messages []Message
-	for g := 0; g < goroutines; g++ {
-		for o := 0; o < operations; o++ {
+	messages := make([]Message, 0, goroutines*operations)
+	for g := range goroutines {
+		for o := range operations {
 			messages = append(messages, Message{
 				Level:   slog.Info,
 				Message: fmt.Sprintf("concurrent message %d-%d", g, o),
