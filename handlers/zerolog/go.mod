@@ -2,11 +2,9 @@ module darvaza.org/slog/handlers/zerolog
 
 go 1.24.0
 
-replace darvaza.org/slog => ../../
-
 require (
 	darvaza.org/core v0.19.0
-	darvaza.org/slog v0.8.1
+	darvaza.org/slog v0.9.0
 )
 
 require github.com/rs/zerolog v1.34.0
@@ -18,3 +16,5 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 )
+
+replace darvaza.org/slog => ../../
