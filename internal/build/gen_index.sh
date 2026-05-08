@@ -7,8 +7,8 @@ set -eu
 
 # list of directories with go.mod
 MODULES=$(find ./* -name go.mod | sed -e 's;^\./;;' | tr '\n' '\0' | xargs -n1 -0r dirname)
-# shellcheck disable=2178 # space delimited list of grouping prefixes
-GROUPS="handlers"
+# shellcheck disable=SC2178 # space delimited list of grouping prefixes
+GROUPS=handlers
 
 mod() {
 	local d="${1:-.}"
@@ -23,7 +23,7 @@ namedir() {
 		return
 	fi
 
-	# shellcheck disable=2086,2128 # word splitting of $GROUPS intended, not array.
+	# shellcheck disable=SC2086,SC2128 # word splitting of $GROUPS intended, not array.
 	for g in $GROUPS; do
 		n="${d#"$g/"}"
 		if [ "$n" != "$d" ]; then

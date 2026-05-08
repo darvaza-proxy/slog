@@ -22,6 +22,7 @@ GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v2.8.0 v2.11.4)
 REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v1.14.0 v1.15.0)
 
 GOLANGCI_LINT_URL ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+GOLANGCI_LINT_RUN_ARGS ?= --show-stats=false
 GOLANGCI_LINT ?= $(GO) run $(GOLANGCI_LINT_URL)
 
 REVIVE_CONF_FILE ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 revive-v1.14.toml revive.toml)
@@ -162,9 +163,8 @@ tidy: fmt $(TIDY_SPELLING) $(TIDY_SHELL)
 generate: ; $(info $(M) running go:generate…)
 	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
-
 # Prepare for codecov uploading
-codecov: $(COVERAGE_DIR)/coverage.out $(COVERAGE_DIR)/codecov.sh
+codecov: merged-coverage $(COVERAGE_DIR)/codecov.sh
 
 # Generate Codecov upload script
 $(COVERAGE_DIR)/codecov.sh: $(TOOLSDIR)/make_codecov.sh $(TMPDIR)/index ; $(info $(M) generating codecov.sh…)
