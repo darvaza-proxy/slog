@@ -6,4 +6,3 @@ coverage.html
 *.test
 # Build and temporary files
 .tmp
-*.test

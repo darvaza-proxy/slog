@@ -122,7 +122,7 @@ gen_make_targets() {
 		#
 		call="$(cat <<-EOT | packed
 		\$(GO) vet ./...
-		\$(GOLANGCI_LINT) run
+		\$(GOLANGCI_LINT) run \$(GOLANGCI_LINT_RUN_ARGS)
 		\$(REVIVE) \$(REVIVE_RUN_ARGS) ./...
 		EOT
 		)"
@@ -149,7 +149,7 @@ gen_make_targets() {
 	esac
 
 	case "$cmd" in
-	build|test|coverage|race)
+	build)
 		sequential=true ;;
 	*)
 		sequential=false ;;
@@ -239,18 +239,35 @@ $x: $(suffixed "$x" get build tidy)
 EOT
 done
 
+# Convert newlines to spaces for Makefile compatibility
+# shellcheck disable=SC2086 # word splitting of PROJECTS intended
+PROJECTS_SPACE="$(expand '' '' $PROJECTS)"
+
+cat <<EOT
+
+# Coverage profile file lists
+COVERAGE_INTEGRATION_FILES = \$(patsubst %,\$(COVERAGE_DIR)/coverage_%.prof,$PROJECTS_SPACE)
+COVERAGE_SELF_FILES = \$(patsubst %,\$(COVERAGE_DIR)/coverage_%_self.prof,$PROJECTS_SPACE)
+
+COVERAGE_MERGED = \$(COVERAGE_DIR)/coverage.out
+COVERAGE_SELF_MERGED = \$(COVERAGE_DIR)/coverage_self.out
+EOT
+
 # Add coverage-related rules
 cat <<'EOT'
 
 $(COVERAGE_DIR):
 	$Q mkdir -p $@
 
-.PHONY: clean-coverage
+.PHONY: clean-coverage merged-coverage
 clean-coverage: ; $(info $(M) cleaning coverage data…)
 	$Q rm -rf $(COVERAGE_DIR)
 
-# Merge all coverage profiles into a single file
-$(COVERAGE_DIR)/coverage.out: | coverage ; $(info $(M) merging coverage profiles…)
-	$Q $(TOOLSDIR)/merge_coverage.sh $(COVERAGE_DIR)/coverage_*.prof > $@~
-	$Q mv $@~ $@
+merged-coverage: $(COVERAGE_MERGED) $(COVERAGE_SELF_MERGED)
+
+$(COVERAGE_MERGED): coverage ; $(info $(M) merging integration coverage profiles…)
+	$(Q) $(TOOLSDIR)/merge_coverage.sh $(COVERAGE_INTEGRATION_FILES) > $@~ && mv $@~ $@
+
+$(COVERAGE_SELF_MERGED): coverage ; $(info $(M) merging self-coverage profiles…)
+	$(Q) $(TOOLSDIR)/merge_coverage.sh $(COVERAGE_SELF_FILES) > $@~ && mv $@~ $@
 EOT

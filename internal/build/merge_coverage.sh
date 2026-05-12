@@ -20,16 +20,21 @@ if [ $# -eq 0 ]; then
 fi
 
 # Get header from first existing file
-if [ -s "$1" ]; then
-	head -1 "$1"
-else
-	echo "Error: First input file is empty or does not exist: $1" >&2
-	exit 1
-fi
-
-# Append data lines from all files
+first=
 for f; do
-	if [ -s "$f" ]; then
+	[ -s "$f" ] || continue
+
+	if [ -z "$first" ]; then
+		# first
+		first="$f"
+		cat "$f"
+	else
+		# others
 		tail -n +2 "$f"
 	fi
 done
+
+if [ -z "$first" ]; then
+	echo "Error: No valid input files found" >&2
+	exit 1
+fi
