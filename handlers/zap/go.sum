@@ -1,5 +1,5 @@
-darvaza.org/core v0.19.0 h1:vK56K+4DyvaiFjB5iifzt6BwsldDOWcV2Dut6H0T958=
-darvaza.org/core v0.19.0/go.mod h1:8+rhinVhCzJf814uPOYFRmj1D+8mO7bkbo/hrK0Lmkk=
+darvaza.org/core v0.19.1 h1:Ea6zFi2STXt4QC7Jbu1/unUo5Kd/OX65flZgeNw2iOY=
+darvaza.org/core v0.19.1/go.mod h1:8+rhinVhCzJf814uPOYFRmj1D+8mO7bkbo/hrK0Lmkk=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
