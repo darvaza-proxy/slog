@@ -104,25 +104,29 @@ func TestSlogCoreCheck(t *testing.T) {
 
 func TestSlogCoreWrite(t *testing.T) {
 	t.Run("FatalWrite", runTestSlogCoreFatalWrite)
+	t.Run("FatalHook", runTestSlogCoreFatalHook)
+	t.Run("PanicCoreWrite", runTestSlogCorePanicCoreWrite)
 	t.Run("PanicWrite", runTestSlogCorePanicWrite)
+	t.Run("DPanicProduction", runTestSlogCoreDPanicProduction)
+	t.Run("DPanicDevelopment", runTestSlogCoreDPanicDevelopment)
 }
 
 func newMapTestCase(
-	name string, zapLevel zapcore.Level, expectedSlogLevel slog.LogLevel, shouldPanic bool,
+	name string, zapLevel zapcore.Level, expectedSlogLevel slog.LogLevel,
 ) mapTestCase {
 	return mapTestCase{
 		name:              name,
 		zapLevel:          zapLevel,
 		expectedSlogLevel: expectedSlogLevel,
-		shouldPanic:       shouldPanic,
 	}
 }
 
 func mapTestCases() []mapTestCase {
 	return []mapTestCase{
-		newMapTestCase("DPanicLevel", zapcore.DPanicLevel, slog.Panic, true),
-		newMapTestCase("UnknownLevel", zapcore.Level(99), slog.Info, false),
-		newMapTestCase("InvalidLevel", zapcore.InvalidLevel, slog.Info, false),
+		newMapTestCase("PanicLevel", zapcore.PanicLevel, slog.Panic),
+		newMapTestCase("DPanicLevel", zapcore.DPanicLevel, slog.Error),
+		newMapTestCase("UnknownLevel", zapcore.Level(99), slog.Info),
+		newMapTestCase("InvalidLevel", zapcore.InvalidLevel, slog.Info),
 	}
 }
 
@@ -624,71 +628,98 @@ func runTestSlogCoreFatalWrite(t *testing.T) {
 	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
 
-	// We can't actually test os.Exit, but we can verify the Fatal log is written
+	// Write only records the entry; the exit belongs to the slog
+	// backend or to zap's CheckedEntry machinery, not to the Core.
 	entry := zapcore.Entry{
 		Level:   zapcore.FatalLevel,
 		Message: "fatal error occurred",
 	}
-
-	// Note: This test cannot verify os.Exit behaviour in unit tests.
-	// The actual Exit call would need to be tested in integration tests.
-	// The Write method will call logger.Fatal() which in our test logger
-	// just records a message with Fatal level
-	err := zapCore.Write(entry, nil)
-	core.AssertNil(t, err, "write error")
+	core.AssertNoError(t, zapCore.Write(entry, nil), "write")
 
 	messages := recorder.GetMessages()
-	core.AssertTrue(t, hasMessage(messages, "fatal error occurred", slog.Fatal),
-		"fatal message found")
-	core.AssertTrue(t, hasMessage(messages, "zap fatal exit", slog.Fatal),
-		"zap fatal exit message")
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertEqual(t, slog.Fatal, messages[0].Level, "level")
+	core.AssertEqual(t, "fatal error occurred", messages[0].Message, "message")
 }
 
-// hasMessage reports whether the recorder captured a message
-// matching both the given text and slog level.
-func hasMessage(messages []mock.Message, text string, level slog.LogLevel) bool {
-	for _, msg := range messages {
-		if msg.Message == text && msg.Level == level {
-			return true
-		}
+// runTestSlogCoreFatalHook verifies the zap layer owns Fatal terminal
+// behaviour; WriteThenPanic substitutes the untestable os.Exit.
+func runTestSlogCoreFatalHook(t *testing.T) {
+	t.Helper()
+	recorder := mock.NewLogger()
+	zapLogger := zap.New(slogzap.NewCore(recorder, zap.DebugLevel),
+		zap.WithFatalHook(zapcore.WriteThenPanic))
+
+	core.AssertPanic(t, func() {
+		zapLogger.Fatal("fatal error occurred")
+	}, "fatal error occurred", "fatal hook")
+
+	messages := recorder.GetMessages()
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertEqual(t, slog.Fatal, messages[0].Level, "level")
+}
+
+func runTestSlogCorePanicCoreWrite(t *testing.T) {
+	t.Helper()
+	recorder := mock.NewLogger()
+	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
+
+	// A bare Core.Write never panics; like every zapcore.Core it
+	// only writes, and CheckedEntry adds the terminal action.
+	entry := zapcore.Entry{
+		Level:   zapcore.PanicLevel,
+		Message: "panic message",
 	}
-	return false
-}
-
-func runTestPanicLevel(t *testing.T, zapCore zapcore.Core) {
-	t.Helper()
-	core.AssertPanic(t, func() {
-		entry := zapcore.Entry{
-			Level:   zapcore.PanicLevel,
-			Message: "panic message",
-		}
+	core.AssertNoPanic(t, func() {
 		_ = zapCore.Write(entry, nil)
-	}, "zap panic: panic message", "PanicLevel panic")
-}
+	}, "core write")
 
-func runTestDPanicLevel(t *testing.T, zapCore zapcore.Core) {
-	t.Helper()
-	core.AssertPanic(t, func() {
-		entry := zapcore.Entry{
-			Level:   zapcore.DPanicLevel,
-			Message: "development panic",
-		}
-		_ = zapCore.Write(entry, nil)
-	}, "zap panic: development panic", "DPanicLevel panic")
+	messages := recorder.GetMessages()
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertEqual(t, slog.Panic, messages[0].Level, "level")
 }
 
 func runTestSlogCorePanicWrite(t *testing.T) {
 	t.Helper()
 	recorder := mock.NewLogger()
-	zapCore := slogzap.NewCore(recorder, zap.DebugLevel)
+	zapLogger := zap.New(slogzap.NewCore(recorder, zap.DebugLevel))
 
-	t.Run("PanicLevel", func(t *testing.T) {
-		runTestPanicLevel(t, zapCore)
-	})
+	core.AssertPanic(t, func() {
+		zapLogger.Panic("panic message")
+	}, "panic message", "zap layer panic")
 
-	t.Run("DPanicLevel", func(t *testing.T) {
-		runTestDPanicLevel(t, zapCore)
-	})
+	messages := recorder.GetMessages()
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertEqual(t, slog.Panic, messages[0].Level, "level")
+}
+
+func runTestSlogCoreDPanicProduction(t *testing.T) {
+	t.Helper()
+	recorder := mock.NewLogger()
+	zapLogger := zap.New(slogzap.NewCore(recorder, zap.DebugLevel))
+
+	core.AssertNoPanic(t, func() {
+		zapLogger.DPanic("development panic")
+	}, "production DPanic")
+
+	messages := recorder.GetMessages()
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertEqual(t, slog.Error, messages[0].Level, "level")
+}
+
+func runTestSlogCoreDPanicDevelopment(t *testing.T) {
+	t.Helper()
+	recorder := mock.NewLogger()
+	zapLogger := zap.New(slogzap.NewCore(recorder, zap.DebugLevel),
+		zap.Development())
+
+	core.AssertPanic(t, func() {
+		zapLogger.DPanic("development panic")
+	}, "development panic", "development DPanic")
+
+	messages := recorder.GetMessages()
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertEqual(t, slog.Error, messages[0].Level, "level")
 }
 
 func runTestConvertFieldsEmpty(t *testing.T) {
@@ -735,11 +766,11 @@ func runTestZapLoggerInvalidLevel(t *testing.T) {
 }
 
 // mapTestCase represents a test case for zap to slog level mapping
+// through SlogCore.Write.
 type mapTestCase struct {
 	name              string
-	zapLevel          zapcore.Level
 	expectedSlogLevel slog.LogLevel
-	shouldPanic       bool
+	zapLevel          zapcore.Level
 }
 
 func (tc mapTestCase) Name() string {
@@ -751,32 +782,16 @@ func (tc mapTestCase) Test(t *testing.T) {
 	recorder := mock.NewLogger()
 	zapCore := slogzap.NewCore(recorder, zapcore.DebugLevel)
 
-	if tc.shouldPanic {
-		core.AssertPanic(t, func() {
-			entry := zapcore.Entry{
-				Level:   tc.zapLevel,
-				Message: fmt.Sprintf("test level %v", tc.zapLevel),
-			}
-			_ = zapCore.Write(entry, nil)
-		}, nil, "DPanicLevel panic")
-	} else {
-		entry := zapcore.Entry{
-			Level:   tc.zapLevel,
-			Message: fmt.Sprintf("test level %v", tc.zapLevel),
-		}
-
-		recorder.Clear()
-		_ = zapCore.Write(entry, nil)
+	entry := zapcore.Entry{
+		Level:   tc.zapLevel,
+		Message: fmt.Sprintf("test level %v", tc.zapLevel),
 	}
+	core.AssertNoError(t, zapCore.Write(entry, nil), "write")
 
-	// For non-panic levels, check that they were logged at expected level
-	if !tc.shouldPanic {
-		messages := recorder.GetMessages()
-		if len(messages) > 0 {
-			msg := messages[0]
-			core.AssertEqual(t, tc.expectedSlogLevel, msg.Level, "slog level for zap level %v", tc.zapLevel)
-		}
-	}
+	messages := recorder.GetMessages()
+	slogtest.AssertMustMessageCount(t, messages, 1)
+	core.AssertEqual(t, tc.expectedSlogLevel, messages[0].Level,
+		"slog level for zap level %v", tc.zapLevel)
 }
 
 // configTestCase represents a test case for configuration testing

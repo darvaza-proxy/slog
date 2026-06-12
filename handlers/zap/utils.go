@@ -34,9 +34,12 @@ func mapFromZapLevel(level zapcore.Level) slog.LogLevel {
 		return slog.Debug
 	case zapcore.WarnLevel:
 		return slog.Warn
-	case zapcore.ErrorLevel:
+	case zapcore.ErrorLevel, zapcore.DPanicLevel:
+		// DPanic only panics in development mode, which the
+		// zap.Logger layer handles; slog has no conditional
+		// equivalent, so use the strongest non-terminal level.
 		return slog.Error
-	case zapcore.DPanicLevel, zapcore.PanicLevel:
+	case zapcore.PanicLevel:
 		return slog.Panic
 	case zapcore.FatalLevel:
 		return slog.Fatal
