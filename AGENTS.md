@@ -193,6 +193,7 @@ Each handler is a separate Go module in the `handlers/` directory:
 - **`cblog`**: Channel-based logger for receiving log entries through channels.
 - **`discard`**: No-op logger for testing and optional logging scenarios.
 - **`filter`**: Middleware logger for filtering and transforming log entries.
+- **`logr`**: Bidirectional adapter for the go-logr/logr interface.
 - **`logrus`**: Adapter for the popular logrus logging library.
 - **`zap`**: Adapter for Uber's zap high-performance logger.
 - **`zerolog`**: Adapter for the zerolog JSON logger.
@@ -396,7 +397,7 @@ When updating slog version in handlers:
 
 ```bash
 # Update all handlers to a new slog version
-for handler in cblog discard filter logrus zap zerolog; do
+for handler in cblog discard filter logr logrus zap zerolog; do
   go -C handlers/$handler get darvaza.org/slog@v0.7.0
 done
 
@@ -407,7 +408,7 @@ To update all dependencies in handlers:
 
 ```bash
 # Update all dependencies (use with caution)
-for handler in cblog discard filter logrus zap zerolog; do
+for handler in cblog discard filter logr logrus zap zerolog; do
   go -C handlers/$handler get -u
 done
 ```

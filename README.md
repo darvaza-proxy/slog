@@ -255,7 +255,7 @@ These handlers allow conversion in both directions - you can use the external
 logging library as a slog backend, OR use slog as a backend for the external
 library:
 
-- **[logr](https://pkg.go.dev/darvaza.org/slog/handlers/logr)**:
+- **[`logr`](https://pkg.go.dev/darvaza.org/slog/handlers/logr)**:
   Full bidirectional adapter for go-logr/logr interface.
   - `logr.Logger` → `slog.Logger` (use logr as slog backend)
   - `slog.Logger` → `logr.Logger` (use slog as logr backend)
