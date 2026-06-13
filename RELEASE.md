@@ -1,5 +1,7 @@
 # Release Process for darvaza.org/slog
 
+<!-- cSpell:words GOPROXY -->
+
 This document describes the release process for the darvaza.org/slog
 repository, including the main module and all handler modules, ensuring
 consistent and coordinated releases.
@@ -22,14 +24,16 @@ Release-specific commands:
 # Check current versions
 git tag --list | sort -V
 
-# Create annotated tag for main module
-git tag -a v0.7.0 -m "Release message"
-
-# Create annotated tag for handler
-git tag -a handlers/zap/v0.6.0 -m "Release message"
+# Draft each tag body to a file, then create signed, annotated tags
+git tag -sF .tmp/tag-v0.7.0.txt v0.7.0
+git tag -sF .tmp/tag-zap-v0.6.0.txt handlers/zap/v0.6.0
 
 # Push tags
 git push origin v0.7.0 handlers/zap/v0.6.0
+
+# Prompt the proxy to index, then publish GitHub releases
+GOPROXY=https://proxy.golang.org go list -m darvaza.org/slog@v0.7.0
+gh release create v0.7.0 --verify-tag --latest --notes-file .tmp/rel-v0.7.0.md
 ```
 
 ## Module Structure
@@ -53,7 +57,7 @@ The repository contains:
 Before starting the release process:
 
 - [ ] Ensure all tests pass: `make test`
-- [ ] Run linting: `make lint`
+- [ ] Run checks: `make tidy` (formats, tidies, and runs spell/shell checks)
 - [ ] Update dependencies: `make up && make tidy`
 - [ ] Review [AGENTS.md testing patterns](AGENTS.md#testing-patterns) for
   comprehensive testing
@@ -72,10 +76,11 @@ Before starting the release process:
    git tag --list | grep -E "^v[0-9]" | sort -V | tail -1
    ```
 
-2. Create an annotated tag with comprehensive release notes:
+2. Draft the tag body to a file (for example `.tmp/tag-v0.7.0.txt`). It is
+   rich release-notes prose — lead with consumer impact, then sections:
 
-   ```bash
-   git tag -a v0.7.0 -m "darvaza.org/slog v0.7.0
+   ```text
+   darvaza.org/slog v0.7.0
 
    Brief description of the release
 
@@ -86,8 +91,14 @@ Before starting the release process:
    - Breaking changes (if any)
 
    Dependencies:
-   - darvaza.org/core v0.18.1
-   - Go 1.23 or later"
+   - darvaza.org/core v0.19.1
+   - Go 1.24 or later
+   ```
+
+   Create a signed, annotated tag from the file:
+
+   ```bash
+   git tag -sF .tmp/tag-v0.7.0.txt v0.7.0
    ```
 
 3. Push the tag:
@@ -96,7 +107,12 @@ Before starting the release process:
    git push origin v0.7.0
    ```
 
-4. Wait for pkg.go.dev to index the new version (usually 5-10 minutes).
+4. Prompt the module proxy to index the new version (faster than waiting for
+   pkg.go.dev, which follows the proxy):
+
+   ```bash
+   GOPROXY=https://proxy.golang.org go list -m darvaza.org/slog@v0.7.0
+   ```
 
 ### 3. Update Handler Dependencies
 
@@ -131,11 +147,12 @@ Before starting the release process:
    make test
    ```
 
-4. Commit the dependency updates:
+4. Commit the dependency updates. Stage only the handler manifests by
+   explicit path — never `git add -A`:
 
    ```bash
-   git add -A
-   git commit -m "build: update slog dependency to v0.7.0 in all handlers"
+   git commit -s handlers/*/go.mod handlers/*/go.sum \
+     -m "chore(deps): update handlers to slog v0.7.0"
    ```
 
 ### 4. Handler Module Releases
@@ -146,11 +163,11 @@ Before starting the release process:
    git tag --list | grep "^handlers/" | sort -V
    ```
 
-2. Create annotated tags for each handler that has changes:
+2. Draft each handler's tag body to a file (for example
+   `.tmp/tag-zap-v0.6.0.txt`), then create a signed, annotated tag from it:
 
-   ```bash
-   # Example for zap handler
-   git tag -a handlers/zap/v0.6.0 -m "darvaza.org/slog/handlers/zap v0.6.0
+   ```text
+   darvaza.org/slog/handlers/zap v0.6.0
 
    `zap` handler for slog interface
 
@@ -160,26 +177,72 @@ Before starting the release process:
 
    Dependencies:
    - darvaza.org/slog v0.7.0
-   - go.uber.org/zap v1.27.0
-   - Go 1.23 or later"
+   - go.uber.org/zap v1.28.0
+   - Go 1.24 or later
    ```
-
-3. Push all handler tags:
 
    ```bash
-   # Push individual tags
-   git push origin handlers/cblog/v0.7.0
-   git push origin handlers/discard/v0.6.0
-   git push origin handlers/filter/v0.6.0
-   git push origin handlers/logrus/v0.7.0
-   git push origin handlers/zap/v0.6.0
-   git push origin handlers/zerolog/v0.6.0
-
-   # Or push all at once
-   git push origin --tags
+   git tag -sF .tmp/tag-zap-v0.6.0.txt handlers/zap/v0.6.0
    ```
 
-### 5. Post-release Documentation
+3. Push all handler tags by explicit name (avoid `--tags`, which would also
+   push any unrelated local tags):
+
+   ```bash
+   git push origin \
+     handlers/cblog/v0.7.0 \
+     handlers/discard/v0.6.0 \
+     handlers/filter/v0.6.0 \
+     handlers/logrus/v0.7.0 \
+     handlers/zap/v0.6.0 \
+     handlers/zerolog/v0.6.0
+   ```
+
+4. Prompt the proxy to index each handler:
+
+   ```bash
+   GOPROXY=https://proxy.golang.org go list -m \
+     darvaza.org/slog/handlers/zap@v0.6.0 \
+     darvaza.org/slog/handlers/zerolog@v0.6.0
+   ```
+
+### 5. GitHub Releases
+
+Publish a GitHub release for every tag. The release body is a Markdown page
+read in a browser, so it carries section headings, PR cross-references
+(`#NNN`), and an install snippet — it is not a copy of the plain-text tag
+body.
+
+1. Draft each release body to a file (for example `.tmp/rel-zap-v0.6.0.md`),
+   then create the release from its existing signed tag:
+
+   ```bash
+   # Main module — give it the repository's "Latest" badge
+   gh release create v0.7.0 --verify-tag --latest \
+     --title "darvaza.org/slog v0.7.0" \
+     --notes-file .tmp/rel-v0.7.0.md
+
+   # Handlers — never "Latest"; the main module owns that badge
+   gh release create handlers/zap/v0.6.0 --verify-tag --latest=false \
+     --title "darvaza.org/slog/handlers/zap v0.6.0" \
+     --notes-file .tmp/rel-zap-v0.6.0.md
+   ```
+
+   Use `--title` matching the tag header (`<module path> <version>`) to follow
+   the existing release list, and `--verify-tag` so a typo'd tag name fails
+   loudly instead of creating a dangling release.
+
+2. `--latest` semantics: pass `--latest` only on the main `slog` release — it
+   is the primary module and should own the **Latest** badge — and
+   `--latest=false` on every handler so a handler never steals it.
+
+3. Ordering on the releases page: GitHub lists releases by publish time,
+   newest first. Create them in dependency order (main module first), but
+   create the most noteworthy handler **last** so it lands at the top of the
+   list. A dependency-only bump is unremarkable; a handler that gained a
+   feature is what readers came to see.
+
+### 6. Post-release Documentation
 
 Document the release in relevant PR comments:
 
@@ -295,28 +358,21 @@ When releasing changes from a recently merged PR (common workflow):
    - New features: Minor version (patch if very minor)
    - Bug fixes only: Patch version
 
-3. **Create and push release tag**:
+3. **Tag, push, and publish the release**:
 
    ```bash
-   # Create tag with summary of PR changes
-   git tag -a vX.Y.Z -m "darvaza.org/slog vX.Y.Z
-
-   Brief description matching PR purpose
-
-   Changes since vA.B.C:
-   - Include all significant changes from the PR
-   - Note breaking changes clearly
-   - List dependency updates
-
-   Dependencies:
-   - darvaza.org/core vX.Y.Z
-   - Go X.Y or later"
-
-   # Push the tag
+   # Draft the tag body to .tmp/tag-vX.Y.Z.txt (summary of PR changes),
+   # then create a signed tag from the file and push it
+   git tag -sF .tmp/tag-vX.Y.Z.txt vX.Y.Z
    git push origin vX.Y.Z
+
+   # Prompt the proxy, then publish the GitHub release
+   GOPROXY=https://proxy.golang.org go list -m darvaza.org/slog@vX.Y.Z
+   gh release create vX.Y.Z --verify-tag --latest --notes-file .tmp/rel-vX.Y.Z.md
    ```
 
-4. **Update the PR with release info** (as shown in Post-release Documentation).
+4. **Update the PR with release info** (see GitHub Releases and Post-release
+   Documentation).
 
 ### Main Module Only vs Full Release
 
@@ -328,8 +384,10 @@ When releasing changes from a recently merged PR (common workflow):
 
 ### Common Issues
 
-1. **Handler tests fail after slog update**: Ensure all handlers are updated
-   to use the new slog version and `replace` directives are removed.
+1. **Handler tests fail after slog update**: Ensure every handler's go.mod
+   references the new slog version and that the `replace darvaza.org/slog =>
+   ../../` directive is still present. The replace directives are permanent —
+   they must never be removed.
 
 2. **Missing handler tags**: Handler tags must follow the format
    `handlers/name/vX.Y.Z`.
