@@ -289,6 +289,8 @@ func TestAdapterWithLevelFiltering(t *testing.T) {
 - `AssertMessage(t, msg, level, text)` - Verifies message level and text
 - `AssertField(t, msg, key, value)` - Verifies a field exists with expected
   value
+- `AssertFieldValue(t, fields, key, value)` - Verifies a field exists with
+  expected value in a bare fields map
 - `AssertNoField(t, msg, key)` - Verifies a field does not exist
 - `AssertMessageCount(t, messages, count)` - Verifies the number of messages
 

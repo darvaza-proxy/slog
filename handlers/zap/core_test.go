@@ -21,25 +21,6 @@ var _ core.TestCase = levelTestCase{}
 var _ core.TestCase = mapTestCase{}
 var _ core.TestCase = configTestCase{}
 
-// getFieldValue is a generic helper to safely extract and cast field values
-func getFieldValue[T any](fields map[string]any, key string) (T, bool) {
-	var zero T
-	value, exists := fields[key]
-	if !exists {
-		return zero, false
-	}
-	typed, ok := value.(T)
-	return typed, ok
-}
-
-// assertField is a test helper that checks if a field exists and has the expected value
-func assertField[T comparable](t *testing.T, fields map[string]any, key string, expected T) {
-	t.Helper()
-	actual, ok := getFieldValue[T](fields, key)
-	core.AssertMustTrue(t, ok, "field found")
-	core.AssertEqual(t, expected, actual, "field value")
-}
-
 // assertAnySliceField is a test helper for []any fields (interface slices)
 func assertAnySliceField(t *testing.T, fields map[string]any, key string, expected ...any) {
 	t.Helper()
@@ -192,8 +173,8 @@ func runTestSlogCoreWithFields(t *testing.T) {
 	core.AssertMustEqual(t, 1, len(messages), "log entry count")
 
 	msg := messages[0]
-	assertField(t, msg.Fields, "key1", "value1")
-	assertField(t, msg.Fields, "key2", int64(42))
+	slogtest.AssertField(t, msg, "key1", "value1")
+	slogtest.AssertField(t, msg, "key2", int64(42))
 }
 
 func runTestSlogCoreWith(t *testing.T) {
@@ -217,9 +198,9 @@ func runTestSlogCoreWith(t *testing.T) {
 	core.AssertMustEqual(t, 1, len(messages), "log entry count")
 
 	msg := messages[0]
-	assertField(t, msg.Fields, "persistent", "field")
-	assertField(t, msg.Fields, "request_id", int64(123))
-	assertField(t, msg.Fields, "extra", "value")
+	slogtest.AssertField(t, msg, "persistent", "field")
+	slogtest.AssertField(t, msg, "request_id", int64(123))
+	slogtest.AssertField(t, msg, "extra", "value")
 }
 
 func runTestSlogCoreWithEmpty(t *testing.T) {
@@ -413,10 +394,10 @@ func runTestSlogCoreComplexFields(t *testing.T) {
 
 	msg := messages[0]
 	// Check basic field types
-	assertField(t, msg.Fields, "string", "value")
-	assertField(t, msg.Fields, "int", int64(42))
-	assertField(t, msg.Fields, "float", 3.14)
-	assertField(t, msg.Fields, "bool", true)
+	slogtest.AssertField(t, msg, "string", "value")
+	slogtest.AssertField(t, msg, "int", int64(42))
+	slogtest.AssertField(t, msg, "float", 3.14)
+	slogtest.AssertField(t, msg, "bool", true)
 
 	// Check array fields (zap converts to []any)
 	assertAnySliceField(t, msg.Fields, "strings", "a", "b", "c")
@@ -485,8 +466,8 @@ func runTestBidirectionalSlogToZap(t *testing.T) {
 
 	msg := messages[0]
 	core.AssertEqual(t, "via zap api", msg.Message, "message text")
-	assertField(t, msg.Fields, "path", "slog->zap")
-	assertField(t, msg.Fields, "test_id", int64(1))
+	slogtest.AssertField(t, msg, "path", "slog->zap")
+	slogtest.AssertField(t, msg, "test_id", int64(1))
 }
 
 func runTestBidirectionalZapToSlog(t *testing.T) {
@@ -525,10 +506,10 @@ func runTestBidirectionalCompatibility(t *testing.T) {
 	slogtest.AssertMustMessageCount(t, messages, 1)
 
 	// Verify field types are preserved correctly
-	fields := messages[0].Fields
-	assertField(t, fields, "string", "test")
-	assertField(t, fields, "int", int64(42))
-	assertField(t, fields, "bool", true)
+	msg := messages[0]
+	slogtest.AssertField(t, msg, "string", "test")
+	slogtest.AssertField(t, msg, "int", int64(42))
+	slogtest.AssertField(t, msg, "bool", true)
 }
 
 func runTestSlogCoreConcurrent(t *testing.T) {
