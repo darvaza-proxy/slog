@@ -66,11 +66,7 @@ func AssertMustMessage(t core.T, msg Message, level slog.LogLevel, text string) 
 // Returns true if the field exists and has the expected value, false otherwise.
 func AssertField(t core.T, msg Message, key string, value any) bool {
 	t.Helper()
-	got, exists := msg.Fields[key]
-	if !core.AssertTrue(t, exists, "field %q exists", key) {
-		return false
-	}
-	return core.AssertEqual(t, value, got, "field %q value", key)
+	return AssertFieldValue(t, msg.Fields, key, value)
 }
 
 // AssertMustField verifies that a message contains a field with the expected value.
@@ -78,6 +74,29 @@ func AssertField(t core.T, msg Message, key string, value any) bool {
 func AssertMustField(t core.T, msg Message, key string, value any) {
 	t.Helper()
 	if !AssertField(t, msg, key, value) {
+		t.FailNow()
+	}
+}
+
+// AssertFieldValue verifies that a fields map contains a field with the
+// expected value. It serves call sites holding a bare fields map, such as
+// entries captured outside the [Message] recorder.
+// Returns true if the field exists and has the expected value, false otherwise.
+func AssertFieldValue(t core.T, fields map[string]any, key string, value any) bool {
+	t.Helper()
+	got, exists := fields[key]
+	if !core.AssertTrue(t, exists, "field %q exists", key) {
+		return false
+	}
+	return core.AssertEqual(t, value, got, "field %q value", key)
+}
+
+// AssertMustFieldValue verifies that a fields map contains a field with the
+// expected value.
+// If the assertion fails, the test is terminated immediately with t.FailNow().
+func AssertMustFieldValue(t core.T, fields map[string]any, key string, value any) {
+	t.Helper()
+	if !AssertFieldValue(t, fields, key, value) {
 		t.FailNow()
 	}
 }

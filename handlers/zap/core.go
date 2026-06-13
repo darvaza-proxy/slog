@@ -1,8 +1,6 @@
 package zap
 
 import (
-	"fmt"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -88,32 +86,17 @@ func (c *SlogCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 		logger = logger.WithField("caller", entry.Caller.String())
 	}
 
-	// Convert and add accumulated fields from With() calls
-	if len(c.fields) > 0 {
-		logger = logger.WithFields(convertFields(c.fields))
-	}
+	// Convert and add accumulated fields from With() calls,
+	// then fields from this Write call. convertFields returns
+	// nil when there is nothing to add.
+	logger = logger.WithFields(convertFields(c.fields))
+	logger = logger.WithFields(convertFields(fields))
 
-	// Convert and add fields from this Write call
-	if len(fields) > 0 {
-		logger = logger.WithFields(convertFields(fields))
-	}
-
-	// Log the message
+	// Log the message. Terminal behaviour is not ours to add: the
+	// slog backend exits or panics on Fatal/Panic entries per the
+	// slog contract, and zap's CheckedEntry performs WriteThenFatal
+	// or WriteThenPanic after all cores have written.
 	logger.Print(entry.Message)
-
-	// Handle Fatal and Panic as zap expects
-	switch entry.Level {
-	case zapcore.FatalLevel:
-		// zap expects Fatal to exit
-		c.logger.Fatal().Print("zap fatal exit")
-	case zapcore.PanicLevel, zapcore.DPanicLevel:
-		// zap expects Panic to panic
-		panic(fmt.Sprintf("zap panic: %s", entry.Message))
-	default:
-		// Debug/Info/Warn/Error and any unknown levels need no
-		// post-write action — the message has already been emitted
-		// to the slog backend at the mapped level.
-	}
 
 	return nil
 }

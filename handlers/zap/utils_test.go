@@ -87,7 +87,7 @@ func mapFromZapLevelTestCases() []mapFromZapLevelTestCase {
 		newMapFromZapLevelTestCase("Error", zapcore.ErrorLevel, slog.Error),
 		newMapFromZapLevelTestCase("Fatal", zapcore.FatalLevel, slog.Fatal),
 		newMapFromZapLevelTestCase("Panic", zapcore.PanicLevel, slog.Panic),
-		newMapFromZapLevelTestCase("DPanic", zapcore.DPanicLevel, slog.Panic),
+		newMapFromZapLevelTestCase("DPanic", zapcore.DPanicLevel, slog.Error),
 		newMapFromZapLevelTestCase("Invalid", zapcore.InvalidLevel, slog.Info),
 		newMapFromZapLevelTestCase("Unknown", zapcore.Level(99), slog.Info),
 	}

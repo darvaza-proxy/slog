@@ -33,6 +33,8 @@
 //
 //   - AssertMessage/AssertMustMessage: Verify log level and message text
 //   - AssertField/AssertMustField: Verify field existence and value
+//   - AssertFieldValue/AssertMustFieldValue: Verify field existence and value
+//     on a bare fields map
 //   - AssertNoField/AssertMustNoField: Verify field absence
 //   - AssertMessageCount/AssertMustMessageCount: Verify message count with debugging output
 //

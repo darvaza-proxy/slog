@@ -38,6 +38,10 @@ repository. For developers and general project information, please refer to
 - Converts zap fields using `MapObjectEncoder`.
 - Maintains field accumulation through `With()` calls.
 - Preserves zap's expectations for Fatal/Panic behaviour.
+- `NewReversed` unwraps zap-backed parents to their underlying
+  `*zap.Logger` (carrying over accumulated fields) and otherwise
+  builds on `NewCore` with level decisions delegated to the parent;
+  optional `zap.Option` values apply either way.
 
 ## Usage Patterns
 
@@ -121,14 +125,14 @@ zapLogger.Info("Request completed",
 
 ## Level Mapping
 
-| slog Level | zap Level |
-|------------|-----------|
-| Debug      | Debug     |
-| Info       | Info      |
-| Warn       | Warn      |
-| Error      | Error     |
-| Fatal      | Fatal     |
-| Panic      | Panic     |
+| slog Level | zap Level    |
+|------------|--------------|
+| Debug      | Debug        |
+| Info       | Info         |
+| Warn       | Warn         |
+| Error      | Error/DPanic |
+| Fatal      | Fatal        |
+| Panic      | Panic        |
 
 ## Performance Considerations
 

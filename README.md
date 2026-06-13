@@ -255,7 +255,7 @@ These handlers allow conversion in both directions - you can use the external
 logging library as a slog backend, OR use slog as a backend for the external
 library:
 
-- **[logr](https://pkg.go.dev/darvaza.org/slog/handlers/logr)**:
+- **[`logr`](https://pkg.go.dev/darvaza.org/slog/handlers/logr)**:
   Full bidirectional adapter for go-logr/logr interface.
   - `logr.Logger` → `slog.Logger` (use logr as slog backend)
   - `slog.Logger` → `logr.Logger` (use slog as logr backend)
@@ -264,8 +264,9 @@ library:
   - `logrus.Logger` → `slog.Logger` (use logrus as slog backend)
   - `slog.Logger` → `logrus.Logger` (use slog as logrus backend)
 - **[`zap`](https://pkg.go.dev/darvaza.org/slog/handlers/zap)**:
-  Bidirectional adapter between Uber's zap and slog. Use zap as a slog backend
-  or create zap loggers backed by any slog implementation.
+  Bidirectional adapter between Uber's zap and slog.
+  - `zap.Logger` → `slog.Logger` (use zap as slog backend)
+  - `slog.Logger` → `zap.Logger` (use slog as zap backend)
 
 #### Unidirectional Adapters
 

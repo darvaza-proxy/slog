@@ -362,6 +362,69 @@ func TestAssertNoField(t *testing.T) {
 }
 
 // Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = assertFieldValueTestCase{}
+
+type assertFieldValueTestCase struct {
+	value      any
+	fields     map[string]any
+	key        string
+	name       string
+	expectPass bool
+}
+
+func (tc assertFieldValueTestCase) Name() string {
+	return tc.name
+}
+
+func (tc assertFieldValueTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	// Use MockT to test assertion function without failing the build
+	mock := &core.MockT{}
+	result := AssertFieldValue(mock, tc.fields, tc.key, tc.value)
+
+	core.AssertEqual(t, tc.expectPass, result, "result")
+}
+
+func newAssertFieldValueTestCase(name string, fields map[string]any,
+	key string, value any, expectPass bool) assertFieldValueTestCase {
+	return assertFieldValueTestCase{
+		name:       name,
+		fields:     fields,
+		key:        key,
+		value:      value,
+		expectPass: expectPass,
+	}
+}
+
+func assertFieldValueTestCases() []assertFieldValueTestCase {
+	return []assertFieldValueTestCase{
+		newAssertFieldValueTestCase("field with expected value",
+			map[string]any{"existing": "value"}, "existing", "value",
+			true),
+		newAssertFieldValueTestCase("field with wrong value",
+			map[string]any{"existing": "value"}, "existing", "wrong",
+			false),
+		newAssertFieldValueTestCase("field does not exist",
+			map[string]any{"existing": "value"}, "non-existent", "value",
+			false),
+		newAssertFieldValueTestCase("empty fields map",
+			map[string]any{}, "someKey", "value",
+			false),
+		newAssertFieldValueTestCase("nil fields map",
+			nil, "someKey", "value",
+			false),
+		newAssertFieldValueTestCase("field with nil value",
+			map[string]any{"nilField": nil}, "nilField", nil,
+			true),
+	}
+}
+
+func TestAssertFieldValue(t *testing.T) {
+	core.RunTestCases(t, assertFieldValueTestCases())
+}
+
+// Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = runWithLoggerFactoryTestCase{}
 
 type runWithLoggerFactoryTestCase struct {
@@ -461,6 +524,27 @@ func runTestAssertMustFieldFailure(t *testing.T) {
 	mock := &core.MockT{}
 	mock.Run("subtest", func(subT core.T) {
 		AssertMustField(subT, msg, "missing", "value")
+	})
+	core.AssertTrue(t, mock.Failed(), "should have failed")
+}
+
+func TestAssertMustFieldValue(t *testing.T) {
+	t.Run("success case", runTestAssertMustFieldValueSuccess)
+	t.Run("failure case", runTestAssertMustFieldValueFailure)
+}
+
+func runTestAssertMustFieldValueSuccess(t *testing.T) {
+	t.Helper()
+	fields := map[string]any{"existing": "value"}
+	AssertMustFieldValue(t, fields, "existing", "value")
+}
+
+func runTestAssertMustFieldValueFailure(t *testing.T) {
+	t.Helper()
+	fields := map[string]any{"existing": "value"}
+	mock := &core.MockT{}
+	mock.Run("subtest", func(subT core.T) {
+		AssertMustFieldValue(subT, fields, "missing", "value")
 	})
 	core.AssertTrue(t, mock.Failed(), "should have failed")
 }

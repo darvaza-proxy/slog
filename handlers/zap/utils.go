@@ -34,9 +34,12 @@ func mapFromZapLevel(level zapcore.Level) slog.LogLevel {
 		return slog.Debug
 	case zapcore.WarnLevel:
 		return slog.Warn
-	case zapcore.ErrorLevel:
+	case zapcore.ErrorLevel, zapcore.DPanicLevel:
+		// DPanic only panics in development mode, which the
+		// zap.Logger layer handles; slog has no conditional
+		// equivalent, so use the strongest non-terminal level.
 		return slog.Error
-	case zapcore.DPanicLevel, zapcore.PanicLevel:
+	case zapcore.PanicLevel:
 		return slog.Panic
 	case zapcore.FatalLevel:
 		return slog.Fatal
@@ -45,6 +48,35 @@ func mapFromZapLevel(level zapcore.Level) slog.LogLevel {
 		// as the safest fallback.
 		return slog.Info
 	}
+}
+
+// toZapLevel maps slog levels to zap levels, rejecting values outside
+// the range slog defines.
+func toZapLevel(level slog.LogLevel) (zapcore.Level, bool) {
+	zl := mapToZapLevel(level)
+	return zl, zl != zapcore.InvalidLevel
+}
+
+// fromZapLevel maps zap levels to slog levels, rejecting values
+// outside the range zap defines.
+func fromZapLevel(level zapcore.Level) (slog.LogLevel, bool) {
+	if level < zapcore.DebugLevel || level > zapcore.FatalLevel {
+		return slog.UndefinedLevel, false
+	}
+	return mapFromZapLevel(level), true
+}
+
+// zapFields converts a slog fields map to zap fields.
+func zapFields(m map[string]any) []zap.Field {
+	if len(m) == 0 {
+		return nil
+	}
+
+	fields := make([]zap.Field, 0, len(m))
+	for k, v := range m {
+		fields = append(fields, zap.Any(k, v))
+	}
+	return fields
 }
 
 // getConfigLevel extracts the current log level from a zap config
