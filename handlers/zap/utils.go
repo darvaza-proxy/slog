@@ -50,6 +50,35 @@ func mapFromZapLevel(level zapcore.Level) slog.LogLevel {
 	}
 }
 
+// toZapLevel maps slog levels to zap levels, rejecting values outside
+// the range slog defines.
+func toZapLevel(level slog.LogLevel) (zapcore.Level, bool) {
+	zl := mapToZapLevel(level)
+	return zl, zl != zapcore.InvalidLevel
+}
+
+// fromZapLevel maps zap levels to slog levels, rejecting values
+// outside the range zap defines.
+func fromZapLevel(level zapcore.Level) (slog.LogLevel, bool) {
+	if level < zapcore.DebugLevel || level > zapcore.FatalLevel {
+		return slog.UndefinedLevel, false
+	}
+	return mapFromZapLevel(level), true
+}
+
+// zapFields converts a slog fields map to zap fields.
+func zapFields(m map[string]any) []zap.Field {
+	if len(m) == 0 {
+		return nil
+	}
+
+	fields := make([]zap.Field, 0, len(m))
+	for k, v := range m {
+		fields = append(fields, zap.Any(k, v))
+	}
+	return fields
+}
+
 // getConfigLevel extracts the current log level from a zap config
 func getConfigLevel(cfg *zap.Config) slog.LogLevel {
 	if cfg == nil || cfg.Level == (zap.AtomicLevel{}) {

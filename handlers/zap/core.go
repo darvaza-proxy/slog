@@ -86,15 +86,11 @@ func (c *SlogCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 		logger = logger.WithField("caller", entry.Caller.String())
 	}
 
-	// Convert and add accumulated fields from With() calls
-	if len(c.fields) > 0 {
-		logger = logger.WithFields(convertFields(c.fields))
-	}
-
-	// Convert and add fields from this Write call
-	if len(fields) > 0 {
-		logger = logger.WithFields(convertFields(fields))
-	}
+	// Convert and add accumulated fields from With() calls,
+	// then fields from this Write call. convertFields returns
+	// nil when there is nothing to add.
+	logger = logger.WithFields(convertFields(c.fields))
+	logger = logger.WithFields(convertFields(fields))
 
 	// Log the message. Terminal behaviour is not ours to add: the
 	// slog backend exits or panics on Fatal/Panic entries per the

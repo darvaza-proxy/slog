@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"darvaza.org/core"
 	"darvaza.org/slog"
 	"darvaza.org/slog/internal"
 )
@@ -83,23 +84,14 @@ func (zpl *Logger) Printf(format string, args ...any) {
 
 func (zpl *Logger) logMessage(msg string) {
 	msg = strings.TrimSpace(msg)
-	level := mapToZapLevel(zpl.loglet.Level())
-	if level == zapcore.InvalidLevel {
-		zpl.Panic().WithStack(1).Printf("slog: invalid log level %v", zpl.loglet.Level())
-	}
+	// unreachable: the Print methods gate on Enabled(), which
+	// panics or returns false on invalid levels.
+	level := core.MustOK(toZapLevel(zpl.loglet.Level()))
 
 	// Check if we can log at this level
 	if ce := zpl.logger.Check(level, msg); ce != nil {
 		// Add fields from Loglet chain
-		if fieldsMap := zpl.loglet.FieldsMap(); len(fieldsMap) > 0 {
-			fields := make([]zap.Field, 0, len(fieldsMap))
-			for k, v := range fieldsMap {
-				fields = append(fields, zap.Any(k, v))
-			}
-			ce.Write(fields...)
-		} else {
-			ce.Write()
-		}
+		ce.Write(zapFields(zpl.loglet.FieldsMap())...)
 	}
 }
 

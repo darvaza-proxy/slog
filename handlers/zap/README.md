@@ -94,6 +94,15 @@ zapLogger = zap.New(core,
     zap.AddCaller(),
     zap.AddStacktrace(zap.ErrorLevel),
 )
+
+// Or let the adapter choose the best route. Zap-backed parents are
+// unwrapped to their underlying *zap.Logger, carrying over accumulated
+// fields; any other parent is wrapped with level decisions delegated
+// to it. Optional zap.Option values apply either way.
+zapLogger, err := slogzap.NewReversed(filtered, zap.AddCaller())
+if err != nil {
+    panic(err)
+}
 ```
 
 ## Breaking Changes
