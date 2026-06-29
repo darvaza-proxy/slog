@@ -114,7 +114,7 @@ run_find() {
 	# Wrap user conditions in parentheses if they exist
 	[ $# -eq 0 ] || set -- \( "$@" \)
 	# combine auto-pruning and user conditions
-	set -- \( -type d \( -name .git -o -name .tmp -o -name node_modules \) \) -prune -o "$@" -type f
+	set -- \( -type d \( -name .git -o -name .tmp -o -name node_modules -o -name .srclight -o -name .claude \) \) -prune -o "$@" -type f
 	# combine escaped paths with find options
 	eval "set -- ${paths:-.} \"\$@\""
 
