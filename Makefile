@@ -57,7 +57,7 @@ DLX = true
 endif
 endif
 
-FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules -o -name .tmp
+FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules -o -name .tmp -o -name .srclight -o -name .claude
 FIND_FILES_PRUNE_ARGS ?= \( $(FIND_FILES_PRUNE_RULES) \) -prune
 FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
 FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'
