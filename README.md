@@ -235,9 +235,11 @@ For custom parsing, use `NewLogWriter()` with a handler function.
            ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │                            Handlers                                │
-├─────────┬─────────┬─────────┬─────────┬─────────┬────────┬─────────┤
-│  logr   │ logrus  │   zap   │ zerolog │  cblog  │ filter │ discard │
-└─────────┴─────────┴─────────┴─────────┴─────────┴────────┴─────────┘
+├─────────────┬─────────────┬─────────────┬─────────────┬────────────┤
+│    logr     │   logrus    │   stdslog   │     zap     │  zerolog   │
+├─────────────┼─────────────┼─────────────┼─────────────┼────────────┤
+│    cblog    │   filter    │   discard   │    mock     │            │
+└─────────────┴─────────────┴─────────────┴─────────────┴────────────┘
 ```
 
 All handlers use the `internal.Loglet` type for consistent field chain
@@ -263,6 +265,11 @@ library:
   Bidirectional adapter for Sirupsen/logrus.
   - `logrus.Logger` → `slog.Logger` (use logrus as slog backend)
   - `slog.Logger` → `logrus.Logger` (use slog as logrus backend)
+- **[`stdslog`](https://pkg.go.dev/darvaza.org/slog/handlers/stdslog)**:
+  Bidirectional adapter for the standard library `log/slog`. Part of the
+  main `darvaza.org/slog` module — no additional dependency.
+  - stdlib `slog.Handler` → `slog.Logger` (use log/slog as slog backend)
+  - `slog.Logger` → stdlib `*slog.Logger` (use slog as log/slog backend)
 - **[`zap`](https://pkg.go.dev/darvaza.org/slog/handlers/zap)**:
   Bidirectional adapter between Uber's zap and slog.
   - `zap.Logger` → `slog.Logger` (use zap as slog backend)
