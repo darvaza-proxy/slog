@@ -109,12 +109,10 @@ func verifyMessageFields(t core.T, msgs []Message) {
 // runConcurrentLogging performs concurrent logging operations.
 func runConcurrentLogging(logger slog.Logger, test ConcurrencyTest) {
 	var wg sync.WaitGroup
-	for i := 0; i < test.Goroutines; i++ {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-			runGoroutineOperations(logger, id, test.Operations)
-		}(i)
+	for i := range test.Goroutines {
+		wg.Go(func() {
+			runGoroutineOperations(logger, i, test.Operations)
+		})
 	}
 	wg.Wait()
 }
@@ -158,11 +156,9 @@ func createConcurrentLoggers(base slog.Logger, goroutines, fieldsPerGoroutine in
 	loggers := make([]slog.Logger, goroutines)
 
 	for i := range goroutines {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-			loggers[id] = createLoggerWithFields(base, id, fieldsPerGoroutine)
-		}(i)
+		wg.Go(func() {
+			loggers[i] = createLoggerWithFields(base, i, fieldsPerGoroutine)
+		})
 	}
 
 	wg.Wait()

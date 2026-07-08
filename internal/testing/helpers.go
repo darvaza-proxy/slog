@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"slices"
 	"testing"
 
 	"darvaza.org/core"
@@ -151,7 +152,7 @@ func RunWithLogger(t core.T, name string, logger slog.Logger, fn func(core.T, sl
 func TransformMessages(messages []Message, opts *AdapterOptions) []Message {
 	if opts == nil || len(opts.LevelExceptions) == 0 {
 		// No transformations needed, just copy the slice
-		return core.SliceCopy(messages)
+		return slices.Clone(messages)
 	}
 
 	return core.SliceAsFn(func(msg Message) (Message, bool) {

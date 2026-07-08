@@ -18,15 +18,14 @@ COVERAGE_DIR ?= $(TMPDIR)/coverage
 
 # Dynamic version selection based on Go version
 # Format: $(TOOLSDIR)/get_version.sh <go_version> <tool_version1> <tool_version2> ..
-GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v2.8.0 v2.11.4)
-REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 v1.14.0 v1.15.0)
+GOLANGCI_LINT_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.25 v2.11.4)
+REVIVE_VERSION ?= $(shell $(TOOLSDIR)/get_version.sh 1.25 v1.15.0)
 
 GOLANGCI_LINT_URL ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOLANGCI_LINT_RUN_ARGS ?= --show-stats=false
 GOLANGCI_LINT ?= $(GO) run $(GOLANGCI_LINT_URL)
 
-REVIVE_CONF_FILE ?= $(shell $(TOOLSDIR)/get_version.sh 1.24 revive-v1.14.toml revive.toml)
-REVIVE_CONF ?= $(TOOLSDIR)/$(REVIVE_CONF_FILE)
+REVIVE_CONF ?= $(TOOLSDIR)/revive.toml
 REVIVE_RUN_ARGS ?= -config $(REVIVE_CONF) -formatter friendly
 REVIVE_URL ?= github.com/mgechev/revive@$(REVIVE_VERSION)
 REVIVE ?= $(GO) run $(REVIVE_URL)
