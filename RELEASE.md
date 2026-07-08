@@ -116,7 +116,10 @@ Before starting the release process:
 
 ### 3. Update Handler Dependencies
 
-1. Update each handler's go.mod to use the new slog version:
+1. Update each handler's go.mod to use the new slog version. Because the
+   handlers resolve slog from the module proxy, the new main-module tag
+   must already be published and the proxy primed (see [Main Module
+   Release](#2-main-module-release)):
 
    ```bash
    # Update handlers to use the new slog version
@@ -133,21 +136,13 @@ Before starting the release process:
    make up tidy
    ```
 
-2. Verify replace directives are present (they should always be there):
-
-   ```bash
-   # Check that replace directives exist
-   grep -r "replace darvaza.org/slog" handlers/
-   # Should show: replace darvaza.org/slog => ../../ for each handler
-   ```
-
-3. Run tests to ensure compatibility:
+2. Run tests to ensure compatibility:
 
    ```bash
    make test
    ```
 
-4. Commit the dependency updates. Stage only the handler manifests by
+3. Commit the dependency updates. Stage only the handler manifests by
    explicit path — never `git add -A`:
 
    ```bash
@@ -327,15 +322,27 @@ Each handler maintains its own version but typically follows the main module:
 
 ## Handler Development Mode
 
-For detailed information about handler development mode, replace directives,
-and development workflows, see [AGENTS.md Handler Development
+For detailed information about handler development mode and multi-module
+workflows, see [AGENTS.md Handler Development
 Mode](AGENTS.md#handler-development-mode).
 
 **Key Points**:
 
-- Handlers use `replace` directives to reference the local slog module
-- These directives are permanent and essential for development
-- They are automatically ignored when modules are imported externally
+- Each handler depends on a released slog version through `require`, so
+  ordinary builds and external consumers resolve the published module.
+- Local cross-module development (editing slog and a handler together)
+  needs a Go workspace so the handler sees the working tree rather than
+  the released version. The workspace file is developer-local and
+  uncommitted:
+
+  ```bash
+  # From the repository root, once per checkout
+  go work init . ./handlers/*
+  ```
+
+- A handler can only be bumped to a slog version already tagged and
+  available on the proxy (see [Update Handler
+  Dependencies](#3-update-handler-dependencies)).
 
 ## Common Release Workflows
 
@@ -385,9 +392,11 @@ When releasing changes from a recently merged PR (common workflow):
 ### Common Issues
 
 1. **Handler tests fail after slog update**: Ensure every handler's go.mod
-   references the new slog version and that the `replace darvaza.org/slog =>
-   ../../` directive is still present. The replace directives are permanent —
-   they must never be removed.
+   references the new slog version and that the version is tagged and
+   available on the proxy. For local work against an untagged slog, create
+   a Go workspace (see [Handler Development
+   Mode](#handler-development-mode)) so the handler builds against the
+   working tree.
 
 2. **Missing handler tags**: Handler tags must follow the format
    `handlers/name/vX.Y.Z`.
@@ -407,10 +416,9 @@ If issues are discovered after release:
 
 For future automation:
 
-1. Script to remove `replace` directives from all handler go.mod files
-2. Batch update script for handler dependencies
-3. GitHub Actions workflow for coordinated releases
-4. Automated compatibility testing matrix
+1. Batch update script for handler dependencies
+2. GitHub Actions workflow for coordinated releases
+3. Automated compatibility testing matrix
 
 ## Latest Releases
 
