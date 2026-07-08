@@ -536,17 +536,15 @@ func runTestSlogCoreConcurrent(t *testing.T) {
 // finish before returning.
 func runZapConcurrentLoggers(zapLogger *zap.Logger, goroutines, msgsPerGoroutine int) {
 	var wg sync.WaitGroup
-	wg.Add(goroutines)
 	for i := range goroutines {
-		go func(id int) {
-			defer wg.Done()
-			logger := zapLogger.With(zap.Int("goroutine", id))
+		wg.Go(func() {
+			logger := zapLogger.With(zap.Int("goroutine", i))
 			for j := range msgsPerGoroutine {
-				logger.Info(fmt.Sprintf("msg-%d-%d", id, j),
+				logger.Info(fmt.Sprintf("msg-%d-%d", i, j),
 					zap.Int("index", j),
 				)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 }

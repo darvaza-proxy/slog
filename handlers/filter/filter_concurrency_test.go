@@ -44,13 +44,10 @@ func (tc filterConcurrentFieldTestCase) Test(t *testing.T) {
 
 func runConcurrentFieldWorkers(logger *filter.Logger, workers, fields int) {
 	var wg sync.WaitGroup
-	wg.Add(workers)
 	for i := range workers {
-		workerID := i
-		go func() {
-			defer wg.Done()
-			emitFieldStorm(logger, workerID, fields)
-		}()
+		wg.Go(func() {
+			emitFieldStorm(logger, i, fields)
+		})
 	}
 	wg.Wait()
 }
@@ -161,13 +158,10 @@ func newCountingFilterLogger(parent slog.Logger, counter *filterCallCounter) *fi
 
 func runConcurrentLevelMix(logger *filter.Logger, workers, messages int) {
 	var wg sync.WaitGroup
-	wg.Add(workers)
 	for i := range workers {
-		workerID := i
-		go func() {
-			defer wg.Done()
-			emitMixedLevelMessages(logger, workerID, messages)
-		}()
+		wg.Go(func() {
+			emitMixedLevelMessages(logger, i, messages)
+		})
 	}
 	wg.Wait()
 }
@@ -239,27 +233,23 @@ func (filterImmutabilityTestCase) Test(t *testing.T) {
 	baseLogger := logger.WithField("base", "value1")
 
 	var wg sync.WaitGroup
-	wg.Add(3)
 
 	// Worker 1: Add more fields to baseLogger
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		worker1 := baseLogger.WithField("worker1", "data1")
 		worker1.Info().Print("Worker 1 message")
-	}()
+	})
 
 	// Worker 2: Add different fields to baseLogger
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		worker2 := baseLogger.WithField("worker2", "data2")
 		worker2.Info().Print("Worker 2 message")
-	}()
+	})
 
 	// Worker 3: Use baseLogger directly
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		baseLogger.Info().Print("Worker 3 message")
-	}()
+	})
 
 	wg.Wait()
 
@@ -388,16 +378,14 @@ func newWorkSimulatingFilter(parent slog.Logger, counters *filterCallTallies) *f
 
 func runFilterModificationWorkers(logger *filter.Logger, workers, operations int) {
 	var wg sync.WaitGroup
-	wg.Add(workers)
 	for i := range workers {
-		go func(id int) {
-			defer wg.Done()
+		wg.Go(func() {
 			for j := range operations {
 				logger.Info().
-					WithField(fmt.Sprintf("field_%d_%d", id, j), "value").
-					Printf("Message from worker %d operation %d", id, j)
+					WithField(fmt.Sprintf("field_%d_%d", i, j), "value").
+					Printf("Message from worker %d operation %d", i, j)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 }
@@ -416,16 +404,14 @@ func runTestSharedLoggerRaceConditions(t *testing.T) {
 	const iterations = 20
 
 	var wg sync.WaitGroup
-	wg.Add(workers)
 
 	// All workers share the same logger instance
 	for i := range workers {
-		go func(id int) {
-			defer wg.Done()
+		wg.Go(func() {
 			for j := range iterations {
-				runSharedLoggerOperation(logger, id, j)
+				runSharedLoggerOperation(logger, i, j)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 

@@ -67,11 +67,9 @@ func (c *callbackCollector) snapshot() []cblog.LogMsg {
 func sendNumberedLogs(logger slog.Logger, numMessages int) {
 	var wg sync.WaitGroup
 	for i := range numMessages {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			logger.Info().WithField("num", n).Printf("message %d", n)
-		}(i)
+		wg.Go(func() {
+			logger.Info().WithField("num", i).Printf("message %d", i)
+		})
 	}
 	wg.Wait()
 }

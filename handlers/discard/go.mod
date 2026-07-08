@@ -1,6 +1,6 @@
 module darvaza.org/slog/handlers/discard
 
-go 1.24.0
+go 1.25.0
 
 require (
 	darvaza.org/core v0.19.1

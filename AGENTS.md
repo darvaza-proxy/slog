@@ -28,7 +28,7 @@ support for structured fields.
 
 Before starting development, ensure you have:
 
-- Go 1.24 or later installed (check with `go version`).
+- Go 1.25 or later installed (check with `go version`).
 - `make` command available (usually pre-installed on Unix systems).
 - `$GOPATH` configured correctly (typically `~/go`).
 - Git configured for proper line endings.
@@ -145,7 +145,7 @@ GitHub Actions workflows split for better performance:
 - **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
   pipeline.
   - Race condition detection job pinned to Go 1.26.
-  - Multi-version testing matrix (Go 1.24, 1.25, 1.26).
+  - Multi-version testing matrix (Go 1.25, 1.26).
   - Conditional execution to avoid duplicate runs on PRs.
 - Workflows skip branches ending in `-wip`.
 - Improves parallelism and reduces redundant work.

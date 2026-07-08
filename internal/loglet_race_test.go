@@ -47,11 +47,10 @@ func runTestConcurrentFieldsMapAccess(t *testing.T) {
 func runLeafFieldsMapWorkers(t *testing.T, leaves []internal.Loglet, wg *sync.WaitGroup) {
 	t.Helper()
 	for i := range leaves {
-		wg.Add(1)
-		go func(id int, node *internal.Loglet) {
-			defer wg.Done()
-			assertLeafAncestorFields(t, id, node.FieldsMap())
-		}(i, &leaves[i])
+		node := &leaves[i]
+		wg.Go(func() {
+			assertLeafAncestorFields(t, i, node.FieldsMap())
+		})
 	}
 }
 
@@ -74,12 +73,10 @@ func assertLeafAncestorFields(t *testing.T, id int, fields map[string]any) {
 // runIntermediateFieldsMapTouches triggers computation on intermediate
 // nodes concurrently so ancestors are being written while leaves read.
 func runIntermediateFieldsMapTouches(wg *sync.WaitGroup, loglets ...*internal.Loglet) {
-	wg.Add(len(loglets))
 	for _, ll := range loglets {
-		go func(l *internal.Loglet) {
-			defer wg.Done()
-			_ = l.FieldsMap()
-		}(ll)
+		wg.Go(func() {
+			_ = ll.FieldsMap()
+		})
 	}
 }
 
@@ -120,11 +117,9 @@ func runHierarchyAppFieldWorkers(t *testing.T, loglets []*internal.Loglet) {
 	t.Helper()
 	var wg sync.WaitGroup
 	for _, ll := range loglets {
-		wg.Add(1)
-		go func(loglet *internal.Loglet) {
-			defer wg.Done()
-			assertAppFieldRepeatedly(t, loglet)
-		}(ll)
+		wg.Go(func() {
+			assertAppFieldRepeatedly(t, ll)
+		})
 	}
 	wg.Wait()
 }
@@ -158,14 +153,12 @@ func runTestPeekFieldsMapConcurrency(t *testing.T) {
 	// Multiple goroutines trying to build child's map
 	// They will all peek at parent's cached map
 	for range 20 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			fields := child.FieldsMap()
 			if fields["parent"] != "value" {
 				t.Error("incorrect parent field")
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

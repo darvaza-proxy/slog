@@ -490,16 +490,14 @@ func (c *cblogMessageCollector) count() int {
 func sendConcurrentLogs(logger slog.Logger, numGoroutines, numMessages int) {
 	var wg sync.WaitGroup
 	for i := range numGoroutines {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
+		wg.Go(func() {
 			for j := range numMessages {
 				logger.Info().
-					WithField("goroutine", id).
+					WithField("goroutine", i).
 					WithField("message", j).
-					Printf("message %d from goroutine %d", j, id)
+					Printf("message %d from goroutine %d", j, i)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 }
