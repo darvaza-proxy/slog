@@ -94,7 +94,7 @@ Spell checking for both Markdown and Go source files:
 
 - Detects cspell via dlx.
 - British English configuration in `internal/build/cspell.json`.
-- New `check-spelling` target.
+- Provides a `check-spelling` target.
 - Integrated into `make tidy`.
 - Custom word list for project-specific terminology.
 - Checks both documentation and code comments.
@@ -105,7 +105,7 @@ Grammar and style checking for Markdown files:
 
 - Detects LanguageTool via dlx.
 - British English configuration in `internal/build/languagetool.cfg`.
-- New `check-grammar` target.
+- Provides a `check-grammar` target.
 - Checks for missing articles, punctuation, and proper hyphenation.
 
 ### ShellCheck Integration
@@ -113,7 +113,7 @@ Grammar and style checking for Markdown files:
 Shell script analysis for all `.sh` files:
 
 - Detects shellcheck via dlx.
-- New `check-shell` target.
+- Provides a `check-shell` target.
 - Integrated into `make tidy`.
 - Uses inline disable directives for SC1007 (empty assignments) and SC3043
   (`local` usage).
@@ -140,13 +140,12 @@ Automated coverage reporting across all modules:
 
 GitHub Actions workflows split for better performance:
 
-- **Build workflow** (`.github/workflows/build.yml`): Focuses on compilation
-  only.
-- **Test workflow** (`.github/workflows/test.yml`): Dedicated testing
-  pipeline.
-  - Race condition detection job pinned to Go 1.26.
-  - Multi-version testing matrix (Go 1.25, 1.26).
-  - Conditional execution to avoid duplicate runs on PRs.
+- **Build workflow** (`.github/workflows/build.yml`): compilation only.
+- **Test workflow** (`.github/workflows/test.yml`): unit tests across the
+  Go 1.25 and 1.26 matrix, with conditional execution to avoid duplicate runs
+  on PRs.
+- **Race workflow** (`.github/workflows/race.yml`): race-detector run pinned
+  to Go 1.26.
 - Workflows skip branches ending in `-wip`.
 - Improves parallelism and reduces redundant work.
 
@@ -156,7 +155,7 @@ Automated coverage reporting with monorepo support:
 
 - **Codecov workflow** (`.github/workflows/codecov.yml`): Coverage collection
   and upload.
-- Enhanced `make_coverage.sh` generates:
+- `make_coverage.sh` generates:
   - `codecov.yml`: Dynamic configuration with per-module flags.
   - Module-specific coverage targets (80% default).
   - Path mappings for accurate coverage attribution.
@@ -227,8 +226,10 @@ Always run `make tidy` before committing to ensure proper formatting.
 
 - The main module and each handler are separate Go modules with their own
   `go.mod` files.
-- Handlers use `replace` directives during development to reference the local
-  slog module - these are permanent and should not be removed.
+- Each handler depends on a released slog version through `require`, so
+  ordinary builds and external consumers resolve the published module. Local
+  cross-module development uses a developer-local Go workspace (see [Handler
+  Development Mode](#handler-development-mode)).
 - Fatal and Panic log levels are expected to exit/panic regardless of enabled
   state.
 - Field keys must be non-empty strings; values can be any type.
@@ -306,7 +307,7 @@ versions of tools like golangci-lint for different Go versions.
 
 ```bash
 # Usage: get_version.sh <base_go_version> <version1> [version2] ...
-# Example: $(TOOLSDIR)/get_version.sh 1.24 v2.8.0 v2.11.4
+# Example (current Makefile): $(TOOLSDIR)/get_version.sh 1.25 v2.11.4
 ```
 
 The script:
@@ -314,15 +315,14 @@ The script:
 1. Detects the current Go version from `go version`.
 2. Compares it with the base Go version (first argument).
 3. If current Go >= base version, it selects versions from the list:
-   - For Go == base version: uses the first version (v2.8.0)
-   - For Go > base version: increments through the list
-   - Returns the last version if Go version exceeds the list
+   - For Go == base version: uses the first version.
+   - For Go > base version: increments through the list.
+   - Returns the last version if the Go version exceeds the list.
 
-This allows the Makefile to use appropriate tool versions:
-
-- Go 1.23: would use v2.8.0 (if base is 1.24).
-- Go 1.24: uses v2.8.0 (first version after base).
-- Go 1.25+: uses v2.11.4 (second version).
+This lets the Makefile pin tool versions per Go tier. The current
+configuration uses a single tier — golangci-lint v2.11.4 and revive v1.15.0
+for Go 1.25 and later — but the mechanism supports multiple tiers when a tool
+needs different versions across Go releases.
 
 ### Testing Tool Compatibility
 
@@ -351,8 +351,8 @@ gh run view --job=<job-id>
 
 ### Common Version Issues
 
-1. **Tool built with older Go**: If golangci-lint was built with Go 1.23,
-   it cannot analyze code requiring Go 1.24+.
+1. **Tool built with older Go**: If golangci-lint was built with Go 1.24,
+   it cannot analyse code requiring Go 1.25+.
 2. **Version selection**: Ensure versions in get_version.sh calls are
    ordered correctly (older to newer).
 3. **CI failures**: Check the actual Go version used by the runner, not just
@@ -375,33 +375,33 @@ When developing or modifying handlers:
 
 ### Handler Development Mode
 
-Handlers use `replace` directives to reference the local slog module during
-development:
+Each handler is a separate module that depends on a released slog version
+through `require`, so ordinary builds — and external consumers — resolve the
+published slog through the module proxy.
 
-```go
-// In handlers/*/go.mod - always present
-replace darvaza.org/slog => ../..
+For local cross-module work (editing the slog interface and a handler
+together), a Go workspace lets the handler build against the working tree
+instead of the released version. The workspace file is developer-local and
+must stay uncommitted:
+
+```bash
+# From the repository root, once per checkout
+go work init . ./handlers/*
 ```
 
-**IMPORTANT**: These replace directives are essential for development:
-
-- They allow handlers to use the local slog module instead of the published
-  version.
-- They must **remain in the repository** - do not remove them.
-- Go automatically ignores them when the module is imported externally.
-- They enable testing changes to the slog interface without publishing.
+A handler can only be bumped to a slog version that is already tagged and
+available on the proxy; see [Updating Handler
+Dependencies](#updating-handler-dependencies).
 
 ### Updating Handler Dependencies
 
 When updating slog version in handlers:
 
 ```bash
-# Update all handlers to a new slog version
+# Update all handlers to a new slog version (must be tagged and on the proxy)
 for handler in cblog discard filter logr logrus zap zerolog; do
-  go -C handlers/$handler get darvaza.org/slog@v0.7.0
+  go -C handlers/$handler get darvaza.org/slog@v0.10.0
 done
-
-# The replace directives remain intact - this is correct behaviour
 ```
 
 To update all dependencies in handlers:
@@ -426,7 +426,9 @@ done
 2. **Adding a new method to the Logger interface**:
    - Update the interface in slog.go
    - Implement the method in all handlers
-   - The replace directives ensure handlers use your local changes
+   - Use a Go workspace (see [Handler Development
+     Mode](#handler-development-mode)) so handlers build against your local
+     changes
 
 3. **Updating handler-specific dependencies**:
 
@@ -437,10 +439,12 @@ done
 
 ### Common Mistakes to Avoid
 
-1. **Do not remove replace directives** - they are needed for development.
+1. **Do not commit `go.work` or `go.work.sum`** - the workspace is
+   developer-local.
 2. **Do not run `go get -u` without considering impact** - it updates all
    dependencies which may include breaking changes.
-3. **Always verify replace directives exist** after dependency updates.
+3. **Only bump handlers to a tagged, proxy-available slog version** - a
+   handler cannot require an unpublished slog.
 4. **Remember to test all handlers** after interface changes.
 
 ## Linting and Code Quality
@@ -528,7 +532,7 @@ When creating or editing documentation files:
 
 ### Grammar and Style Checking
 
-The project now includes integrated grammar checking via LanguageTool:
+The project includes integrated grammar checking via LanguageTool:
 
 ```bash
 # Run formatting and spell/shell checks
@@ -653,8 +657,8 @@ through pull requests.
 
 When working with AI agents, follow these restrictions:
 
-1. **No directory changes**: Never use `cd` commands - use absolute paths
-   instead.
+1. **No directory changes**: Never use `cd` - use `git -C` or `go -C` to run
+   a command in another directory.
 2. **No bulk operations**: Avoid `-a` and `-u` flags in git commands - enumerate
    files explicitly. Never use `git add .`, `git add -u`, or `git add -a`.
 3. **No shell escaping issues**: Use Write tool for creating files with complex
