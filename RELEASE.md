@@ -428,18 +428,18 @@ For future automation:
 
 ## Latest Releases
 
-### As of June 2026
+### As of July 2026
 
-- **slog**: v0.9.1 (Go 1.24 or later required).
-- **handlers/cblog**: v0.9.1.
-- **handlers/discard**: v0.7.1.
-- **handlers/filter**: v0.8.1.
-- **handlers/logr**: v0.2.1.
-- **handlers/logrus**: v0.8.1.
-- **handlers/zap**: v0.9.0.
-- **handlers/zerolog**: v0.7.1.
+- **slog**: v0.10.0 (Go 1.25 or later required).
+- **handlers/cblog**: v0.10.0.
+- **handlers/discard**: v0.8.0.
+- **handlers/filter**: v0.9.0.
+- **handlers/logr**: v0.3.0.
+- **handlers/logrus**: v0.9.0.
+- **handlers/zap**: v0.10.0.
+- **handlers/zerolog**: v0.8.0.
 
-All modules require Go 1.24 or later and use darvaza.org/core v0.19.1.
+All modules require Go 1.25 or later and use darvaza.org/core v0.20.0.
 
 ## See Also
 
