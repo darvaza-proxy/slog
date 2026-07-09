@@ -279,46 +279,51 @@ go get darvaza.org/slog/handlers/zap@v0.6.0
 go get darvaza.org/slog/handlers/zerolog@v0.6.0
 \`\`\`
 
-All modules now require Go 1.23 or later."
+All modules now require Go 1.24 or later."
 ```
 
 ## Version Numbering
 
 ### Main Module
 
-The main slog module follows semantic versioning:
+During the 0.x series the API is not yet stable, so each field sits one
+level down from stable semantic versioning:
 
-- **Patch version** (v0.3.x): Bug fixes, documentation updates
-- **Minor version** (v0.x.0): New features, backwards-compatible changes
-- **Major version** (vx.0.0): Breaking changes to the Logger interface
+- **Patch version** (v0.x.Y): no-risk changes only — non-breaking fixes
+  and small feature improvements
+- **Minor version** (v0.X.0): anything that carries risk — a breaking
+  change, or a non-breaking addition large enough to warrant caution
+- **Major version** (vX.0.0): v1.0.0 marks the API as stable and
+  restores the standard roles; each later major then signals only that
+  it is not compatible with the previous one
 
 ### Handler Modules
 
-Each handler maintains its own version but typically follows the main module:
+Handlers are versioned independently but move with the main module when
+its changes reach them:
 
-- Handlers are versioned independently
-- Major version changes in slog require handler updates
-- Handler-specific changes may warrant independent version bumps
+- A breaking main-module change — a Logger interface change, a raised Go
+  floor, or a major dependency bump — is equally breaking for each
+  handler's own consumers, so every handler takes a minor bump in step
+- A handler's own fixes and additions follow the same patch/minor rules
+  and release on their own
 
 ### Common Release Scenarios
 
-1. **Interface changes in main module**:
-   - Bump minor/major version of main module
-   - Update and release all handlers with dependency update
-   - Document migration path for breaking changes
+1. **Breaking change in the main module** (interface, Go floor, or major
+   dependency bump):
+   - Minor bump of the main module (major once the API is stable)
+   - Every handler takes a minor bump in step, not just a dependency
+     update
+   - Document the migration path in the release notes
 
-2. **Handler-specific bug fixes**:
-   - Release only the affected handler(s)
-   - No need to release other handlers or main module
+2. **Handler-specific fix or small improvement**:
+   - Patch the affected handler(s) only
+   - No other module needs a release
 
-3. **Updating Go version requirement**:
-   - This is a breaking change requiring minor version bump
-   - Update main module and all handlers
-   - Document clearly in release notes
-
-4. **Adding new handler**:
-   - No version change needed for existing modules
-   - New handler starts at v0.1.0
+3. **Adding a new handler**:
+   - No version change for existing modules
+   - The new handler starts at v0.1.0
 
 ## Handler Development Mode
 
@@ -360,10 +365,10 @@ When releasing changes from a recently merged PR (common workflow):
    gh pr view PR_NUMBER
    ```
 
-2. **Determine version bump**:
-   - Breaking changes (e.g., Go version requirement): Minor version
-   - New features: Minor version (patch if very minor)
-   - Bug fixes only: Patch version
+2. **Determine version bump** (see
+   [Version Numbering](#version-numbering)):
+   - Breaking change or risky non-breaking addition: minor
+   - No-risk fix or small improvement: patch
 
 3. **Tag, push, and publish the release**:
 
@@ -385,7 +390,8 @@ When releasing changes from a recently merged PR (common workflow):
 
 - **Main module only**: When changes don't affect handler APIs or when
   handler-specific changes will be released separately
-- **Full release**: When interface changes require all handlers to be updated
+- **Full release**: When a breaking main-module change requires every
+  handler to be updated
 
 ## Troubleshooting
 
@@ -410,7 +416,7 @@ If issues are discovered after release:
 
 1. Do not delete tags (they may already be cached)
 2. Release a new patch version with the fix
-3. Update all affected handlers if interface changes
+3. Update all affected handlers if the change was breaking
 
 ## Automation Considerations
 
