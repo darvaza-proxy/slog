@@ -1,5 +1,7 @@
 darvaza.org/core v0.20.0 h1:VDPAWvQTLKWRxh337oM4Oti73gGjI30bcywYV+wD2GA=
 darvaza.org/core v0.20.0/go.mod h1:GJN97FU/397WUTtm+BLeSkieAhtDevVm/lsGyHmkp0Y=
+darvaza.org/slog v0.10.0 h1:xb6kP35qh3MZZiDDpl+8KzNRCFBOmqXq8rojzr7QinM=
+darvaza.org/slog v0.10.0/go.mod h1:MM7fLNKQDlGsnd9u7yHDIGG09Iq0PN4eT/R1clgx/tY=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 golang.org/x/net v0.56.0 h1:Rw8j/hFzGvJUZwNBXnAtf5sVDVt+65SK2C7IxCxZt5o=

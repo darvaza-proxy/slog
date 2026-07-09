@@ -116,7 +116,10 @@ Before starting the release process:
 
 ### 3. Update Handler Dependencies
 
-1. Update each handler's go.mod to use the new slog version:
+1. Update each handler's go.mod to use the new slog version. Because the
+   handlers resolve slog from the module proxy, the new main-module tag
+   must already be published and the proxy primed (see [Main Module
+   Release](#2-main-module-release)):
 
    ```bash
    # Update handlers to use the new slog version
@@ -133,21 +136,13 @@ Before starting the release process:
    make up tidy
    ```
 
-2. Verify replace directives are present (they should always be there):
-
-   ```bash
-   # Check that replace directives exist
-   grep -r "replace darvaza.org/slog" handlers/
-   # Should show: replace darvaza.org/slog => ../../ for each handler
-   ```
-
-3. Run tests to ensure compatibility:
+2. Run tests to ensure compatibility:
 
    ```bash
    make test
    ```
 
-4. Commit the dependency updates. Stage only the handler manifests by
+3. Commit the dependency updates. Stage only the handler manifests by
    explicit path — never `git add -A`:
 
    ```bash
@@ -284,58 +279,75 @@ go get darvaza.org/slog/handlers/zap@v0.6.0
 go get darvaza.org/slog/handlers/zerolog@v0.6.0
 \`\`\`
 
-All modules now require Go 1.23 or later."
+All modules now require Go 1.24 or later."
 ```
 
 ## Version Numbering
 
 ### Main Module
 
-The main slog module follows semantic versioning:
+During the 0.x series the API is not yet stable, so each field sits one
+level down from stable semantic versioning:
 
-- **Patch version** (v0.3.x): Bug fixes, documentation updates
-- **Minor version** (v0.x.0): New features, backwards-compatible changes
-- **Major version** (vx.0.0): Breaking changes to the Logger interface
+- **Patch version** (v0.x.Y): no-risk changes only — non-breaking fixes
+  and small feature improvements
+- **Minor version** (v0.X.0): anything that carries risk — a breaking
+  change, or a non-breaking addition large enough to warrant caution
+- **Major version** (vX.0.0): v1.0.0 marks the API as stable and
+  restores the standard roles; each later major then signals only that
+  it is not compatible with the previous one
 
 ### Handler Modules
 
-Each handler maintains its own version but typically follows the main module:
+Handlers are versioned independently but move with the main module when
+its changes reach them:
 
-- Handlers are versioned independently
-- Major version changes in slog require handler updates
-- Handler-specific changes may warrant independent version bumps
+- A breaking main-module change — a Logger interface change, a raised Go
+  floor, or a major dependency bump — is equally breaking for each
+  handler's own consumers, so every handler takes a minor bump in step
+- A handler's own fixes and additions follow the same patch/minor rules
+  and release on their own
 
 ### Common Release Scenarios
 
-1. **Interface changes in main module**:
-   - Bump minor/major version of main module
-   - Update and release all handlers with dependency update
-   - Document migration path for breaking changes
+1. **Breaking change in the main module** (interface, Go floor, or major
+   dependency bump):
+   - Minor bump of the main module (major once the API is stable)
+   - Every handler takes a minor bump in step, not just a dependency
+     update
+   - Document the migration path in the release notes
 
-2. **Handler-specific bug fixes**:
-   - Release only the affected handler(s)
-   - No need to release other handlers or main module
+2. **Handler-specific fix or small improvement**:
+   - Patch the affected handler(s) only
+   - No other module needs a release
 
-3. **Updating Go version requirement**:
-   - This is a breaking change requiring minor version bump
-   - Update main module and all handlers
-   - Document clearly in release notes
-
-4. **Adding new handler**:
-   - No version change needed for existing modules
-   - New handler starts at v0.1.0
+3. **Adding a new handler**:
+   - No version change for existing modules
+   - The new handler starts at v0.1.0
 
 ## Handler Development Mode
 
-For detailed information about handler development mode, replace directives,
-and development workflows, see [AGENTS.md Handler Development
+For detailed information about handler development mode and multi-module
+workflows, see [AGENTS.md Handler Development
 Mode](AGENTS.md#handler-development-mode).
 
 **Key Points**:
 
-- Handlers use `replace` directives to reference the local slog module
-- These directives are permanent and essential for development
-- They are automatically ignored when modules are imported externally
+- Each handler depends on a released slog version through `require`, so
+  ordinary builds and external consumers resolve the published module.
+- Local cross-module development (editing slog and a handler together)
+  needs a Go workspace so the handler sees the working tree rather than
+  the released version. The workspace file is developer-local and
+  uncommitted:
+
+  ```bash
+  # From the repository root, once per checkout
+  go work init . ./handlers/*
+  ```
+
+- A handler can only be bumped to a slog version already tagged and
+  available on the proxy (see [Update Handler
+  Dependencies](#3-update-handler-dependencies)).
 
 ## Common Release Workflows
 
@@ -353,10 +365,10 @@ When releasing changes from a recently merged PR (common workflow):
    gh pr view PR_NUMBER
    ```
 
-2. **Determine version bump**:
-   - Breaking changes (e.g., Go version requirement): Minor version
-   - New features: Minor version (patch if very minor)
-   - Bug fixes only: Patch version
+2. **Determine version bump** (see
+   [Version Numbering](#version-numbering)):
+   - Breaking change or risky non-breaking addition: minor
+   - No-risk fix or small improvement: patch
 
 3. **Tag, push, and publish the release**:
 
@@ -378,16 +390,19 @@ When releasing changes from a recently merged PR (common workflow):
 
 - **Main module only**: When changes don't affect handler APIs or when
   handler-specific changes will be released separately
-- **Full release**: When interface changes require all handlers to be updated
+- **Full release**: When a breaking main-module change requires every
+  handler to be updated
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Handler tests fail after slog update**: Ensure every handler's go.mod
-   references the new slog version and that the `replace darvaza.org/slog =>
-   ../../` directive is still present. The replace directives are permanent —
-   they must never be removed.
+   references the new slog version and that the version is tagged and
+   available on the proxy. For local work against an untagged slog, create
+   a Go workspace (see [Handler Development
+   Mode](#handler-development-mode)) so the handler builds against the
+   working tree.
 
 2. **Missing handler tags**: Handler tags must follow the format
    `handlers/name/vX.Y.Z`.
@@ -401,31 +416,30 @@ If issues are discovered after release:
 
 1. Do not delete tags (they may already be cached)
 2. Release a new patch version with the fix
-3. Update all affected handlers if interface changes
+3. Update all affected handlers if the change was breaking
 
 ## Automation Considerations
 
 For future automation:
 
-1. Script to remove `replace` directives from all handler go.mod files
-2. Batch update script for handler dependencies
-3. GitHub Actions workflow for coordinated releases
-4. Automated compatibility testing matrix
+1. Batch update script for handler dependencies
+2. GitHub Actions workflow for coordinated releases
+3. Automated compatibility testing matrix
 
 ## Latest Releases
 
-### As of June 2026
+### As of July 2026
 
-- **slog**: v0.9.1 (Go 1.24 or later required).
-- **handlers/cblog**: v0.9.1.
-- **handlers/discard**: v0.7.1.
-- **handlers/filter**: v0.8.1.
-- **handlers/logr**: v0.2.1.
-- **handlers/logrus**: v0.8.1.
-- **handlers/zap**: v0.9.0.
-- **handlers/zerolog**: v0.7.1.
+- **slog**: v0.10.0 (Go 1.25 or later required).
+- **handlers/cblog**: v0.10.0.
+- **handlers/discard**: v0.8.0.
+- **handlers/filter**: v0.9.0.
+- **handlers/logr**: v0.3.0.
+- **handlers/logrus**: v0.9.0.
+- **handlers/zap**: v0.10.0.
+- **handlers/zerolog**: v0.8.0.
 
-All modules require Go 1.24 or later and use darvaza.org/core v0.19.1.
+All modules require Go 1.25 or later and use darvaza.org/core v0.20.0.
 
 ## See Also
 
