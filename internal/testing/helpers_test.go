@@ -1,5 +1,7 @@
 package testing
 
+// cspell:words uncomparable
+
 import (
 	"testing"
 
@@ -417,6 +419,26 @@ func assertFieldValueTestCases() []assertFieldValueTestCase {
 		newAssertFieldValueTestCase("field with nil value",
 			map[string]any{"nilField": nil}, "nilField", nil,
 			true),
+		// uncomparable types must not panic: deep comparison applies
+		newAssertFieldValueTestCase("slice field equal",
+			map[string]any{"slice": []string{"a", "b"}}, "slice",
+			core.S("a", "b"),
+			true),
+		newAssertFieldValueTestCase("slice field unequal",
+			map[string]any{"slice": []string{"a", "b"}}, "slice",
+			core.S("a", "c"),
+			false),
+		newAssertFieldValueTestCase("map field equal",
+			map[string]any{"map": map[string]int{"one": 1}}, "map",
+			map[string]int{"one": 1},
+			true),
+		newAssertFieldValueTestCase("map field unequal",
+			map[string]any{"map": map[string]int{"one": 1}}, "map",
+			map[string]int{"one": 2},
+			false),
+		newAssertFieldValueTestCase("slice field against string",
+			map[string]any{"slice": []string{"a"}}, "slice", "a",
+			false),
 	}
 }
 

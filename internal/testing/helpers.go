@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -89,7 +90,22 @@ func AssertFieldValue(t core.T, fields map[string]any, key string, value any) bo
 	if !core.AssertTrue(t, exists, "field %q exists", key) {
 		return false
 	}
-	return core.AssertEqual(t, value, got, "field %q value", key)
+	if isComparable(value) && isComparable(got) {
+		return core.AssertEqual(t, value, got, "field %q value", key)
+	}
+	return core.AssertTrue(t, reflect.DeepEqual(value, got),
+		"field %q value: %#v vs %#v", key, value, got)
+}
+
+// isComparable reports whether v can be used with == without
+// panicking: nil, or a value of a comparable dynamic type. Field
+// values are arbitrary, so slices and maps compare via
+// reflect.DeepEqual instead.
+func isComparable(v any) bool {
+	if v == nil {
+		return true
+	}
+	return reflect.TypeOf(v).Comparable()
 }
 
 // AssertMustFieldValue verifies that a fields map contains a field with the
