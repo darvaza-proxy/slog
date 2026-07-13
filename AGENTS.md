@@ -381,9 +381,10 @@ When developing or modifying handlers:
 
 ### Handler Development Mode
 
-Each handler is a separate module that depends on a released slog version
+Each handler with its own `go.mod` depends on a released slog version
 through `require`, so ordinary builds — and external consumers — resolve the
-published slog through the module proxy.
+published slog through the module proxy. (`mock` and `stdslog` are part of
+the main module and build against the working tree directly.)
 
 For local cross-module work (editing the slog interface and a handler
 together), a Go workspace lets the handler build against the working tree
