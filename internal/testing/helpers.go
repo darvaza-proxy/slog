@@ -173,10 +173,9 @@ func TransformMessages(messages []Message, opts *AdapterOptions) []Message {
 // - onlyInSecond: messages that appear only in the second array
 // - inBoth: messages that appear in both arrays
 func CompareMessages(first, second []Message) (onlyInFirst, onlyInSecond, inBoth []Message) {
-	// Use custom equality function based on String() representation
-	eq := func(a, b Message) bool {
-		return a.String() == b.String()
-	}
+	// Semantic equality: Message.Equal settles field values through
+	// core.AreEqual, where the String() rendering cannot tell 1 from "1".
+	eq := Message.Equal
 
 	// Get unique messages from each set
 	firstUnique := core.SliceUniqueFn(first, eq)
@@ -322,49 +321,4 @@ func TestWithStack(t core.T, logger slog.Logger) {
 		l2 := l.WithField("test", "value")
 		core.AssertMustNotNil(t, l2, "WithStack chaining")
 	}
-}
-
-// AssertSame verifies that two values are the same instance using reflection.
-// This checks pointer equality for reference types and value equality for value types.
-//
-// Deprecated: Use core.AssertSame instead. This function will be removed in a future version.
-func AssertSame(t core.T, expected, actual any, name string, args ...any) bool {
-	t.Helper()
-	return core.AssertSame(t, expected, actual, name, args...)
-}
-
-// AssertNotSame verifies that two values are not the same instance using reflection.
-// This checks that values are not pointer-equal for reference types and not value-equal for value types.
-//
-// Deprecated: Use core.AssertNotSame instead. This function will be removed in a future version.
-func AssertNotSame(t core.T, expected, actual any, name string, args ...any) bool {
-	t.Helper()
-	return core.AssertNotSame(t, expected, actual, name, args...)
-}
-
-// AssertMustNotSame verifies that two values are not the same instance using reflection.
-// If the assertion fails, the test is terminated immediately with t.FailNow().
-//
-// Deprecated: Use core.AssertMustNotSame instead. This function will be removed in a future version.
-func AssertMustNotSame(t core.T, expected, actual any, name string, args ...any) {
-	t.Helper()
-	core.AssertMustNotSame(t, expected, actual, name, args...)
-}
-
-// AssertMustSame verifies that two values are the same instance using reflection.
-// If the assertion fails, the test is terminated immediately with t.FailNow().
-//
-// Deprecated: Use core.AssertMustSame instead. This function will be removed in a future version.
-func AssertMustSame(t core.T, expected, actual any, name string, args ...any) {
-	t.Helper()
-	core.AssertMustSame(t, expected, actual, name, args...)
-}
-
-// IsSame checks if two values are the same instance using reflection.
-// Returns true if the values are the same instance for reference types,
-// or equal for value types.
-//
-// Deprecated: Use core.IsSame instead. This function will be removed in a future version.
-func IsSame(expected, actual any) bool {
-	return core.IsSame(expected, actual)
 }
