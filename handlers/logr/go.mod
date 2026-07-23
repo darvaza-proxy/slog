@@ -7,7 +7,7 @@ require (
 	darvaza.org/slog v0.10.0
 )
 
-require github.com/go-logr/logr v1.4.3
+require github.com/go-logr/logr v1.4.4
 
 require (
 	golang.org/x/net v0.57.0 // indirect
