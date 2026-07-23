@@ -1,0 +1,149 @@
+name: Platforms
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches-ignore:
+      - '**-wip'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Cheap Linux gates. The premium macOS and Windows jobs below wait on
+  # these, so a cross-compile or Linux failure skips the premium runners
+  # entirely.
+  vet:
+    name: vet (${{ matrix.goos }})
+    runs-on: depot-ubuntu-latest
+    # Pull requests from the same repository won't trigger this checks as they were already triggered by the push
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux is vetted by the build workflow's tidy step; here we only
+        # need the non-host targets cross-compiled.
+        goos: [windows, darwin]
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v7
+      with:
+        go-version: '1.26'
+        cache: true
+        cache-dependency-path: '**/go.sum'
+    # make vet compiles every module's packages and tests for the target
+    # GOOS via `go vet`, without running them — the cheap cross-compile
+    # check that gates the native runners below.
+    - name: make vet
+      env:
+        GOOS: ${{ matrix.goos }}
+      run: make vet
+
+  linux-test:
+    name: linux-test (${{ matrix.go-version }})
+    runs-on: depot-ubuntu-latest
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.25', '1.26']
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v7
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+        cache-dependency-path: '**/go.sum'
+    - name: Build and test
+      run: make build test
+
+  linux-race:
+    name: linux-race
+    runs-on: depot-ubuntu-latest
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: '1.26'
+        cache: true
+        cache-dependency-path: '**/go.sum'
+    - name: Run tests with race detection
+      run: make race
+
+  test:
+    name: test (${{ matrix.os }}, ${{ matrix.go-version }})
+    needs: [vet, linux-test]
+    runs-on: ${{ matrix.os }}
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [depot-macos-latest, depot-windows-latest]
+        go-version: ['1.25', '1.26']
+        include:
+          # macOS runners use the GNU tools installed below.
+          - os: depot-macos-latest
+            make_args: SED=gsed GREP=ggrep SORT=gsort XARGS=gxargs
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v7
+      with:
+        go-version: ${{ matrix.go-version }}
+        cache: true
+        cache-dependency-path: '**/go.sum'
+    # macOS ships BSD userland; the build scripts need the GNU variants.
+    - name: Install GNU tools (macOS)
+      if: runner.os == 'macOS'
+      run: brew install coreutils findutils gnu-sed grep
+    - name: Run tests
+      run: make test ${{ matrix.make_args }}
+    # Reuse the test boxes rather than spend runners on a tidy job. The
+    # linter version is selected per Go version, so run tidy on every
+    # cell: each tier enforces its own rules, and the versions diverge
+    # again over time. This also lints the darwin/windows loader files
+    # golangci-lint skips off-platform. git diff --exit-code then fails,
+    # printing the patch, on any change.
+    - name: Tidy leaves no changes
+      run: |
+        make tidy ${{ matrix.make_args }}
+        git diff --exit-code
+
+  race:
+    name: race (${{ matrix.os }})
+    needs: [vet, linux-race]
+    runs-on: ${{ matrix.os }}
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [depot-macos-latest, depot-windows-latest]
+        include:
+          # macOS runners use the GNU tools installed below.
+          - os: depot-macos-latest
+            make_args: SED=gsed GREP=ggrep SORT=gsort XARGS=gxargs
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: '1.26'
+        cache: true
+        cache-dependency-path: '**/go.sum'
+    # macOS ships BSD userland; the build scripts need the GNU variants.
+    - name: Install GNU tools (macOS)
+      if: runner.os == 'macOS'
+      run: brew install coreutils findutils gnu-sed grep
+    - name: Run tests with race detection
+      run: make race ${{ matrix.make_args }}
