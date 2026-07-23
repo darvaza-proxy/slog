@@ -173,10 +173,9 @@ func TransformMessages(messages []Message, opts *AdapterOptions) []Message {
 // - onlyInSecond: messages that appear only in the second array
 // - inBoth: messages that appear in both arrays
 func CompareMessages(first, second []Message) (onlyInFirst, onlyInSecond, inBoth []Message) {
-	// Use custom equality function based on String() representation
-	eq := func(a, b Message) bool {
-		return a.String() == b.String()
-	}
+	// Semantic equality: Message.Equal settles field values through
+	// core.AreEqual, where the String() rendering cannot tell 1 from "1".
+	eq := Message.Equal
 
 	// Get unique messages from each set
 	firstUnique := core.SliceUniqueFn(first, eq)

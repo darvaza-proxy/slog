@@ -39,6 +39,39 @@ func (m Message) String() string {
 	return b.String()
 }
 
+// Equal reports whether two messages carry the same level, text and
+// stack marker, with fields settled key by key through [core.AreEqual].
+// Unlike comparing the [Message.String] rendering, it distinguishes
+// values whose %v text coincides — 1 and "1" — and settles
+// non-comparable values such as slices by content.
+func (m Message) Equal(other Message) bool {
+	switch {
+	case m.Level != other.Level, m.Message != other.Message, m.Stack != other.Stack:
+		return false
+	default:
+		return equalFields(m.Fields, other.Fields)
+	}
+}
+
+// equalFields reports whether two field maps hold the same keys with
+// values [core.AreEqual] calls equal. A pair AreEqual cannot settle
+// counts as unequal.
+func equalFields(a, b map[string]any) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, va := range a {
+		vb, ok := b[k]
+		if !ok {
+			return false
+		}
+		if is, known := core.AreEqual(va, vb); !is || !known {
+			return false
+		}
+	}
+	return true
+}
+
 // Recorder provides thread-safe recording of log messages for testing.
 type Recorder struct {
 	messages []Message

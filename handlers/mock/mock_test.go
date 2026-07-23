@@ -307,6 +307,96 @@ func TestMessageString(t *testing.T) {
 	core.AssertEqual(t, expected, str, "message string with stack")
 }
 
+// Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = messageEqualTestCase{}
+
+type messageEqualTestCase struct {
+	name string
+	a    Message
+	b    Message
+	want bool
+}
+
+func (tc messageEqualTestCase) Name() string {
+	return tc.name
+}
+
+func (tc messageEqualTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	core.AssertEqual(t, tc.want, tc.a.Equal(tc.b), "a.Equal(b)")
+	core.AssertEqual(t, tc.want, tc.b.Equal(tc.a), "b.Equal(a)")
+}
+
+func newMessageEqualTestCase(name string, a, b Message, want bool) messageEqualTestCase {
+	return messageEqualTestCase{
+		name: name,
+		a:    a,
+		b:    b,
+		want: want,
+	}
+}
+
+func messageEqualTestCases() []messageEqualTestCase {
+	base := Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"a": 1}}
+
+	return []messageEqualTestCase{
+		newMessageEqualTestCase("identical messages",
+			base,
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"a": 1}},
+			true),
+		newMessageEqualTestCase("different level",
+			base,
+			Message{Level: slog.Debug, Message: "msg", Fields: map[string]any{"a": 1}},
+			false),
+		newMessageEqualTestCase("different text",
+			base,
+			Message{Level: slog.Info, Message: "other", Fields: map[string]any{"a": 1}},
+			false),
+		newMessageEqualTestCase("stack marker differs",
+			base,
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"a": 1}, Stack: true},
+			false),
+		// String() renders 1 and "1" identically; Equal keeps them apart.
+		newMessageEqualTestCase("same rendering different value types",
+			base,
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"a": "1"}},
+			false),
+		// Slice values panicked under == before core v0.21; AreEqual
+		// settles them by content, one level deep.
+		newMessageEqualTestCase("slice values compare by content",
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"list": core.S("a", "b")}},
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"list": core.S("a", "b")}},
+			true),
+		newMessageEqualTestCase("slice content differs",
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"list": core.S("a", "b")}},
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"list": core.S("a", "c")}},
+			false),
+		newMessageEqualTestCase("missing key",
+			base,
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"b": 1}},
+			false),
+		newMessageEqualTestCase("extra key",
+			base,
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"a": 1, "b": 2}},
+			false),
+		newMessageEqualTestCase("nil and empty fields are equal",
+			Message{Level: slog.Info, Message: "msg"},
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{}},
+			true),
+		// AreEqual walks slices one level deep and no further; a
+		// map-valued field it cannot settle counts as unequal.
+		newMessageEqualTestCase("map values stay undecided",
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"m": map[string]any{"x": 1}}},
+			Message{Level: slog.Info, Message: "msg", Fields: map[string]any{"m": map[string]any{"x": 1}}},
+			false),
+	}
+}
+
+func TestMessageEqual(t *testing.T) {
+	core.RunTestCases(t, messageEqualTestCases())
+}
+
 func TestRecorderDirectUsage(t *testing.T) {
 	recorder := NewRecorder()
 

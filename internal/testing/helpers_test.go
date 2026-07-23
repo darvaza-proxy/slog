@@ -77,6 +77,18 @@ func TestCompareMessages(t *testing.T) {
 			wantOnlyFirst: 1, wantOnlySecond: 1, wantBoth: 1,
 		})
 	})
+
+	// 1 and "1" render identically through String(); Message.Equal
+	// keeps the sets disjoint.
+	msgInt := Message{Level: slog.Info, Message: "typed", Fields: map[string]any{"a": 1}}
+	msgStr := Message{Level: slog.Info, Message: "typed", Fields: map[string]any{"a": "1"}}
+
+	t.Run("same rendering different value types", func(t *testing.T) {
+		testCompareMessagesCase(t, compareTestCase{
+			first: []Message{msgInt}, second: []Message{msgStr},
+			wantOnlyFirst: 1, wantOnlySecond: 1, wantBoth: 0,
+		})
+	})
 }
 
 // compareTestCase holds expected values for comparison tests
@@ -417,6 +429,19 @@ func assertFieldValueTestCases() []assertFieldValueTestCase {
 		newAssertFieldValueTestCase("field with nil value",
 			map[string]any{"nilField": nil}, "nilField", nil,
 			true),
+		// Slice values panicked under == before core v0.21; AreEqual
+		// settles them by content, one level deep.
+		newAssertFieldValueTestCase("slice value compares by content",
+			map[string]any{"list": core.S("a", "b")}, "list", core.S("a", "b"),
+			true),
+		newAssertFieldValueTestCase("slice value content differs",
+			map[string]any{"list": core.S("a", "b")}, "list", core.S("a", "c"),
+			false),
+		// AreEqual walks one level deep and no further; a map value it
+		// cannot settle fails the assertion as undecided.
+		newAssertFieldValueTestCase("map value stays undecided",
+			map[string]any{"m": map[string]any{"x": 1}}, "m", map[string]any{"x": 1},
+			false),
 	}
 }
 
