@@ -34,6 +34,7 @@
     "GOGENERATE",
     "golangci",
     "golangci-lint",
+    "GOOS",
     "GOPATH",
     "goroutines",
     "GOTEST",
@@ -106,11 +107,11 @@
   ],
   "ignorePaths": [
     "**/*.lock",
-    "**/.coverage/**",
-    "**/.git/**",
-    "**/.tmp/**",
+    "**/.coverage",
+    "**/.git",
+    "**/.tmp",
     "**/go.sum",
-    "**/node_modules/**",
-    "**/vendor/**"
+    "**/node_modules",
+    "**/vendor"
   ]
 }

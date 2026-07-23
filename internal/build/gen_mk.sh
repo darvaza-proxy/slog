@@ -3,15 +3,21 @@
 
 set -eu
 
+: "${SED:=sed}"
+: "${TR:=tr}"
+: "${CUT:=cut}"
+: "${GREP:=grep}"
+: "${COLUMN:=column}"
+
 INDEX="$1"
 
-PROJECTS="$(cut -d':' -f1 "$INDEX")"
-COMMANDS="tidy get build test coverage race up"
+PROJECTS="$("$CUT" -d':' -f1 "$INDEX")"
+COMMANDS="tidy get build test vet coverage race up"
 
 TAB=$(printf "\t")
 
 escape_dir() {
-	echo "$1" | sed -e 's|/|\\/|g' -e 's|\.|\\.|g'
+	echo "$1" | "$SED" -e 's|/|\\/|g' -e 's|\.|\\.|g'
 }
 
 expand() {
@@ -40,21 +46,21 @@ suffixed() {
 
 # packed remove excess whitespace from lines of commands
 packed() {
-	sed -e 's/^[ \t]\+//' -e 's/[ \t]\+$//' -e '/^$/d;' -e '/^#/d';
+	"$SED" -e 's/^[ \t]\+//' -e 's/[ \t]\+$//' -e '/^$/d;' -e '/^#/d';
 }
 
 # packet_oneline converts a multiline script into packed single-line equivalent
 packed_oneline() {
-	packed | tr '\n' ';' | sed -e 's|;$||' -e 's|then;|then |g' -e 's|;[ \t]*|; |g'
+	packed | "$TR" '\n' ';' | "$SED" -e 's|;$||' -e 's|then;|then |g' -e 's|;[ \t]*|; |g'
 }
 
 gen_revive_exclude() {
 	local self="$1"
 	local dirs= d=
 
-	dirs="$(cut -d: -f2 "$INDEX" | grep -v '^.$' || true)"
+	dirs="$("$CUT" -d: -f2 "$INDEX" | "$GREP" -v '^.$' || true)"
 	if [ "." != "$self" ]; then
-		dirs=$(echo "$dirs" | sed -n -e "s;^$self/\(.*\)$;\1;p")
+		dirs=$(echo "$dirs" | "$SED" -n -e "s;^$self/\(.*\)$;\1;p")
 	fi
 
 	for d in $dirs; do
@@ -65,8 +71,20 @@ gen_revive_exclude() {
 gen_var_name() {
 	local x=
 	for x; do
-		echo "$x" | tr 'a-z-' 'A-Z_'
+		echo "$x" | "$TR" 'a-z-' 'A-Z_'
 	done
+}
+
+# align renders the tab-separated "NAME<TAB>=<TAB>value" rows as a table.
+# column(1) is absent from some minimal and Windows shells; there we fall
+# back to tr, turning the tab delimiters into spaces — the result loses the
+# alignment but is still valid Make.
+align() {
+	if command -v "$COLUMN" >/dev/null 2>&1; then
+		"$COLUMN" -t -s "$TAB"
+	else
+		"$TR" "$TAB" ' '
+	fi
 }
 
 # generate files lists
@@ -77,7 +95,7 @@ gen_files_lists() {
 	local filter= out_pat=
 
 	cat <<EOT
-GO_FILES = \$(shell find * \\
+GO_FILES = \$(shell \$(FIND) * \\
 	-type d -name node_modules -prune -o \\
 	-type f -name '*.go' -print )
 
@@ -88,7 +106,7 @@ EOT
 		files=GO_FILES_$(gen_var_name "$name")
 		filter="-e '/^\.$/d;'"
 		[ "$dir" = "." ] || filter="$filter -e '/^$(escape_dir "$dir")$/d;'"
-		out_pat="$(cut -d: -f2 "$INDEX" | eval "sed $filter -e 's|$|/%|'" | tr '\n' ' ' | sed -e 's| \+$||')"
+		out_pat="$("$CUT" -d: -f2 "$INDEX" | eval "$SED $filter -e 's|$|/%|'" | "$TR" '\n' ' ' | "$SED" -e 's| \+$||')"
 
 		if [ "$dir" = "." ]; then
 			# root
@@ -103,7 +121,7 @@ EOT
 		cat <<-EOT
 		$files$TAB=$TAB$files_cmd
 		EOT
-	done < "$INDEX" | column -t -s "$TAB"
+	done < "$INDEX" | align
 }
 
 gen_make_targets() {
@@ -134,7 +152,7 @@ gen_make_targets() {
 \$(GO) mod tidy"
 		;;
 	test)
-		call="\$(GO) $cmd \$(GOTEST_FLAGS) ./..."
+		call="\$(GO) test -count=1 \$(GOTEST_FLAGS) ./..."
 		;;
 	coverage)
 		call="\$(TOOLSDIR)/make_coverage.sh \"$name\" \".\" \"\$(COVERAGE_DIR)\""
@@ -142,6 +160,9 @@ gen_make_targets() {
 		;;
 	race)
 		call="env CGO_ENABLED=1 \$(GO) test -race -count=1 \$(GOTEST_FLAGS) ./..."
+		;;
+	vet)
+		call="\$(GO) vet \$(GOVET_FLAGS) ./..."
 		;;
 	*)
 		call="\$(GO) $cmd -v ./..."
@@ -170,7 +191,7 @@ gen_make_targets() {
 		call="$(cat <<-EOL | packed_oneline
 		set -e
 		MOD="\$\$(\$(GO) list -f '{{.ImportPath}}' ./...)"
-		if echo "\$\$MOD" | grep -q -e '.*/cmd/[^/]\+\$\$'; then
+		if echo "\$\$MOD" | \$(GREP) -q -e '.*/cmd/[^/]\+\$\$'; then
 			\$(GO_BUILD_CMD) ./...
 		elif [ -n "\$\$MOD" ]; then
 			\$(GO_BUILD) ./...
@@ -183,7 +204,7 @@ gen_make_targets() {
 		#
 		exclude=$(gen_revive_exclude "$dir")
 		if [ -n "$exclude" ]; then
-			call=$(echo "$call" | sed -e "s;\(REVIVE)\);\1 $exclude;")
+			call=$(echo "$call" | "$SED" -e "s;\(REVIVE)\);\1 $exclude;")
 		fi
 		;;
 	esac
@@ -201,12 +222,12 @@ $cmd-$name:${deps:+ $(prefixed "$cmd" $deps)}${depsx:+ | $depsx} ; \$(info \$(M)
 EOT
 	if [ -n "$callu" ]; then
 		# unconditionally
-		echo "$callu" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
+		echo "$callu" | "$SED" -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
 	fi
 	if [ -n "$call" ]; then
 		# only if there are files
 		echo "ifneq (\$($files),)"
-		echo "$call" | sed -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
+		echo "$call" | "$SED" -e "/^$/d;" -e "s|^|\t\$(Q) $cd|"
 		echo "endif"
 	fi
 }
@@ -226,7 +247,7 @@ $cmd: $all
 EOT
 
 	while IFS=: read -r name dir mod deps; do
-		deps=$(echo "$deps" | tr ',' ' ')
+		deps=$(echo "$deps" | "$TR" ',' ' ')
 
 		gen_make_targets "$cmd" "$name" "$dir" "$mod" "$deps"
 	done < "$INDEX"

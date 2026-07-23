@@ -13,7 +13,7 @@ The coverage system generates two types of coverage data:
 
 ## Prerequisites
 
-- Go 1.23 or later.
+- Go 1.25 or later.
 - A monorepo with modules defined in an index file (`.tmp/index`).
 - Make build system with generated rules.
 - Standard directory structure with modules as subdirectories.
@@ -37,6 +37,9 @@ single module.
   (auto-generated).
 - `coverage_${module}.html` - HTML coverage report (auto-generated from
   self-coverage).
+- `coverage_${module}.stdout`, `coverage_${module}_self.stdout` -
+  Captured raw `go test` output for the integration and per-package
+  runs. Kept for failure inspection.
 
 **Key features**:
 
@@ -181,6 +184,8 @@ The system uses an intelligent dual coverage display:
 ├── coverage_<module>.func            # Integration function reports
 ├── coverage_<module>_self.func       # Self-coverage function reports
 ├── coverage_<module>.html            # HTML report
+├── coverage_<module>.stdout          # Raw integration test output
+├── coverage_<module>_self.stdout     # Raw per-package test output
 ├── coverage_<module>/                # Individual package profiles
 │   └── <module-import-path>/
 │       ├── <package1>.prof

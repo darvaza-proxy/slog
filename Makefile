@@ -6,13 +6,30 @@ GO ?= go
 GOFMT ?= gofmt
 GOFMT_FLAGS = -w -l -s
 GOGENERATE_FLAGS = -v
+GOTEST_FLAGS ?=
 GOUP_FLAGS ?= -v
 GOUP_PACKAGES ?= ./...
-GOTEST_FLAGS ?=
+GOVET_FLAGS ?= -v
 JQ ?= jq
 
+# External text utilities. The build scripts rely on GNU-only behaviour
+# (sort -V, xargs -r, and \+/[ \t] in sed and grep expressions). On BSD
+# userland (e.g. macOS) point these at the GNU variants —
+# SED=gsed GREP=ggrep SORT=gsort XARGS=gxargs — rather than shadowing the
+# system tools on PATH. Exported so the shell scripts pick them up too.
+FIND ?= find
+GREP ?= grep
+SED ?= sed
+SORT ?= sort
+TR ?= tr
+CUT ?= cut
+COLUMN ?= column
+XARGS ?= xargs
+export FIND GREP SED SORT TR CUT COLUMN XARGS
+
 TOOLSDIR := $(CURDIR)/internal/build
-TMPDIR ?= $(CURDIR)/.tmp
+# ':=' not '?=': TMPDIR is often set in the environment, which '?=' inherits.
+TMPDIR := $(CURDIR)/.tmp
 OUTDIR ?= $(TMPDIR)
 COVERAGE_DIR ?= $(TMPDIR)/coverage
 
@@ -46,24 +63,25 @@ FIX_WHITESPACE_EXCLUDE_EXTS ?= \
 	$(FIX_WHITESPACE_EXCLUDE_OTHER_EXTS)
 FIX_WHITESPACE_EXCLUDE_PATTERNS ?= $(patsubst %,-o -name '*.%',$(FIX_WHITESPACE_EXCLUDE_EXTS))
 FIX_WHITESPACE_EXCLUDE ?= $(FIX_WHITESPACE_EXCLUDE_GO) $(FIX_WHITESPACE_EXCLUDE_PATTERNS)
-FIX_WHITESPACE_ARGS ?= . \! \( $(FIX_WHITESPACE_EXCLUDE) \)
+FIX_WHITESPACE_ARGS ?= . '!' '(' $(FIX_WHITESPACE_EXCLUDE) ')'
 
 ifndef DLX
-ifeq ($(shell pnpm --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+ifeq ($(shell pnpm --version < /dev/null 2> /dev/null | grep -q '^[0-9]' && echo yes),yes)
 DLX = pnpm dlx
 else
 DLX = true
 endif
 endif
 
-FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules -o -name .tmp -o -name .srclight -o -name .claude
+FIND_FILES_PRUNE_RULES ?= -name vendor -o -name .git -o -name node_modules \
+			  -o -name .tmp -o -name .srclight -o -name .claude
 FIND_FILES_PRUNE_ARGS ?= \( $(FIND_FILES_PRUNE_RULES) \) -prune
 FIND_FILES_GO_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.go'
 FIND_FILES_MARKDOWN_ARGS ?= $(FIND_FILES_PRUNE_ARGS) -o -name '*.md'
 
 ifndef MARKDOWNLINT
-ifeq ($(shell $(DLX) markdownlint-cli --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
-MARKDOWNLINT = $(DLX) markdownlint-cli
+ifeq ($(shell $(DLX) markdownlint-cli2 --help < /dev/null | grep -q '^markdownlint-cli2 v[0-9]' && echo yes),yes)
+MARKDOWNLINT = $(DLX) markdownlint-cli2
 else
 MARKDOWNLINT = true
 endif
@@ -71,7 +89,7 @@ endif
 MARKDOWNLINT_FLAGS ?= --fix --config $(TOOLSDIR)/markdownlint.json
 
 ifndef LANGUAGETOOL
-ifeq ($(shell $(DLX) @twilio-labs/languagetool-cli --version 2>&1 | grep -qE '^(unknown|[0-9])' && echo yes),yes)
+ifeq ($(shell $(DLX) @twilio-labs/languagetool-cli --version < /dev/null | grep -qE '^(unknown|[0-9])' && echo yes),yes)
 LANGUAGETOOL = $(DLX) @twilio-labs/languagetool-cli
 else
 LANGUAGETOOL = true
@@ -80,7 +98,7 @@ endif
 LANGUAGETOOL_FLAGS ?= --config $(TOOLSDIR)/languagetool.cfg --custom-dict-file $(TMPDIR)/languagetool-dict.txt
 
 ifndef CSPELL
-ifeq ($(shell $(DLX) cspell --version 2>&1 | grep -q '^[0-9]' && echo yes),yes)
+ifeq ($(shell $(DLX) cspell --version < /dev/null | grep -q '^[0-9]' && echo yes),yes)
 CSPELL = $(DLX) cspell
 else
 CSPELL = true
@@ -89,7 +107,7 @@ endif
 CSPELL_FLAGS ?= --no-progress --dot --config $(TOOLSDIR)/cspell.json
 
 ifndef SHELLCHECK
-ifeq ($(shell $(DLX) shellcheck --version 2>&1 | grep -q '^ShellCheck' && echo yes),yes)
+ifeq ($(shell $(DLX) shellcheck --version < /dev/null | grep -q '^ShellCheck' && echo yes),yes)
 SHELLCHECK = $(DLX) shellcheck
 else
 SHELLCHECK = true
@@ -121,20 +139,20 @@ $(TMPDIR)/gen.mk: $(TOOLSDIR)/gen_mk.sh $(TMPDIR)/index Makefile ; $(info $(M) g
 
 $(TMPDIR)/languagetool-dict.txt: $(TOOLSDIR)/cspell.json | check-jq ; $(info $(M) generating languagetool dictionary…)
 	$Q mkdir -p $(@D)
-	$Q $(JQ) -r '.words[]' $< | sort > $@
+	$Q $(JQ) -r '.words[]' $< | $(SORT) > $@
 
 include $(TMPDIR)/gen.mk
 
 fmt: ; $(info $(M) reformatting sources…)
-	$Q find . $(FIND_FILES_GO_ARGS) -print0 | xargs -0 -r $(GOFMT) $(GOFMT_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_GO_ARGS) -print0 | $(XARGS) -0 -r $(GOFMT) $(GOFMT_FLAGS)
 	$Q $(FIX_WHITESPACE) $(FIX_WHITESPACE_ARGS)
 ifneq ($(MARKDOWNLINT),true)
-	$Q find . $(FIND_FILES_MARKDOWN_ARGS) -print0 | xargs -0 -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_MARKDOWN_ARGS) -print0 | $(XARGS) -0 -r $(MARKDOWNLINT) $(MARKDOWNLINT_FLAGS)
 endif
 
 ifneq ($(LANGUAGETOOL),true)
 check-grammar: $(TMPDIR)/languagetool-dict.txt FORCE ; $(info $(M) checking grammar…)
-	$Q find . $(FIND_FILES_MARKDOWN_ARGS) -print0 | xargs -0 -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_MARKDOWN_ARGS) -print0 | $(XARGS) -0 -r $(LANGUAGETOOL) $(LANGUAGETOOL_FLAGS)
 else
 check-grammar: FORCE ; $(info $(M) grammar checks disabled)
 endif
@@ -151,7 +169,7 @@ endif
 ifneq ($(SHELLCHECK),true)
 TIDY_SHELL = check-shell
 check-shell: FORCE ; $(info $(M) checking shell scripts…)
-	$Q find . $(FIND_FILES_PRUNE_ARGS) -o -name '*.sh' -print0 | xargs -0 -r $(SHELLCHECK) $(SHELLCHECK_FLAGS)
+	$Q $(FIND) . $(FIND_FILES_PRUNE_ARGS) -o -name '*.sh' -print0 | $(XARGS) -0 -r $(SHELLCHECK) $(SHELLCHECK_FLAGS)
 else
 TIDY_SHELL =
 check-shell: FORCE ; $(info $(M) shell checks disabled)
@@ -160,7 +178,7 @@ endif
 tidy: fmt $(TIDY_SPELLING) $(TIDY_SHELL)
 
 generate: ; $(info $(M) running go:generate…)
-	$Q git grep -l '^//go:generate' | sort -uV | xargs -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
+	$Q git grep -l '^//go:generate' | $(SORT) -uV | $(XARGS) -r -n1 $(GO) generate $(GOGENERATE_FLAGS)
 
 # Prepare for codecov uploading
 codecov: merged-coverage $(COVERAGE_DIR)/codecov.sh
