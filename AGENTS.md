@@ -45,6 +45,10 @@ make test
 # Format code, tidy dependencies, and run checks (run before committing)
 make tidy
 
+# Vet all modules; compiles packages and tests, so GOOS=windows make vet
+# doubles as a cross-platform compile check
+make vet
+
 # Check grammar only (without formatting)
 make check-grammar
 
@@ -82,7 +86,7 @@ The `internal/build/fix_whitespace.sh` script automatically:
 
 The build system includes automatic Markdown linting:
 
-- Detects markdownlint-cli via dlx.
+- Detects markdownlint-cli2 via dlx.
 - Configuration in `internal/build/markdownlint.json`.
 - 80-character prose line limit (120 in code blocks), strict formatting rules.
 - Selective HTML allowlist (comments, br, kbd, etc.).
@@ -141,12 +145,14 @@ Automated coverage reporting across all modules:
 GitHub Actions workflows split for better performance:
 
 - **Build workflow** (`.github/workflows/build.yml`): compilation only.
-- **Test workflow** (`.github/workflows/test.yml`): unit tests across the
-  Go 1.25 and 1.26 matrix, with conditional execution to avoid duplicate runs
-  on PRs.
-- **Race workflow** (`.github/workflows/race.yml`): race-detector run pinned
-  to Go 1.26.
-- Workflows skip branches ending in `-wip`.
+- **Platforms workflow** (`.github/workflows/platforms.yml`): vets every
+  `GOOS` and runs the test and race suites natively on Linux, macOS and
+  Windows — tests across the Go 1.25 and 1.26 matrix, race pinned to
+  Go 1.26. The macOS and Windows jobs are gated behind the cheap Linux
+  ones, so a compile error fails fast without billing the premium
+  runners.
+- Workflows skip branches ending in `-wip`, and superseded runs on the
+  same ref are cancelled.
 - Improves parallelism and reduces redundant work.
 
 ### Codecov Integration
@@ -686,7 +692,8 @@ The project uses DeepSource for static code analysis. Configuration is in the
 
 - **Codecov workflow**: Automatically runs on push/PR to generate coverage
   reports.
-- **Test workflow**: Tests across multiple Go versions.
+- **Platforms workflow**: Tests across multiple Go versions and operating
+  systems.
 - **Build workflow**: Validates build process independently.
 - All CI checks must pass before merging PRs.
 
