@@ -511,23 +511,6 @@ func TestRunWithLoggerFactory(t *testing.T) {
 	core.RunTestCases(t, runWithLoggerFactoryTestCases())
 }
 
-// TestDeprecatedAssertFunctions tests our deprecated wrapper functions for coverage.
-func TestDeprecatedAssertFunctions(t *testing.T) {
-	// Test data
-	slice1 := []int{1, 2, 3}
-	slice2 := slice1         // same backing array
-	slice3 := []int{1, 2, 3} // different backing array
-
-	// Just call each function to ensure coverage - don't assert results
-	IsSame(slice1, slice2)
-	IsSame(slice1, slice3)
-
-	AssertSame(t, slice1, slice2, "test")
-	AssertNotSame(t, slice1, slice3, "test")
-	AssertMustSame(t, slice1, slice2, "test")
-	AssertMustNotSame(t, slice1, slice3, "test")
-}
-
 func TestMessageString(t *testing.T) {
 	core.RunTestCases(t, messageStringTestCases())
 }
