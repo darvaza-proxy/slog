@@ -3,7 +3,7 @@ module darvaza.org/slog/handlers/discard
 go 1.25.0
 
 require (
-	darvaza.org/core v0.21.2
+	darvaza.org/core v0.22.0
 	darvaza.org/slog v0.10.0
 )
 
