@@ -187,13 +187,18 @@ Automated coverage reporting with monorepo support:
 
 ### Handler Architecture
 
-Each handler is a separate Go module in the `handlers/` directory:
+Handlers live in the `handlers/` directory. The split into separate Go
+modules exists primarily to avoid pulling additional dependencies;
+`mock` and `stdslog` pull none, so they are part of the main module:
 
 - **`cblog`**: Channel-based logger for receiving log entries through channels.
 - **`discard`**: No-op logger for testing and optional logging scenarios.
 - **`filter`**: Middleware logger for filtering and transforming log entries.
 - **`logr`**: Bidirectional adapter for the go-logr/logr interface.
 - **`logrus`**: Adapter for the popular logrus logging library.
+- **`mock`**: Mock logger recording messages for testing (main module).
+- **`stdslog`**: Bidirectional adapter for the standard library log/slog
+  (main module).
 - **`zap`**: Adapter for Uber's zap high-performance logger.
 - **`zerolog`**: Adapter for the zerolog JSON logger.
 
@@ -224,8 +229,9 @@ Always run `make tidy` before committing to ensure proper formatting.
 
 ## Important Notes
 
-- The main module and each handler are separate Go modules with their own
-  `go.mod` files.
+- Most handlers are separate Go modules with their own `go.mod` files,
+  split to avoid pulling additional dependencies; `mock` and `stdslog`
+  need none and belong to the main module.
 - Each handler depends on a released slog version through `require`, so
   ordinary builds and external consumers resolve the published module. Local
   cross-module development uses a developer-local Go workspace (see [Handler
