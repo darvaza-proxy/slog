@@ -450,6 +450,80 @@ func TestAssertFieldValue(t *testing.T) {
 }
 
 // Compile-time verification that test case types implement TestCase interface
+var _ core.TestCase = assertDeepFieldTestCase{}
+
+type assertDeepFieldTestCase struct {
+	value      any
+	fields     map[string]any
+	key        string
+	name       string
+	expectPass bool
+}
+
+func (tc assertDeepFieldTestCase) Name() string {
+	return tc.name
+}
+
+func (tc assertDeepFieldTestCase) Test(t *testing.T) {
+	t.Helper()
+
+	msg := Message{Level: slog.Info, Message: "test", Fields: tc.fields}
+	mock := &core.MockT{}
+	result := AssertDeepField(mock, msg, tc.key, tc.value)
+
+	core.AssertEqual(t, tc.expectPass, result, "result")
+}
+
+func newAssertDeepFieldTestCase(name string, fields map[string]any,
+	key string, value any, expectPass bool) assertDeepFieldTestCase {
+	return assertDeepFieldTestCase{
+		name:       name,
+		fields:     fields,
+		key:        key,
+		value:      value,
+		expectPass: expectPass,
+	}
+}
+
+func assertDeepFieldTestCases() []assertDeepFieldTestCase {
+	return []assertDeepFieldTestCase{
+		newAssertDeepFieldTestCase("field with expected value",
+			map[string]any{"existing": "value"}, "existing", "value",
+			true),
+		newAssertDeepFieldTestCase("field with wrong value",
+			map[string]any{"existing": "value"}, "existing", "wrong",
+			false),
+		newAssertDeepFieldTestCase("field does not exist",
+			map[string]any{"existing": "value"}, "non-existent", "value",
+			false),
+		newAssertDeepFieldTestCase("nil fields map",
+			nil, "someKey", "value",
+			false),
+		newAssertDeepFieldTestCase("field with nil value",
+			map[string]any{"nilField": nil}, "nilField", nil,
+			true),
+		newAssertDeepFieldTestCase("value of another type",
+			map[string]any{"n": int64(1)}, "n", 1,
+			false),
+		// AssertField leaves these undecided; a deep comparison settles
+		// them.
+		newAssertDeepFieldTestCase("map value compares deeply",
+			map[string]any{"m": map[string]any{"x": 1}}, "m", map[string]any{"x": 1},
+			true),
+		newAssertDeepFieldTestCase("map value differs",
+			map[string]any{"m": map[string]any{"x": 1}}, "m", map[string]any{"x": 2},
+			false),
+		newAssertDeepFieldTestCase("nested slice compares deeply",
+			map[string]any{"list": [][]string{{"a"}, {"b"}}}, "list", [][]string{{"a"}, {"b"}},
+			true),
+	}
+}
+
+func TestAssertDeepField(t *testing.T) {
+	core.RunTestCases(t, assertDeepFieldTestCases())
+}
+
+// Compile-time verification that test case types implement TestCase interface
 var _ core.TestCase = runWithLoggerFactoryTestCase{}
 
 type runWithLoggerFactoryTestCase struct {
@@ -555,6 +629,27 @@ func runTestAssertMustFieldValueFailure(t *testing.T) {
 		AssertMustFieldValue(subT, fields, "missing", "value")
 	})
 	core.AssertTrue(t, mock.Failed(), "should have failed")
+}
+
+func TestAssertMustDeepField(t *testing.T) {
+	t.Run("success case", runTestAssertMustDeepFieldSuccess)
+	t.Run("failure case", runTestAssertMustDeepFieldFailure)
+}
+
+func runTestAssertMustDeepFieldSuccess(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"m": map[string]any{"x": 1}}}
+	AssertMustDeepField(t, msg, "m", map[string]any{"x": 1})
+}
+
+func runTestAssertMustDeepFieldFailure(t *testing.T) {
+	t.Helper()
+	msg := Message{Level: slog.Info, Message: "test", Fields: map[string]any{"m": map[string]any{"x": 1}}}
+	mock := &core.MockT{}
+	mock.Run("subtest", func(subT core.T) {
+		AssertMustDeepField(subT, msg, "m", map[string]any{"x": 2})
+	})
+	core.AssertTrue(t, mock.Failed(), "failed")
 }
 
 func TestAssertMustNoField(t *testing.T) {

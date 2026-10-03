@@ -33,6 +33,8 @@
 //
 //   - AssertMessage/AssertMustMessage: Verify log level and message text
 //   - AssertField/AssertMustField: Verify field existence and value
+//   - AssertDeepField/AssertMustDeepField: Verify field existence and a
+//     deeply equal value, for values such as maps and nested slices
 //   - AssertFieldValue/AssertMustFieldValue: Verify field existence and value
 //     on a bare fields map
 //   - AssertNoField/AssertMustNoField: Verify field absence
