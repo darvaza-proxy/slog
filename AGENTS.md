@@ -82,7 +82,7 @@ The `internal/build/fix_whitespace.sh` script automatically:
 
 The build system includes automatic Markdown linting:
 
-- Detects markdownlint-cli via dlx.
+- Detects markdownlint-cli2 via dlx.
 - Configuration in `internal/build/markdownlint.json`.
 - 80-character prose line limit (120 in code blocks), strict formatting rules.
 - Selective HTML allowlist (comments, br, kbd, etc.).
@@ -121,45 +121,53 @@ Shell script analysis for all `.sh` files:
 
 ### Test Coverage Collection
 
-Automated coverage reporting across all modules:
+Automated dual coverage reporting across all modules, described in
+`darvaza.org/core`'s [BUILDING.md][building-coverage]:
 
-- Individual `coverage-*` targets for each module (coverage-root,
-  coverage-cblog, etc.).
+- The `coverage` target runs tests with coverage profiling.
 - Uses `internal/build/make_coverage.sh` to orchestrate testing.
-- Tests each module independently with atomic coverage mode.
-- Generates multiple output formats per module:
-  - `coverage_${name}.prof`: Coverage profile for tools
-  - `coverage_${name}.func`: Function-level coverage summary
-  - `coverage_${name}.html`: Interactive HTML coverage report
-  - `coverage_${name}.stdout`: Console coverage output
-- Uses `merge_coverage.sh` helper for proper profile merging.
+- Generates both self-coverage and integration coverage perspectives.
+- Tests each module independently.
+- The `merged-coverage` target merges the modules' profiles into
+  repository-wide reports.
 - Stores results in `.tmp/coverage/` directory.
-- Displays coverage summary after test runs.
+- Displays dual coverage summary after test runs.
+- Automatic HTML report generation in `.tmp/coverage/` directory.
+- Creates module-specific coverage targets (`coverage-<module>`).
 
-### CI/CD Workflow Separation
+### CI/CD Workflows
 
-GitHub Actions workflows split for better performance:
+GitHub Actions workflows:
 
-- **Build workflow** (`.github/workflows/build.yml`): compilation only.
-- **Test workflow** (`.github/workflows/test.yml`): unit tests across the
-  Go 1.25 and 1.26 matrix, with conditional execution to avoid duplicate runs
-  on PRs.
-- **Race workflow** (`.github/workflows/race.yml`): race-detector run pinned
-  to Go 1.26.
+- **Build workflow** (`.github/workflows/build.yml`): Compiles every
+  module across Go 1.25 and 1.26. Host (Linux) `go vet` runs here via
+  `make`'s `tidy` step.
+- **Platforms workflow** (`.github/workflows/platforms.yml`):
+  Cross-platform test and race, with the macOS and Windows runners
+  gated behind Linux jobs.
+  - `vet` cross-compiles the non-host targets (windows, darwin) with
+    `make vet`. `go vet` compiles every module's packages and tests for
+    the target without running them, so a compile error on either
+    target fails here, before the native jobs start.
+  - `linux-test` (Go 1.25 and 1.26) and `linux-race` run the suites on
+    Linux.
+  - The native `test` (macOS, Windows × Go 1.25 and 1.26) and `race`
+    (macOS, Windows) jobs declare `needs:` on the Linux gates, so a
+    cross-compile break or a Linux failure skips them. macOS installs
+    the GNU userland and selects it through the build's
+    `SED`/`GREP`/`SORT`/`XARGS` overrides.
 - Workflows skip branches ending in `-wip`.
-- Improves parallelism and reduces redundant work.
 
 ### Codecov Integration
 
 Automated coverage reporting with monorepo support:
 
 - **Codecov workflow** (`.github/workflows/codecov.yml`): Coverage collection
-  and upload.
-- `make_coverage.sh` generates:
-  - `codecov.yml`: Dynamic configuration with per-module flags.
-  - Module-specific coverage targets (80% default).
-  - Path mappings for accurate coverage attribution.
-  - `codecov.sh`: Upload script for bulk submission.
+  and upload, through `make clean-coverage codecov`.
+- `internal/build/make_codecov.sh` generates `codecov.sh`, the upload
+  script, from the module index: one upload per module, each carrying the
+  module's flag. There is no `codecov.yml`; Codecov detects the
+  configuration itself.
 - Supports both GitHub Actions and local coverage uploads.
 - PR comments show coverage changes per module.
 
@@ -294,12 +302,57 @@ go tool cover -html=coverage.out
 
 1. The Makefile defines `GOTEST_FLAGS ?=` (empty by default).
 2. The generated rules use it in the test target:
-   `$(GO) test $(GOTEST_FLAGS) ./...`.
+   `$(GO) test -count=1 $(GOTEST_FLAGS) ./...`.
 3. Any flags passed via `GOTEST_FLAGS` are forwarded directly to `go test`.
 
 This provides a clean interface for passing arbitrary test flags without
 modifying the Makefile, making it easy to run tests with different
 configurations for debugging, coverage analysis, or CI/CD pipelines.
+
+`test`, `race` and `coverage` all splice `GOTEST_FLAGS` into their
+recipe, so make expands it first and the shell reads it after. Write a
+`$` in a pattern as `$$`, and quote a pattern that holds shell syntax,
+such as `|` or `(`, or spaces. From an interactive shell, wrap the whole
+assignment in single quotes, or that shell expands `$$` to its own
+process ID before make sees it:
+
+```bash
+make test GOTEST_FLAGS='-run "^TestSpecific$$" -v'
+make coverage GOTEST_FLAGS='-run "^$$" -bench "^Benchmark(Foo|Bar)$$" -benchmem'
+```
+
+## Vetting with GOVET_FLAGS
+
+The `GOVET_FLAGS` environment variable allows flexible `go vet`
+execution by passing additional flags. This variable is defined in the
+Makefile with a `-v` default and is used when running vet through the
+generated rules.
+
+### Vet Usage Examples
+
+```bash
+# Run vet quietly (drop the default -v)
+make vet GOVET_FLAGS=
+
+# Vet a single module
+make vet-zap
+
+# Cross-compile and vet every module for another platform
+GOOS=windows make vet
+GOOS=darwin make vet
+```
+
+### How GOVET_FLAGS Works
+
+1. The Makefile defines `GOVET_FLAGS ?= -v`.
+2. The generated rules use it in the vet target:
+   `$(GO) vet $(GOVET_FLAGS) ./...`.
+3. Any flags passed via `GOVET_FLAGS` are forwarded directly to
+   `go vet`.
+
+Because `go vet` compiles each package and its tests for the target
+`GOOS` without running them, `make vet` doubles as a cross-platform
+compile check.
 
 ## CI and Testing
 
@@ -693,7 +746,8 @@ The project uses DeepSource for static code analysis. Configuration is in the
 
 - **Codecov workflow**: Automatically runs on push/PR to generate coverage
   reports.
-- **Test workflow**: Tests across multiple Go versions.
+- **Platforms workflow**: Tests across multiple Go versions on Linux,
+  macOS and Windows, with and without the race detector.
 - **Build workflow**: Validates build process independently.
 - All CI checks must pass before merging PRs.
 
@@ -737,3 +791,5 @@ When LanguageTool reports issues:
 For information about releasing slog and its handlers, including version
 numbering, release procedures, and coordinating handler releases, see
 [RELEASE.md](RELEASE.md).
+
+[building-coverage]: https://github.com/darvaza-proxy/core/blob/main/BUILDING.md#coverage-system-make_coveragesh

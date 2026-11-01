@@ -7,7 +7,7 @@ xy_ver() {
 	local ver="${1:-}"
 	local x y
 
-	if echo "v${ver}" | grep -qe '^v[0-9]\+\.[0-9]\+\(\..*\|$\)'; then
+	if echo "v${ver}" | grep -Eq '^v[0-9]+\.[0-9]+(\..*|$)'; then
 		x="$(echo "$ver" | cut -d. -f1)"
 		y="$(echo "$ver" | cut -d. -f2)"
 		echo $((x * 1000 + y))
@@ -17,7 +17,7 @@ xy_ver() {
 	fi
 }
 
-GO_VERSION=$(${GO:-go} version | sed -ne 's|.* go\([0-9][^ ]\+\)[ $].*|\1|p')
+GO_VERSION=$(${GO:-go} version | sed -ne 's|.* go\([0-9][^ ]\{1,\}\)[ $].*|\1|p')
 
 if [ $# -eq 0 ]; then
 	# no arguments, go version

@@ -1,0 +1,4 @@
+# Normalise every text file to LF in the repository and on checkout, so
+# the platform runners (Windows included) match .editorconfig and make
+# tidy does not report a line-ending diff.
+* text=auto eol=lf
