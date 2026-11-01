@@ -6,22 +6,23 @@
 # This script runs Go tests with coverage for a single module and generates
 # coverage profile (.prof), function coverage (.func), and HTML report (.html).
 #
-# Usage: make_coverage.sh <module_name> <module_dir> <coverage_dir>
+# Usage: make_coverage.sh <module_name> <module_dir> <coverage_dir> [flags...]
 #
 # Arguments:
 #   module_name  - Name of the module (e.g., "root", "cmp", "config")
 #   module_dir   - Directory containing the module (e.g., ".", "cmp", "config")
 #   coverage_dir - Directory to store coverage files
+#   flags        - Additional flags for 'go test'
 #
 # Environment variables:
 #   GO           - Go command (default: go)
-#   GOTEST_FLAGS - Additional flags for 'go test'
 
 set -eu
 
 MODULE_NAME="${1:?Module name required}"
 MODULE_DIR="${2:?Module directory required}"
 COVERAGE_DIR="${3:?Coverage directory required}"
+shift 3
 
 mkdir -p "$COVERAGE_DIR"
 
@@ -146,8 +147,7 @@ COVERPROFILE_SELF="${COVERAGE_BASE}_self.prof"
 COVERFUNC_SELF="${COVERAGE_BASE}_self.func"
 COVERSTDOUT_SELF="${COVERAGE_BASE}_self.stdout"
 
-# shellcheck disable=SC2086 # GOTEST_FLAGS splitting intended
-set -- ${GOTEST_FLAGS:-} "-covermode=atomic"
+set -- "$@" "-covermode=atomic"
 
 # Run tests with coverage
 if ${GO:-go} -C "$MODULE_DIR" test "$@" "-coverprofile=$COVERPROFILE" "-coverpkg=./..." ./... > "$COVERSTDOUT" 2>&1; then

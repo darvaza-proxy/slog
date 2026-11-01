@@ -23,6 +23,16 @@ set -eu
 JOBS="${JOBS:-4}"
 FILES_PER_JOB="${FILES_PER_JOB:-4}"
 
+# stat_mode FILE — output FILE's permission bits in octal.
+# There is no POSIX stat(1), so probe once for the GNU (-c) dialect and
+# fall back to BSD (-f); the two are mutually incompatible. GNU covers
+# Linux and the MSYS coreutils on the Windows runner, BSD covers macOS.
+if stat -c '%a' . >/dev/null 2>&1; then
+	stat_mode() { stat -c '%a' "$1"; }
+else
+	stat_mode() { stat -f '%Lp' "$1"; }
+fi
+
 # get_bytes FILE COUNT
 # COUNT > 0: first COUNT bytes (head)
 # COUNT < 0: last -COUNT bytes (tail)
@@ -47,12 +57,17 @@ quote_arg() {
 # filter_file FILE COMMAND [ARGS...]
 # Applies filter command to file in-place, preserving permissions
 filter_file() {
-	local file="$1" tmp
+	local file="$1" tmp mode
 	shift
 
 	tmp=$(mktemp "fix_whitespace.XXXXXX")
+	# mktemp yields a writable temp; restore the original's mode onto it
+	# after the write, then rename. chmod --reference would do this in one
+	# step but is GNU-only, so read the mode with the portable stat_mode
+	# probe above.
+	mode=$(stat_mode "$file")
 	if "$@" < "$file" > "$tmp"; then
-		chmod --reference="$file" "$tmp"
+		chmod "$mode" "$tmp"
 		mv "$tmp" "$file"
 	else
 		rm -f "$tmp"
@@ -112,9 +127,9 @@ run_find() {
 	done
 
 	# Wrap user conditions in parentheses if they exist
-	[ $# -eq 0 ] || set -- \( "$@" \)
+	[ $# -eq 0 ] || set -- '(' "$@" ')'
 	# combine auto-pruning and user conditions
-	set -- \( -type d \( -name .git -o -name .tmp -o -name node_modules -o -name .srclight -o -name .claude \) \) -prune -o "$@" -type f
+	set -- '(' -type d '(' -name .git -o -name .tmp -o -name node_modules -o -name .srclight -o -name .claude ')' ')' -prune -o "$@" -type f
 	# combine escaped paths with find options
 	eval "set -- ${paths:-.} \"\$@\""
 
