@@ -76,7 +76,7 @@ import (
 
 // Start with any slog implementation
 baseLogger := getSlogLogger() // your existing slog logger
-filtered := filter.New(baseLogger, filter.MinLevel(slog.Info))
+filtered := filter.New(baseLogger, slog.Info)
 
 // Create a zap logger backed by slog
 zapLogger := slogzap.NewZapLogger(filtered)

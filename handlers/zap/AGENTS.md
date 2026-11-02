@@ -109,7 +109,7 @@ import (
 
 // Start with any slog logger
 baseLogger := getSlogLogger()
-filteredLogger := filter.New(baseLogger, filter.MinLevel(slog.Info))
+filteredLogger := filter.New(baseLogger, slog.Info)
 
 // Create zap logger backed by slog
 zapLogger := slogzap.NewZapLogger(filteredLogger)
