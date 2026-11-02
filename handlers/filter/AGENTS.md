@@ -35,7 +35,7 @@ import (
 )
 
 // Create a filter that only passes Info and above
-baseLogger := slogzap.New(zapLogger.Sugar())
+baseLogger := slogzap.NewWithLogger(zapLogger) // your existing zap logger
 filtered := filter.New(baseLogger, slog.Info)
 
 // Debug won't be logged, Info will

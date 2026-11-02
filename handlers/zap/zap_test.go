@@ -2,10 +2,12 @@ package zap_test
 
 import (
 	"fmt"
+	"io"
 	"testing"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
@@ -69,6 +71,120 @@ func TestLevel(t *testing.T) {
 	// Test level-specific logger
 	debugLogger := core.AssertMustTypeIs[*slogzap.Logger](t, logger.Debug(), "debug logger type")
 	core.AssertEqual(t, slog.Debug, debugLogger.Level(), "debug level")
+}
+
+// newZapLoggerAt creates a zap logger whose core enables level and
+// above, writing nowhere. The core reports level as its own, even
+// below Debug.
+func newZapLoggerAt(level zapcore.Level) *zap.Logger {
+	enc := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	enabler := zap.NewAtomicLevelAt(level)
+	return zap.New(zapcore.NewCore(enc, zapcore.AddSync(io.Discard), enabler))
+}
+
+var _ core.TestCase = newWithLoggerTestCase{}
+
+type newWithLoggerTestCase struct {
+	name     string
+	zapLevel zapcore.Level
+	expected slog.LogLevel
+	enabled  bool
+}
+
+func (tc newWithLoggerTestCase) Name() string {
+	return tc.name
+}
+
+func (tc newWithLoggerTestCase) Test(t *testing.T) {
+	t.Helper()
+	backend := newZapLoggerAt(tc.zapLevel)
+	logger := core.AssertMustTypeIs[*slogzap.Logger](t,
+		slogzap.NewWithLogger(backend), "logger type")
+	core.AssertEqual(t, tc.expected, logger.Level(), "level")
+	core.AssertEqual(t, tc.enabled, logger.Enabled(), "enabled")
+
+	zl, cfg := logger.Unwrap()
+	core.AssertSame(t, backend, zl, "backend")
+	core.AssertNil(t, cfg, "config")
+}
+
+// newEnabledWithLoggerTestCase creates a case whose adaptor starts at
+// expected, enabled.
+func newEnabledWithLoggerTestCase(name string, zapLevel zapcore.Level,
+	expected slog.LogLevel) newWithLoggerTestCase {
+	return newWithLoggerTestCase{
+		name:     name,
+		zapLevel: zapLevel,
+		expected: expected,
+		enabled:  true,
+	}
+}
+
+// newDisabledWithLoggerTestCase creates a case whose core enables none
+// of Debug, Info, Warn and Error, so its adaptor starts at
+// [slogzap.DefaultLogLevel], disabled.
+func newDisabledWithLoggerTestCase(name string,
+	zapLevel zapcore.Level) newWithLoggerTestCase {
+	return newWithLoggerTestCase{
+		name:     name,
+		zapLevel: zapLevel,
+		expected: slogzap.DefaultLogLevel,
+		enabled:  false,
+	}
+}
+
+func newWithLoggerTestCases() []newWithLoggerTestCase {
+	return []newWithLoggerTestCase{
+		newEnabledWithLoggerTestCase("BelowDebug", zapcore.DebugLevel-1,
+			slog.Debug),
+		newEnabledWithLoggerTestCase("Debug", zapcore.DebugLevel, slog.Debug),
+		newEnabledWithLoggerTestCase("Info", zapcore.InfoLevel, slog.Info),
+		newEnabledWithLoggerTestCase("Warn", zapcore.WarnLevel, slog.Warn),
+		newEnabledWithLoggerTestCase("Error", zapcore.ErrorLevel, slog.Error),
+		newDisabledWithLoggerTestCase("DPanic", zapcore.DPanicLevel),
+		newDisabledWithLoggerTestCase("Panic", zapcore.PanicLevel),
+		newDisabledWithLoggerTestCase("Fatal", zapcore.FatalLevel),
+		newDisabledWithLoggerTestCase("NothingEnabled", zapcore.InvalidLevel),
+	}
+}
+
+func TestNewWithLogger(t *testing.T) {
+	core.RunTestCases(t, newWithLoggerTestCases())
+}
+
+func TestNewWithLoggerOptions(t *testing.T) {
+	backend := newZapLoggerAt(zapcore.DebugLevel)
+	errorUp := zap.IncreaseLevel(zapcore.ErrorLevel)
+	logger := core.AssertMustTypeIs[*slogzap.Logger](t,
+		slogzap.NewWithLogger(backend, errorUp), "logger type")
+	core.AssertEqual(t, slog.Error, logger.Level(), "level")
+
+	zl, _ := logger.Unwrap()
+	core.AssertNotSame(t, backend, zl, "backend")
+}
+
+func TestNewProduction(t *testing.T) {
+	logger := core.AssertMustTypeIs[*slogzap.Logger](t,
+		slogzap.NewProduction(), "logger type")
+	core.AssertEqual(t, slog.Info, logger.Level(), "level")
+
+	_, cfg := logger.Unwrap()
+	core.AssertMustNotNil(t, cfg, "config")
+	core.AssertEqual(t, "json", cfg.Encoding, "encoding")
+}
+
+func TestNewProductionOptions(t *testing.T) {
+	obsCore, logs := observer.New(zapcore.DebugLevel)
+	observe := zap.WrapCore(func(zapcore.Core) zapcore.Core { return obsCore })
+	logger := core.AssertMustTypeIs[*slogzap.Logger](t,
+		slogzap.NewProduction(observe), "logger type")
+	core.AssertEqual(t, slog.Debug, logger.Level(), "level")
+
+	logger.Info().Print("hello")
+	entries := logs.AllUntimed()
+	core.AssertMustEqual(t, 1, len(entries), "entry count")
+	core.AssertEqual(t, zapcore.InfoLevel, entries[0].Level, "entry level")
+	core.AssertEqual(t, "hello", entries[0].Message, "entry message")
 }
 
 func TestLevelMethods(t *testing.T) {

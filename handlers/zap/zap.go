@@ -16,6 +16,10 @@ import (
 const (
 	// DefaultLogLevel is the default log level for new loggers
 	DefaultLogLevel = slog.Info
+
+	// errInvalidLogger is the panic [NewWithLogger] raises when its
+	// caller passes a nil zap logger, or one without a core.
+	errInvalidLogger = core.StringError("invalid logger")
 )
 
 var (
@@ -29,7 +33,10 @@ type Logger struct {
 	loglet internal.Loglet
 }
 
-// Unwrap returns the underlying zap logger
+// Unwrap returns the underlying zap logger, and the configuration [New]
+// or [NewProduction] built it from. The configuration doesn't reflect
+// the options applied when building, and adaptors made by
+// [NewWithLogger] or [NewNoop] have none.
 func (zpl *Logger) Unwrap() (*zap.Logger, *zap.Config) {
 	return zpl.logger, zpl.config
 }
@@ -180,6 +187,32 @@ func New(cfg *zap.Config, zapOptions ...zap.Option) (slog.Logger, error) {
 	return newLogger(cfg, zapOptions...)
 }
 
+// NewWithLogger creates a slog.Logger adaptor using the given zap
+// logger as backend, with the given options applied to it. It starts
+// at the lowest level the resulting core enables, raised to Debug when
+// lower, or at [DefaultLogLevel] when the core enables none of Debug,
+// Info, Warn and Error. It panics when logger is nil or has no core.
+func NewWithLogger(logger *zap.Logger, zapOptions ...zap.Option) slog.Logger {
+	if !checkLogger(logger) {
+		core.PanicFrom(1, errInvalidLogger)
+	}
+	if len(zapOptions) > 0 {
+		logger = logger.WithOptions(zapOptions...)
+	}
+	return newAdaptor(logger, nil, getLoggerLevel(logger))
+}
+
+// NewProduction creates a slog.Logger adaptor using as backend the zap
+// logger [zap.NewProduction] builds with the given options. It starts
+// at the level [NewWithLogger] would.
+func NewProduction(zapOptions ...zap.Option) slog.Logger {
+	cfg := zap.NewProductionConfig()
+	// unreachable error: the production configuration writes JSON to
+	// standard error, which zap builds without failing.
+	logger := core.Must(cfg.Build(zapOptions...))
+	return newAdaptor(logger, &cfg, getLoggerLevel(logger))
+}
+
 // NewWithCallback creates a new zap logger using a callback to modify it.
 func (zpl *Logger) NewWithCallback(fn func(lv zapcore.Entry) error) *Logger {
 	if fn != nil && zpl != nil {
@@ -211,13 +244,25 @@ func newLogger(cfg *zap.Config, zapOptions ...zap.Option) (*Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newAdaptor(lg, cfg, getConfigLevel(cfg)), nil
+}
 
+// newAdaptor creates a Logger over a zap logger, starting at the given
+// level.
+func newAdaptor(logger *zap.Logger, cfg *zap.Config,
+	level slog.LogLevel) *Logger {
 	loglet := &internal.Loglet{}
 	return &Logger{
-		loglet: loglet.WithLevel(getConfigLevel(cfg)),
-		logger: lg,
+		loglet: loglet.WithLevel(level),
+		logger: logger,
 		config: cfg,
-	}, nil
+	}
+}
+
+// checkLogger tells if a zap logger can back an adaptor: it isn't nil,
+// and it has a core, which a zero value lacks.
+func checkLogger(logger *zap.Logger) bool {
+	return logger != nil && !core.IsNil(logger.Core())
 }
 
 // NewDefaultConfig creates a new [zap.Config] logging to the

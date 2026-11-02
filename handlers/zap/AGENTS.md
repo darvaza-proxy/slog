@@ -25,7 +25,17 @@ repository. For developers and general project information, please refer to
 
 ### zap → slog (Logger adapter)
 
-- Wraps `*zap.Logger` with configurable setup.
+- `New` builds a `*zap.Logger` from a `zap.Config` and optional
+  `zap.Option` values. It starts at the slog level the configuration's
+  level maps to in the [Level Mapping](#level-mapping) table, or at Info
+  for a level the table lacks.
+- `NewWithLogger` wraps a `*zap.Logger` built elsewhere, applying any
+  `zap.Option` values to it. It starts at the lowest level the resulting
+  core enables, raised to Debug when lower, or at `DefaultLogLevel` when
+  the core enables none of Debug, Info, Warn and Error.
+- `NewProduction` builds the `*zap.Logger` that `zap.NewProduction`
+  builds, with optional `zap.Option` values, and starts at the level
+  `NewWithLogger` would.
 - Fatal and Panic levels trigger zap's Fatal/Panic behaviour.
 - Fields are converted to zap's field types for efficiency.
 - Defers to zap for all formatting and output handling.
@@ -67,7 +77,7 @@ if err != nil {
 }
 
 // Or with custom zap options
-slogLogger, err := slogzap.New(zapConfig,
+slogLogger, err = slogzap.New(zapConfig,
     zap.Hooks(func(entry zapcore.Entry) error {
         // Custom hook for processing log entries
         return nil
@@ -77,6 +87,13 @@ slogLogger, err := slogzap.New(zapConfig,
 if err != nil {
     // handle error
 }
+
+// Or with the logger zap.NewProduction builds
+slogLogger = slogzap.NewProduction()
+
+// Or wrap a zap logger built elsewhere, starting at the lowest level
+// its core enables
+slogLogger = slogzap.NewWithLogger(getZapLogger()) // your existing zap logger
 
 // Use with slog interface
 start := time.Now()

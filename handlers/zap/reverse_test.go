@@ -1,7 +1,5 @@
 package zap_test
 
-// cSpell:words zaptest
-
 import (
 	"testing"
 

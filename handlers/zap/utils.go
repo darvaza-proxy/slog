@@ -89,3 +89,23 @@ func getConfigLevel(cfg *zap.Config) slog.LogLevel {
 	zapLevel := cfg.Level.Level()
 	return mapFromZapLevel(zapLevel)
 }
+
+// getLoggerLevel returns the level an adaptor over a zap logger
+// starts at: the lowest level the logger's core enables, raised to
+// Debug when lower, or [DefaultLogLevel] when the core enables none of
+// Debug, Info, Warn and Error.
+func getLoggerLevel(logger *zap.Logger) slog.LogLevel {
+	switch level := logger.Level(); {
+	case level < zapcore.DebugLevel:
+		// zapr maps logr's V(n) to zap level -n, below Debug
+		// from V(2)
+		return slog.Debug
+	case level <= zapcore.ErrorLevel:
+		return mapFromZapLevel(level)
+	default:
+		// DPanic, Panic, Fatal, or no level at all. Starting at
+		// Panic or Fatal would end the program on every plain
+		// Print.
+		return DefaultLogLevel
+	}
+}

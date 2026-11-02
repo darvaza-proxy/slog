@@ -105,6 +105,7 @@
     "Wrapf",
     "zapcore",
     "zapr",
+    "zaptest",
     "zerolog",
     "zlogger"
   ],

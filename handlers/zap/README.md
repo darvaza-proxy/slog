@@ -46,7 +46,7 @@ if err != nil {
 }
 
 // Or with zap options (e.g., for testing with a custom core)
-slogLogger, err := slogzap.New(zapConfig,
+slogLogger, err = slogzap.New(zapConfig,
     zap.WrapCore(func(core zapcore.Core) zapcore.Core {
         // Replace or wrap the core as needed
         return core
@@ -55,6 +55,13 @@ slogLogger, err := slogzap.New(zapConfig,
 if err != nil {
     panic(err)
 }
+
+// Or with the logger zap.NewProduction builds
+slogLogger = slogzap.NewProduction()
+
+// Or wrap a zap logger built elsewhere, starting at the lowest level
+// its core enables
+slogLogger = slogzap.NewWithLogger(getZapLogger()) // your existing zap logger
 
 // Use with slog interface
 slogLogger.Info().

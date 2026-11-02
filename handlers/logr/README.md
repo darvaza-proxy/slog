@@ -51,20 +51,22 @@ func main() {
 package main
 
 import (
-    "darvaza.org/slog"
+    "errors"
+
     slogzap "darvaza.org/slog/handlers/zap"
     sloglogr "darvaza.org/slog/handlers/logr"
 )
 
 func main() {
     // Create any slog.Logger
-    slogLogger := slogzap.New(nil)
+    slogLogger := slogzap.NewProduction()
 
     // Convert to logr.Logger
     logrLogger := sloglogr.NewLogr(slogLogger)
 
     // Use as normal logr.Logger
     logrLogger.Info("starting server", "port", 8080, "env", "production")
+    err := errors.New("connection refused")
     logrLogger.Error(err, "failed to connect", "host", "db.example.com")
 }
 ```
