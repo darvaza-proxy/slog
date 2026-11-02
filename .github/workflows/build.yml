@@ -33,7 +33,7 @@ jobs:
     # it for `make tidy` to check anything beyond Go.
     - uses: actions/setup-node@v7
       with:
-        node-version: '24'
+        node-version: '26'
     - uses: pnpm/action-setup@v6
       with:
         version: '11'
