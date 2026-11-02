@@ -2,10 +2,20 @@
   "extends": [
     "config:recommended"
   ],
+  "labels": [
+    "dependencies"
+  ],
+  "constraints": {
+    "%goMod": "<=1.25.x"
+  },
   "packageRules": [
     {
       "matchDatasources": ["golang-version"],
       "allowedVersions": "1.25"
+    },
+    {
+      "matchDatasources": ["go"],
+      "constraintsFiltering": "strict"
     },
     {
       "groupName": "Darvaza Projects",

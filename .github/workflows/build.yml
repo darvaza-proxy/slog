@@ -9,6 +9,10 @@ on:
       - '**-wip'
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   make:
     runs-on: ubuntu-latest
@@ -24,5 +28,19 @@ jobs:
         go-version: ${{ matrix.go-version }}
         cache: true
         cache-dependency-path: '**/go.sum'
+    # The Makefile treats cspell, markdownlint and shellcheck as optional and
+    # silently degrades them to no-ops when pnpm is absent, so CI must supply
+    # it for `make tidy` to check anything beyond Go.
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+    - uses: pnpm/action-setup@v6
+      with:
+        version: '11'
     - name: Build
       run: make
+    # make runs fmt and go mod tidy, which rewrite rather than report:
+    # gofmt, the whitespace pass, markdownlint --fix and go.mod churn
+    # would otherwise pass silently.
+    - name: Build leaves no changes
+      run: git diff --exit-code
