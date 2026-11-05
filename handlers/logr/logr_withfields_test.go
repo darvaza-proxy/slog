@@ -1,4 +1,4 @@
-package logr
+package logr_test
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr/funcr"
 
 	"darvaza.org/core"
+	sloglogr "darvaza.org/slog/handlers/logr"
 )
 
 // TestWithFieldsDoesNotModifyInput tests that WithFields doesn't modify the input map
@@ -23,7 +24,7 @@ func TestWithFieldsDoesNotModifyInput(t *testing.T) {
 		Verbosity: 2,
 	})
 
-	logger := New(logrLogger)
+	logger := sloglogr.New(logrLogger)
 
 	// Create a map with an empty key
 	fields := map[string]any{
