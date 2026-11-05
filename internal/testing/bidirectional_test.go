@@ -1,10 +1,11 @@
-package testing
+package testing_test
 
 import (
 	"testing"
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	slogtest "darvaza.org/slog/internal/testing"
 )
 
 // TestBidirectionalOptions verifies that BidirectionalTestOptions works correctly
@@ -17,7 +18,7 @@ func TestBidirectionalOptions(t *testing.T) {
 
 func testNilOptions(t *testing.T) {
 	t.Helper()
-	var opts *BidirectionalTestOptions
+	var opts *slogtest.BidirectionalTestOptions
 
 	// All levels should map to themselves with nil options
 	levels := []slog.LogLevel{
@@ -33,8 +34,8 @@ func testNilOptions(t *testing.T) {
 
 func testWithExceptions(t *testing.T) {
 	t.Helper()
-	opts := &BidirectionalTestOptions{
-		AdapterOptions: AdapterOptions{
+	opts := &slogtest.BidirectionalTestOptions{
+		AdapterOptions: slogtest.AdapterOptions{
 			LevelExceptions: map[slog.LogLevel]slog.LogLevel{
 				slog.Warn:  slog.Info, // adapter limitation mapping
 				slog.Debug: slog.Info, // no debug support
@@ -59,8 +60,8 @@ func testWithExceptions(t *testing.T) {
 
 func testEmptyExceptions(t *testing.T) {
 	t.Helper()
-	opts := &BidirectionalTestOptions{
-		AdapterOptions: AdapterOptions{
+	opts := &slogtest.BidirectionalTestOptions{
+		AdapterOptions: slogtest.AdapterOptions{
 			LevelExceptions: map[slog.LogLevel]slog.LogLevel{},
 		},
 	}
@@ -72,8 +73,8 @@ func testEmptyExceptions(t *testing.T) {
 
 func testWithUndefinedLevel(t *testing.T) {
 	t.Helper()
-	opts := &BidirectionalTestOptions{
-		AdapterOptions: AdapterOptions{
+	opts := &slogtest.BidirectionalTestOptions{
+		AdapterOptions: slogtest.AdapterOptions{
 			LevelExceptions: map[slog.LogLevel]slog.LogLevel{
 				slog.Warn:  slog.UndefinedLevel, // Skip Warn messages
 				slog.Debug: slog.UndefinedLevel, // Skip Debug messages
@@ -114,15 +115,15 @@ func testMockAdapterWithOptions(t *testing.T) {
 	}
 
 	// This should pass with the correct options
-	opts := &BidirectionalTestOptions{
-		AdapterOptions: AdapterOptions{
+	opts := &slogtest.BidirectionalTestOptions{
+		AdapterOptions: slogtest.AdapterOptions{
 			LevelExceptions: map[slog.LogLevel]slog.LogLevel{
 				slog.Warn: slog.Info,
 			},
 		},
 	}
 
-	TestBidirectionalWithOptions(t, "MockAdapter", mockAdapter, opts)
+	slogtest.TestBidirectionalWithOptions(t, "MockAdapter", mockAdapter, opts)
 }
 
 // levelMappingLogger is a test logger that maps levels
@@ -215,7 +216,7 @@ func (tc testBidirectionalFunctionTestCase) Test(t *testing.T) {
 		}
 	}()
 
-	TestBidirectional(t, "test-adapter", tc.adapterFn)
+	slogtest.TestBidirectional(t, "test-adapter", tc.adapterFn)
 
 	// Note: This function may fail in its subtests, but that's okay for coverage testing
 }
@@ -269,7 +270,7 @@ func (tc testBidirectionalWithAdapterTestCase) Test(t *testing.T) {
 		}
 	}()
 
-	TestBidirectionalWithAdapter(mock, "test-factory", tc.adapterFactory)
+	slogtest.TestBidirectionalWithAdapter(mock, "test-factory", tc.adapterFactory)
 
 	// Function executed without panic - test passed
 }
@@ -288,7 +289,7 @@ func testBidirectionalWithAdapterTestCases() []testBidirectionalWithAdapterTestC
 		newTestBidirectionalWithAdapterTestCase("simple factory",
 			func() slog.Logger {
 				// Create a logger with recording capability for bidirectional testing
-				return NewLogger()
+				return slogtest.NewLogger()
 			},
 			false),
 	}
