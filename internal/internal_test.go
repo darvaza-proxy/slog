@@ -4,11 +4,15 @@ import (
 	"testing"
 
 	"darvaza.org/core"
+	"darvaza.org/slog"
 	"darvaza.org/slog/internal"
 )
 
 // Compile-time verification that test case types implement TestCase interface
-var _ core.TestCase = hasFieldsTestCase{}
+var (
+	_ core.TestCase = hasFieldsTestCase{}
+	_ core.TestCase = isTerminalLevelTestCase{}
+)
 
 func TestHasFields(t *testing.T) {
 	t.Run("EmptyMap", testHasFieldsEmpty)
@@ -134,4 +138,51 @@ func testHasFieldsUnicodeKeys(t *testing.T) {
 	}
 
 	core.AssertTrue(t, internal.HasFields(fields), "HasFields with unicode keys")
+}
+
+// isTerminalLevelTestCase tests IsTerminalLevel on one level.
+type isTerminalLevelTestCase struct {
+	name  string
+	level slog.LogLevel
+	want  bool
+}
+
+func (tc isTerminalLevelTestCase) Name() string {
+	return tc.name
+}
+
+func (tc isTerminalLevelTestCase) Test(t *testing.T) {
+	core.AssertEqual(t, tc.want, internal.IsTerminalLevel(tc.level), "terminal")
+}
+
+func newIsTerminalLevelTestCase(name string, level slog.LogLevel, want bool) isTerminalLevelTestCase {
+	return isTerminalLevelTestCase{
+		name:  name,
+		level: level,
+		want:  want,
+	}
+}
+
+func newTerminalLevelTestCase(name string, level slog.LogLevel) isTerminalLevelTestCase {
+	return newIsTerminalLevelTestCase(name, level, true)
+}
+
+func newNonTerminalLevelTestCase(name string, level slog.LogLevel) isTerminalLevelTestCase {
+	return newIsTerminalLevelTestCase(name, level, false)
+}
+
+func TestIsTerminalLevel(t *testing.T) {
+	testCases := []core.TestCase{
+		newTerminalLevelTestCase("Panic", slog.Panic),
+		newTerminalLevelTestCase("Fatal", slog.Fatal),
+		newNonTerminalLevelTestCase("UndefinedLevel", slog.UndefinedLevel),
+		newNonTerminalLevelTestCase("Error", slog.Error),
+		newNonTerminalLevelTestCase("Warn", slog.Warn),
+		newNonTerminalLevelTestCase("Info", slog.Info),
+		newNonTerminalLevelTestCase("Debug", slog.Debug),
+		newNonTerminalLevelTestCase("BelowUndefinedLevel", -1),
+		newNonTerminalLevelTestCase("AboveDebug", 7),
+	}
+
+	core.RunTestCases(t, testCases)
 }

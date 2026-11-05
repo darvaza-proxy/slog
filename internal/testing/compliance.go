@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/internal"
 )
 
 // TestCase interface validation
@@ -107,7 +108,7 @@ func (ct ComplianceTest) testSingleLevelMethod(t *testing.T,
 	method func(slog.Logger) slog.Logger, level slog.LogLevel) {
 	t.Helper()
 
-	if ct.SkipPanicTests && (level == slog.Panic || level == slog.Fatal) {
+	if ct.SkipPanicTests && internal.IsTerminalLevel(level) {
 		t.Skip("Skipping panic/fatal test")
 	}
 
