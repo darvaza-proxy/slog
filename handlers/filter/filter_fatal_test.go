@@ -1,4 +1,4 @@
-package filter
+package filter_test
 
 import (
 	"os"
@@ -8,6 +8,7 @@ import (
 
 	"darvaza.org/core"
 	"darvaza.org/slog"
+	"darvaza.org/slog/handlers/filter"
 )
 
 // TestParentlessFatalExit tests Fatal() with parentless logger which calls os.Exit(1)
@@ -16,7 +17,7 @@ func TestParentlessFatalExit(t *testing.T) {
 	// Check if we're in the subprocess
 	if val, _ := os.LookupEnv("TEST_FATAL_SUBPROCESS"); val == "1" {
 		// We're in the subprocess - run the code that will exit
-		logger := NewNoop() // Creates parentless logger with Fatal threshold
+		logger := filter.NewNoop() // Creates parentless logger with Fatal threshold
 		entry := logger.Fatal()
 		entry.Print("fatal message") // This will call os.Exit(1)
 		return                       // Should never reach here
@@ -49,7 +50,7 @@ func TestParentlessFatalWithFields(t *testing.T) {
 	// Check if we're in the subprocess
 	if val, _ := os.LookupEnv("TEST_FATAL_FIELDS_SUBPROCESS"); val == "1" {
 		// We're in the subprocess - run the code that will exit
-		logger := New(nil, slog.Fatal) // Parentless logger
+		logger := filter.New(nil, slog.Fatal) // Parentless logger
 		entry := logger.Fatal().
 			WithField("code", 500).
 			WithField("error", "critical failure")
@@ -82,7 +83,7 @@ func TestParentlessFatalWithFields(t *testing.T) {
 // TestFatalBehaviourVerification verifies Fatal level behaviour without actually exiting
 func TestFatalBehaviourVerification(t *testing.T) {
 	// Test that Fatal level is always enabled for parentless logger
-	logger := NewNoop()
+	logger := filter.NewNoop()
 	entry := logger.Fatal()
 	core.AssertTrue(t, entry.Enabled(), "Fatal always enabled for parentless")
 
@@ -92,7 +93,7 @@ func TestFatalBehaviourVerification(t *testing.T) {
 	core.AssertNotNil(t, enabledEntry, "Fatal WithEnabled returns entry")
 
 	// Test that Fatal level passes threshold check
-	logger2 := New(nil, slog.Error) // Sets to Fatal for nil parent
+	logger2 := filter.New(nil, slog.Error) // Sets to Fatal for nil parent
 	entry2 := logger2.Fatal()
 	core.AssertTrue(t, entry2.Enabled(), "Fatal enabled even with Error threshold")
 }

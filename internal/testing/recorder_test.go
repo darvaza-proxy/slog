@@ -1,10 +1,11 @@
-package testing
+package testing_test
 
 import (
 	"testing"
 
 	"darvaza.org/core"
 	"darvaza.org/slog/handlers/mock"
+	slogtest "darvaza.org/slog/internal/testing"
 )
 
 // Compile-time verification that test case types implement TestCase interface
@@ -24,7 +25,7 @@ func (tc recorderFactoryTestCase) Name() string {
 func (tc recorderFactoryTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	recorder := NewRecorder()
+	recorder := slogtest.NewRecorder()
 
 	if !tc.expectNonNil {
 		core.AssertNil(t, recorder, "recorder")
@@ -46,7 +47,7 @@ func (tc recorderFactoryTestCase) Test(t *testing.T) {
 	}
 
 	// Test uniqueness - each call creates fresh instance
-	recorder2 := NewRecorder()
+	recorder2 := slogtest.NewRecorder()
 	core.AssertNotEqual(t, recorder, recorder2, "each call creates new instance")
 }
 
@@ -86,7 +87,7 @@ func (tc loggerFactoryTestCase) Name() string {
 func (tc loggerFactoryTestCase) Test(t *testing.T) {
 	t.Helper()
 
-	logger := NewLogger()
+	logger := slogtest.NewLogger()
 
 	if !tc.expectNonNil {
 		core.AssertNil(t, logger, "logger")
@@ -109,7 +110,7 @@ func (tc loggerFactoryTestCase) Test(t *testing.T) {
 	}
 
 	// Test uniqueness - each call creates fresh instance
-	logger2 := NewLogger()
+	logger2 := slogtest.NewLogger()
 	core.AssertNotEqual(t, logger, logger2, "each call creates new instance")
 }
 
