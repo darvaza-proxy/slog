@@ -59,7 +59,7 @@ func (l *Logger) Enabled() bool {
 			l.loglet.Level())
 	}
 
-	if ll := l.loglet.Level(); ll >= slog.Panic && ll <= slog.Fatal {
+	if internal.IsTerminalLevel(l.loglet.Level()) {
 		return true
 	}
 	return l.handler.Enabled(context.Background(), level)

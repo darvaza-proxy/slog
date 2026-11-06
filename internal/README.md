@@ -357,3 +357,17 @@ hasValid := internal.HasFields(fields)  // true - has "valid" key
 
 This is used internally by `WithFields()` to avoid creating loglets for
 maps that contain only empty keys.
+
+### IsTerminalLevel()
+
+Utility function to check if a level is Fatal or Panic, the levels whose
+entries end in an exit or a panic:
+
+```go
+internal.IsTerminalLevel(slog.Panic)          // true
+internal.IsTerminalLevel(slog.Error)          // false
+internal.IsTerminalLevel(slog.UndefinedLevel) // false
+```
+
+A handler can use it to report those levels as enabled whatever its
+backend's filter, so their entries still exit or panic.

@@ -5,7 +5,6 @@ import (
 	"io"
 	stdslog "log/slog"
 	"os"
-	"os/exec"
 	"testing"
 
 	"darvaza.org/core"
@@ -23,6 +22,15 @@ var _ core.TestCase = loggerEnabledTestCase{}
 func newTestLoggerAt(level stdslog.Level) slog.Logger {
 	h := stdslog.NewTextHandler(io.Discard, &stdslog.HandlerOptions{
 		Level: level,
+	})
+	return slogstdslog.NewWithHandler(h)
+}
+
+// newRejectingLogger creates an adaptor over a stdlib text handler that
+// writes to w and rejects every level.
+func newRejectingLogger(w io.Writer) slog.Logger {
+	h := stdslog.NewTextHandler(w, &stdslog.HandlerOptions{
+		Level: stdslog.LevelError + 16,
 	})
 	return slogstdslog.NewWithHandler(h)
 }
@@ -234,10 +242,7 @@ func TestPanicPrint(t *testing.T) {
 // filter — and panics, even when the backend rejects everything.
 func TestPanicDisabledBackend(t *testing.T) {
 	var buf bytes.Buffer
-	h := stdslog.NewTextHandler(&buf, &stdslog.HandlerOptions{
-		Level: stdslog.LevelError + 16,
-	})
-	logger := slogstdslog.NewWithHandler(h)
+	logger := newRejectingLogger(&buf)
 
 	core.AssertPanic(t, func() {
 		logger.Panic().Print("boom")
@@ -282,41 +287,14 @@ func errorString(payload any) string {
 	return ""
 }
 
-// fatalExitEnv marks the re-executed child in TestFatalExit.
-const fatalExitEnv = "SLOG_STDSLOG_TEST_FATAL_EXIT"
-
-// TestFatalExit re-executes the test binary so the child process can
-// really exit: Fatal must deliver the record — bypassing the backend
-// filter — and then exit with status 1.
+// TestFatalExit pins the terminal contract on Print: a Fatal entry
+// still delivers its record — bypassing the backend filter — and exits
+// with status 1, even when the backend rejects everything. It exits in
+// a child process, through slogtest.AssertFatalExit.
 func TestFatalExit(t *testing.T) {
-	if os.Getenv(fatalExitEnv) == "1" {
-		runFatalExitChild()
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run=^TestFatalExit$")
-	cmd.Env = append(os.Environ(), fatalExitEnv+"=1")
-	out, err := cmd.Output()
-
-	exitErr := core.AssertMustTypeIs[*exec.ExitError](t, err, "exit error")
-	core.AssertEqual(t, 1, exitErr.ExitCode(), "exit status")
-	core.AssertContains(t, string(out), "fatal boom", "record delivered")
-}
-
-// runFatalExitChild exercises Fatal in the re-executed child. The
-// backend filter rejects everything; delivery must happen anyway,
-// then exit(1). The fallback exit code marks a broken contract.
-func runFatalExitChild() {
-	h := stdslog.NewTextHandler(os.Stdout, &stdslog.HandlerOptions{
-		Level: stdslog.LevelError + 16,
-	})
-	logger := slogstdslog.NewWithHandler(h)
-	logger.Fatal().Print("fatal boom")
-
-	// unreachable while Fatal honours the terminal contract
-	// revive:disable:deep-exit
-	os.Exit(3)
-	// revive:enable:deep-exit
+	slogtest.AssertFatalExit(t, func() {
+		newRejectingLogger(os.Stdout).Fatal().Print("fatal boom")
+	}, "fatal boom")
 }
 
 // TestAttrsSortedOrder pins field emission in sorted key order,

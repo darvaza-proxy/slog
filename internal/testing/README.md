@@ -23,6 +23,8 @@ The testing package includes:
   stability
 - **Bidirectional Testing** - Support for adapters that convert between
   logging libraries
+- **Subprocess Testing** - Helpers that run code ending the program,
+  such as Fatal, in a child process
 - **Options Architecture** - Flexible configuration for different handler
   capabilities
 
@@ -163,6 +165,45 @@ func TestBidirectionalHandlerCompliance(t *testing.T) {
 }
 ```
 
+### Testing Fatal and Panic
+
+A handler is expected to end the program on Fatal and Panic, whatever
+its backend enables, so each handler tests them in test functions of its
+own, one per level, rather than through the compliance suite. Where the
+handler has a backend, the tests give it one that rejects every level,
+so they show the terminal levels don't depend on it.
+
+Fatal exits, so `AssertFatalExit` runs it in a child process through
+`RunInSubprocess`, and expects exit status 1 with the message in the
+child's output. The child runs the test again up to the call, so the
+call comes first in its test. Panic stays in the test's own process,
+through `core.AssertPanic`:
+
+```go
+import (
+    "os"
+    "testing"
+
+    "darvaza.org/core"
+    slogtest "darvaza.org/slog/internal/testing"
+)
+
+func TestFatal(t *testing.T) {
+    slogtest.AssertFatalExit(t, func() {
+        // a backend that writes to standard error and rejects every level
+        logger := myhandler.New(newRejectingBackend(os.Stderr))
+        logger.Fatal().Print("fatal message")
+    }, "fatal message")
+}
+
+func TestPanic(t *testing.T) {
+    logger := myhandler.New(newRejectingBackend(os.Stderr))
+    core.AssertPanic(t, func() {
+        logger.Panic().Print("panic message")
+    }, "panic message", "Panic")
+}
+```
+
 ### Running Stress Tests
 
 For performance and stability testing:
@@ -295,6 +336,8 @@ func TestAdapterWithLevelFiltering(t *testing.T) {
   expected value in a bare fields map
 - `AssertNoField(t, msg, key)` - Verifies a field does not exist
 - `AssertMessageCount(t, messages, count)` - Verifies the number of messages
+- `AssertFatalExit(t, fn, text)` - Verifies that `fn` exits with status 1,
+  with `text` in its output, in a child process through `RunInSubprocess`
 
 ### Test Functions
 
@@ -373,6 +416,11 @@ type StressTestSuite struct {
 - `RunWithLogger(t, name, logger, fn)` - Run subtest with logger
 - `RunWithLoggerFactory(t, name, newLogger, fn)` - Run subtest with fresh
   logger
+- `RunInSubprocess(t, fn) (status, output)` - Run `fn` in a child process
+  that runs the test again, and return its exit status and combined
+  output
+  - The child exits with status 3 if `fn` returns
+  - The call comes first in its test
 
 ## Options Architecture
 
