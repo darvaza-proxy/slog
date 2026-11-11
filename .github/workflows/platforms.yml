@@ -35,7 +35,7 @@ jobs:
     - uses: actions/checkout@v7
     - uses: actions/setup-go@v7
       with:
-        go-version: '1.26'
+        go-version: '1.27'
         cache: true
         cache-dependency-path: '**/go.sum'
     # make vet compiles every module's packages and tests for the target
@@ -74,7 +74,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26'
+        go-version: '1.27'
         cache: true
         cache-dependency-path: '**/go.sum'
     - name: Run tests with race detection
@@ -136,7 +136,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26'
+        go-version: '1.27'
         cache: true
         cache-dependency-path: '**/go.sum'
     # macOS ships BSD userland; the build scripts need the GNU variants.
