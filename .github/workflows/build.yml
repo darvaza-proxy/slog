@@ -36,7 +36,7 @@ jobs:
         node-version: '24'
     - uses: pnpm/action-setup@v6
       with:
-        version: '11'
+        version: '12'
     - name: Build
       run: make
     # make runs fmt and go mod tidy, which rewrite rather than report:
